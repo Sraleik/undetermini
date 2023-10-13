@@ -2,14 +2,13 @@ import dotenv from "dotenv";
 import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 import { StructuredOutputParser } from "langchain/output_parsers";
-import { z } from "zod";
 import { encodingForModel } from "js-tiktoken";
 import { LLM_MODEL_INFO, LLM_MODEL_NAME } from "./undetermini";
 import { ulid } from "ulidx";
 
 dotenv.config();
 
-export class GetCandidate {
+export class GetCandidateSimpleSchema {
   private heliconeApiKey = process.env.HELICONE_API_KEY;
   private openAIApiKey = process.env.OPEN_AI_API_KEY;
   private model: OpenAI;
@@ -27,7 +26,7 @@ export class GetCandidate {
           headers: {
             "Helicone-Auth": `Bearer ${this.heliconeApiKey}`,
             "Helicone-Property-Undetermini-Test": ulid(),
-            "Helicone-Property-Schema": "zod"
+            "Helicone-Property-Schema": "simple"
           }
         }
       }
@@ -49,14 +48,12 @@ export class GetCandidate {
 			`
     );
 
-    const parser = StructuredOutputParser.fromZodSchema(
-      z.object({
-        firstname: z.string().describe("the firstname of the candidate"),
-        lastname: z.string().describe("the lastname of the candidate"),
-        age: z.number().describe("the age of the candidate"),
-        profession: z.string().describe("the profession of the candidate")
-      })
-    );
+    const parser = StructuredOutputParser.fromNamesAndDescriptions({
+      firstname: "the firstname of the candidate",
+      lastname: "the lastname of the candidate",
+      age: "the age of the candidate",
+      profession: "the profession of the candidate"
+    });
     const chain = promptTemplate.pipe(this.model).pipe(parser);
 
     let priceInCents = 0;

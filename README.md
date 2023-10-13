@@ -62,6 +62,7 @@ Feel free to start/join a discussion, issues or Pull requests.
 - [ ] display who si cheapest and by how much 
 - [ ] display who is most accurate and by how much 
 - [ ] display who is fastest and by how much 
+- [ ] give accuracy fonction as a parameter 
 
 
 ### Documentation

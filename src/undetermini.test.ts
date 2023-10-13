@@ -1,5 +1,6 @@
 import { LLM_MODEL_NAME, Undetermini } from "./undetermini";
 import { GetCandidate } from "./GetCandidate";
+import { GetCandidateSimpleSchema } from "./GetCandidateSimpleSchema";
 
 const undetermini = new Undetermini();
 
@@ -11,6 +12,18 @@ const gpt4useCase = gpt4GetCandidate.execute.bind(gpt4GetCandidate);
 
 const gpt3GetCandidate = new GetCandidate("gpt-3.5-turbo-0613");
 const gpt3useCase = gpt4GetCandidate.execute.bind(gpt3GetCandidate);
+
+const gpt4GetCandidateSimpleSchema = new GetCandidateSimpleSchema("gpt-4-0613");
+const gpt4SimpleSchemaUseCase = gpt4GetCandidate.execute.bind(
+  gpt4GetCandidateSimpleSchema
+);
+
+const gpt3GetCandidateSimpleSchema = new GetCandidateSimpleSchema(
+  "gpt-3.5-turbo-0613"
+);
+const gpt3SimpleSchemaUseCase = gpt4GetCandidate.execute.bind(
+  gpt3GetCandidateSimpleSchema
+);
 
 it(
   "should return the latency of use-case",
@@ -30,14 +43,24 @@ it(
       useCaseInput,
       useCases: [
         {
-          name: "GetCandidate (gpt-4-0613)",
+          name: "GetCandidateZod (gpt-4-0613)",
           execute: gpt4useCase,
           modelName: LLM_MODEL_NAME.GPT_4_0613
         },
         {
-          name: "GetCandidate (gpt-3.5-0613)",
+          name: "GetCandidateZod (gpt-3.5-0613)",
           execute: gpt3useCase,
           modelName: LLM_MODEL_NAME.GPT_3_0613
+        },
+        {
+          name: "GetCandidateSimpleSchema (gpt-3.5-0613)",
+          execute: gpt3SimpleSchemaUseCase,
+          modelName: LLM_MODEL_NAME.GPT_3_0613
+        },
+        {
+          name: "GetCandidateSimpleSchema (gpt-4-0613)",
+          execute: gpt4SimpleSchemaUseCase,
+          modelName: LLM_MODEL_NAME.GPT_4_0613
         }
       ],
       expectedUseCaseOutput: {
