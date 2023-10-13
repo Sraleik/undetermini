@@ -120,10 +120,6 @@ export class Undetermini {
 
     if (canParralelizeAll) {
       const promises: Promise<SingleRunResult>[] = [];
-      console.log(
-        "🚀 ~ file: undetermini.ts:124 ~ Undetermini ~ canParralelizeAll:",
-        useCase.name
-      );
 
       for (let i = 0; i < (times || 1); i++) {
         promises.push(
@@ -136,10 +132,6 @@ export class Undetermini {
       }
 
       const results = await Promise.all(promises);
-      console.log(
-        "🚀 ~ file: undetermini.ts:139 ~ Undetermini ~ results:",
-        results
-      );
       const totals = results.reduce(
         (acc, singleRunResult) => {
           acc.accuracy += singleRunResult.accuracy;
@@ -152,10 +144,6 @@ export class Undetermini {
           accuracy: 0,
           cost: 0
         }
-      );
-      console.log(
-        "🚀 ~ file: undetermini.ts:153 ~ Undetermini ~ totals:",
-        totals
       );
 
       res = {
@@ -207,15 +195,38 @@ export class Undetermini {
 
     const results: MultipleRunResult[] = [];
 
-    for (const useCase of useCases) {
-      const result = await this.runUseCaseMultipleTime({
-        useCaseInput,
-        useCase,
-        expectedUseCaseOutput,
-        times
-      });
-      results.push(result);
-    }
+    const useCasesPerModel = useCases.reduce(
+      (acc, useCase) => {
+        const currentModelUseCases = acc[useCase.modelName];
+        acc[useCase.modelName] = currentModelUseCases
+          ? [...currentModelUseCases, useCase]
+          : [useCase];
+        return acc;
+      },
+      {} as Record<LLM_MODEL_NAME, UseCase<T>[]>
+    );
+
+    const useCasesPerModelToRunInParallel = Object.values(useCasesPerModel);
+    const promisePerModel = useCasesPerModelToRunInParallel.map(
+      async (useCasesToRunInSync) => {
+        for (const useCase of useCasesToRunInSync) {
+          console.log(
+            "🚀 ~ file: undetermini.ts:213 ~ Undetermini ~ useCase:",
+            useCase.modelName
+          );
+          const result = await this.runUseCaseMultipleTime({
+            useCaseInput,
+            useCase,
+            expectedUseCaseOutput,
+            times
+          });
+          results.push(result);
+        }
+      }
+    );
+
+    await Promise.all(promisePerModel);
+
     return results;
   }
 }

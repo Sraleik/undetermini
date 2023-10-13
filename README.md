@@ -59,6 +59,9 @@ Feel free to start/join a discussion, issues or Pull requests.
 
 - [ ] use https://www.npmjs.com/package/console-table-printer for display 
 - [ ] improve price calculation (do not use float) 
+- [ ] display who si cheapest and by how much 
+- [ ] display who is most accurate and by how much 
+- [ ] display who is fastest and by how much 
 
 
 ### Documentation
