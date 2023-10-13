@@ -58,6 +58,7 @@ Feel free to start/join a discussion, issues or Pull requests.
 ### Feature
 
 - [ ] use https://www.npmjs.com/package/console-table-printer for display 
+- [ ] improve price calculation (do not use float) 
 
 
 ### Documentation

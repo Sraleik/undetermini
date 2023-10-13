@@ -4,6 +4,7 @@ import { PromptTemplate } from "langchain/prompts";
 import { StructuredOutputParser } from "langchain/output_parsers";
 import { z } from "zod";
 import { encodingForModel } from "js-tiktoken";
+import { LLM_MODEL_INFO, LLM_MODEL_NAME } from "./undetermini";
 
 dotenv.config();
 
@@ -12,13 +13,8 @@ export class GetCandidate {
   private openAIApiKey = process.env.OPEN_AI_API_KEY;
   private model: OpenAI;
 
-  private LLM_PRICE = {
-    "gpt-4-0613": { input1kToken: 3, output1kToken: 6 },
-    "gpt-3.5-turbo-0613": { input1kToken: 0.15, output1kToken: 0.2 }
-  };
-
   //TODO inject an interface instead of implementation
-  constructor(private openAiModelName: string) {
+  constructor(private openAiModelName: LLM_MODEL_NAME) {
     this.model = new OpenAI(
       {
         modelName: this.openAiModelName,
@@ -61,7 +57,7 @@ export class GetCandidate {
     const chain = promptTemplate.pipe(this.model).pipe(parser);
 
     let priceInCents = 0;
-    const enc = encodingForModel("gpt-4-0613");
+    const enc = encodingForModel(this.openAiModelName);
 
     const result = await chain.invoke(
       {
@@ -76,7 +72,7 @@ export class GetCandidate {
                   const inputTokenCount = enc.encode(prompts[0]).length;
                   priceInCents =
                     (inputTokenCount *
-                      this.LLM_PRICE[this.openAiModelName].input1kToken) /
+                      LLM_MODEL_INFO[this.openAiModelName].price.input1kToken) /
                     1000;
                 },
                 handleLLMEnd: (output) => {
@@ -87,7 +83,7 @@ export class GetCandidate {
                   priceInCents =
                     priceInCents +
                     (outputTokenCount *
-                      this.LLM_PRICE[this.openAiModelName].input1kToken) /
+                      LLM_MODEL_INFO[this.openAiModelName].price.input1kToken) /
                       1000;
                 }
               }

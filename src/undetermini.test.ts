@@ -1,4 +1,4 @@
-import { Undetermini } from "./undetermini";
+import { LLM_MODEL_NAME, Undetermini } from "./undetermini";
 import { GetCandidate } from "./GetCandidate";
 
 const undetermini = new Undetermini();
@@ -29,8 +29,16 @@ it(
       times,
       useCaseInput,
       useCases: [
-        { name: "GetCandidate (gpt-4-0613)", execute: gpt4useCase },
-        { name: "GetCandidate (gpt-3.5-0613)", execute: gpt3useCase }
+        {
+          name: "GetCandidate (gpt-4-0613)",
+          execute: gpt4useCase,
+          modelName: LLM_MODEL_NAME.GPT_4_0613
+        },
+        {
+          name: "GetCandidate (gpt-3.5-0613)",
+          execute: gpt3useCase,
+          modelName: LLM_MODEL_NAME.GPT_3_0613
+        }
       ],
       expectedUseCaseOutput: {
         firstname: "Nicolas",
@@ -40,7 +48,7 @@ it(
       }
     });
 
-    console.log(`Use case have been run ${times}`);
+    console.log(`Use case have been run x${times} times`);
     console.table(output);
 
     expect(true).toBe(true);
