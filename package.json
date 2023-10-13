@@ -19,8 +19,8 @@
     "url": "https://github.com/sraleik/undetermini/issues"
   },
   "keywords": [
-    "event-sourcing",
-    "postgres"
+    "llm",
+    "testing"
   ],
   "engines": {
     "node": ">=18.0.0"
