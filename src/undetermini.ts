@@ -1,5 +1,11 @@
 export type UseCaseFunction<T> = (payload: T) => Promise<Record<string, any>>;
 export type Output = Record<string, any>;
+export type MultipleRunResult = {
+  name: string;
+  averageLatency: number;
+  averageAccuracy: number;
+  averageCost: number;
+};
 
 export class Undetermini {
   constructor() {}
@@ -41,7 +47,7 @@ export class Undetermini {
     return { latency, accuracy };
   }
 
-  async run<T = any>(payload: {
+  async runUseCaseMultipleTime<T = any>(payload: {
     useCaseInput: T;
     useCase: { name: string; execute: UseCaseFunction<T> };
     expectedUseCaseOutput: Record<string, any>;
@@ -65,14 +71,34 @@ export class Undetermini {
     const averageAccuracy = totalAccuracy / (times || 1);
 
     const cost = Math.random() * (0.15 - 0.01) + 0.01;
-    const costString = cost.toFixed(2);
-    return [
-      {
-        name: useCase.name,
-        averageLatency,
-        averageAccuracy,
-        averageCost: costString
-      }
-    ];
+
+    return {
+      name: useCase.name,
+      averageLatency,
+      averageAccuracy,
+      averageCost: cost
+    } as MultipleRunResult;
+  }
+
+  // Run UseCases
+  async run<T = any>(payload: {
+    useCaseInput: T;
+    useCases: { name: string; execute: UseCaseFunction<T> }[];
+    expectedUseCaseOutput: Record<string, any>;
+    times?: number;
+  }) {
+    const { useCases, useCaseInput, expectedUseCaseOutput, times } = payload;
+
+    const results: MultipleRunResult[] = [];
+    for (const useCase of useCases) {
+      const result = await this.runUseCaseMultipleTime({
+        useCaseInput,
+        useCase,
+        expectedUseCaseOutput,
+        times
+      });
+      results.push(result);
+    }
+    return results;
   }
 }

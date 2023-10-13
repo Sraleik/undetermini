@@ -2,32 +2,44 @@ import { Undetermini, UseCaseFunction } from "./undetermini";
 const undetermini = new Undetermini();
 
 type GetCandidatePayload = { pdfAsText: string };
-const getCandidate: UseCaseFunction<GetCandidatePayload> = (
-  payload: GetCandidatePayload
-) => {
-  return new Promise((resolve) => {
-    const between100to1000ms = Math.random() * (1000 - 100) + 100;
-    const isAccurate = Math.random() < 0.75;
 
-    setTimeout(() => {
-      resolve(
-        isAccurate
-          ? {
-              firstname: "Nicolas",
-              lastname: "Rotier",
-              age: 32,
-              profession: "Software Engineer"
-            }
-          : {
-              firstname: "Wrong",
-              lastname: "Wrong",
-              age: 0,
-              profession: "Wrong"
-            }
-      );
-    }, between100to1000ms);
-  });
+const getCandidateFactory = (
+  latencyRangeInMs: { min: number; max: number },
+  accuracyInPercentage: number
+) => {
+  const getCandidate: UseCaseFunction<GetCandidatePayload> = (
+    payload: GetCandidatePayload
+  ) => {
+    return new Promise((resolve) => {
+      const latency =
+        Math.random() * (latencyRangeInMs.max - latencyRangeInMs.min) +
+        latencyRangeInMs.min;
+      const isAccurate = Math.random() < accuracyInPercentage / 100;
+
+      setTimeout(() => {
+        resolve(
+          isAccurate
+            ? {
+                firstname: "Nicolas",
+                lastname: "Rotier",
+                age: 32,
+                profession: "Software Engineer"
+              }
+            : {
+                firstname: "Wrong",
+                lastname: "Wrong",
+                age: 0,
+                profession: "Wrong"
+              }
+        );
+      }, latency);
+    });
+  };
+  return getCandidate;
 };
+
+const slowAndInaccurate = getCandidateFactory({ min: 100, max: 200 }, 33);
+const fastAndAccurate = getCandidateFactory({ min: 10, max: 50 }, 88);
 
 it("should return the latency of use-case", async () => {
   const useCaseInput = {
@@ -43,7 +55,10 @@ it("should return the latency of use-case", async () => {
   const output = await undetermini.run<typeof useCaseInput>({
     times: 50,
     useCaseInput,
-    useCase: { name: "GetCandidate (Basic)", execute: getCandidate },
+    useCases: [
+      { name: "GetCandidate (Slow & Inaccurate)", execute: slowAndInaccurate },
+      { name: "GetCandidate (Fast & Accurate)", execute: fastAndAccurate }
+    ],
     expectedUseCaseOutput: {
       firstname: "Nicolas",
       lastname: "Rotier",
