@@ -1,0 +1,160 @@
+name: New release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        type: choice
+        required: true
+        default: patch
+        description: Type of version bump
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: |
+          echo "YARN_CACHE_FOLDER=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
+          echo "YARN_CACHE_FOLDER=$(yarn cache dir)"
+
+      - name: Cache node modules
+        id: cache-yarn
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.YARN_CACHE_FOLDER }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: 
+            ${{ runner.os }}-yarn-${{ env.cache-name }}-
+            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run tests
+        run: yarn run test:unit
+
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: |
+          echo "YARN_CACHE_FOLDER=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
+          echo "YARN_CACHE_FOLDER=$(yarn cache dir)"
+
+      - name: Cache node modules
+        id: cache-yarn
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.YARN_CACHE_FOLDER }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: 
+            ${{ runner.os }}-yarn-${{ env.cache-name }}-
+            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run tests
+        run: yarn run bench
+
+  bump-version-and-publish:
+    runs-on: ubuntu-latest
+    needs: [unit-test, benchmark]
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: |
+          echo "YARN_CACHE_FOLDER=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
+          echo "YARN_CACHE_FOLDER=$(yarn cache dir)"
+
+      - name: Cache node modules
+        id: cache-yarn
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.YARN_CACHE_FOLDER }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: 
+            ${{ runner.os }}-yarn-${{ env.cache-name }}-
+            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-
+
+      - name: Bump version
+        id: bump-version
+        run: |      
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          npm version ${{ github.event.inputs.release-type }} -m "Bump version to %s"
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build library
+        run: yarn run build
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push bump 
+        run: |      
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git pull --rebase
+          git push
+
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        with:
+          tag_name: ${{ steps.bump-version.outputs.NEW_VERSION }}
+          release_name: Release v${{ steps.bump-version.outputs.NEW_VERSION }}
+          body: New release of the project.
+          draft: false
+          prerelease: false

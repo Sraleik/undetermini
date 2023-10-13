@@ -1,0 +1,27 @@
+{
+  "out": "./docs",
+  "entryPoints": ["./src/index.ts"],
+  "gitRevision": "main",
+  "name": "Undetermini",
+  "plugin": ["@knodes/typedoc-plugin-pages"],
+  "pluginPages": {
+    "pages": [
+      {
+        "name": "Undetermini",
+        "moduleRoot": true,
+        "children": [
+          {
+            "name": "Tutorial",
+            "childrenDir": "tutorial",
+            "children": [
+              {
+                "name": "Simple Command Testing",
+                "source": "simple-command.md"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

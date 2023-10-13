@@ -1,0 +1,30 @@
+// vite.config.ts
+import { resolve } from "path";
+import { defineConfig } from "vite";
+import dts from "vite-plugin-dts";
+
+// https://vitejs.dev/guide/build.html#library-mode
+export default defineConfig({
+  build: {
+    lib: {
+      entry: resolve(__dirname, "src/index.ts"),
+      name: "undetermini",
+      fileName: "undetermini",
+      formats: ["es", "umd", "iife", "cjs"]
+    },
+    rollupOptions: {
+      // make sure to externalize deps that shouldn't be bundled
+      // into your library
+      // external: ["postgres", "ulidx"],
+      // output: {
+      //   // Provide global variables to use in the UMD build
+      //   // for externalized deps
+      //   globals: {
+      //     postgres: "Postgres",
+      //     ulidx: "Ulidx"
+      //   }
+      // }
+    }
+  },
+  plugins: [dts()]
+});
