@@ -1,4 +1,7 @@
-export type UseCaseFunction<T> = (payload: T) => Promise<Record<string, any>>;
+export type UseCaseFunction<T> = (
+  payload: T,
+  handleCost?: (cost: number) => unknown
+) => Promise<Record<string, any>>;
 export type Output = Record<string, any>;
 export type MultipleRunResult = {
   name: string;
@@ -38,13 +41,16 @@ export class Undetermini {
   }) {
     const { useCase, useCaseInput, expectedUseCaseOutput } = payload;
 
+    let costOfThisRun = 0;
     const startTime = Date.now();
-    const output = await useCase(useCaseInput);
+    const output = await useCase(useCaseInput, async (cost: number) => {
+      costOfThisRun = cost;
+    });
     const endTime = Date.now();
 
     const latency = endTime - startTime;
     const accuracy = this.computeAccuracyDefault(expectedUseCaseOutput, output);
-    return { latency, accuracy };
+    return { latency, accuracy, cost: costOfThisRun };
   }
 
   async runUseCaseMultipleTime<T = any>(payload: {
@@ -57,6 +63,7 @@ export class Undetermini {
 
     let totalLatency = 0;
     let totalAccuracy = 0;
+    let totalCost = 0;
 
     for (let i = 0; i < (times || 1); i++) {
       const res = await this.singleRun<T>({
@@ -66,17 +73,17 @@ export class Undetermini {
       });
       totalLatency += res.latency;
       totalAccuracy += res.accuracy;
+      totalCost += res.cost;
     }
     const averageLatency = totalLatency / (times || 1);
     const averageAccuracy = totalAccuracy / (times || 1);
-
-    const cost = Math.random() * (0.15 - 0.01) + 0.01;
+    const averageCost = totalCost / (times || 1);
 
     return {
       name: useCase.name,
       averageLatency,
       averageAccuracy,
-      averageCost: cost
+      averageCost
     } as MultipleRunResult;
   }
 

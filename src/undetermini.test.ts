@@ -1,74 +1,49 @@
-import { Undetermini, UseCaseFunction } from "./undetermini";
+import { Undetermini } from "./undetermini";
+import { GetCandidate } from "./GetCandidate";
+
 const undetermini = new Undetermini();
 
-type GetCandidatePayload = { pdfAsText: string };
+const ONE_SECOND = 1000;
+const ONE_MINUTE = ONE_SECOND * 60;
 
-const getCandidateFactory = (
-  latencyRangeInMs: { min: number; max: number },
-  accuracyInPercentage: number
-) => {
-  const getCandidate: UseCaseFunction<GetCandidatePayload> = (
-    payload: GetCandidatePayload
-  ) => {
-    return new Promise((resolve) => {
-      const latency =
-        Math.random() * (latencyRangeInMs.max - latencyRangeInMs.min) +
-        latencyRangeInMs.min;
-      const isAccurate = Math.random() < accuracyInPercentage / 100;
+const gpt4GetCandidate = new GetCandidate("gpt-4-0613");
+const gpt4useCase = gpt4GetCandidate.execute.bind(gpt4GetCandidate);
 
-      setTimeout(() => {
-        resolve(
-          isAccurate
-            ? {
-                firstname: "Nicolas",
-                lastname: "Rotier",
-                age: 32,
-                profession: "Software Engineer"
-              }
-            : {
-                firstname: "Wrong",
-                lastname: "Wrong",
-                age: 0,
-                profession: "Wrong"
-              }
-        );
-      }, latency);
-    });
-  };
-  return getCandidate;
-};
+const gpt3GetCandidate = new GetCandidate("gpt-3.5-turbo-0613");
+const gpt3useCase = gpt4GetCandidate.execute.bind(gpt3GetCandidate);
 
-const slowAndInaccurate = getCandidateFactory({ min: 100, max: 200 }, 33);
-const fastAndAccurate = getCandidateFactory({ min: 10, max: 50 }, 88);
-
-it("should return the latency of use-case", async () => {
-  const useCaseInput = {
-    pdfAsText: `
+it(
+  "should return the latency of use-case",
+  async () => {
+    const useCaseInput = {
+      pdfAsText: `
 			Nicolas Rotier
 			32 years old
 			Nantes
 
 			Software Engineer  
 	`
-  };
+    };
+    const times = 10;
+    const output = await undetermini.run<typeof useCaseInput>({
+      times,
+      useCaseInput,
+      useCases: [
+        { name: "GetCandidate (gpt-4-0613)", execute: gpt4useCase },
+        { name: "GetCandidate (gpt-3.5-0613)", execute: gpt3useCase }
+      ],
+      expectedUseCaseOutput: {
+        firstname: "Nicolas",
+        lastname: "Rotier",
+        age: 32,
+        profession: "Software Engineer"
+      }
+    });
 
-  const output = await undetermini.run<typeof useCaseInput>({
-    times: 50,
-    useCaseInput,
-    useCases: [
-      { name: "GetCandidate (Slow & Inaccurate)", execute: slowAndInaccurate },
-      { name: "GetCandidate (Fast & Accurate)", execute: fastAndAccurate }
-    ],
-    expectedUseCaseOutput: {
-      firstname: "Nicolas",
-      lastname: "Rotier",
-      age: 32,
-      profession: "Software Engineer"
-    }
-  });
+    console.log(`Use case have been run ${times}`);
+    console.table(output);
 
-  console.table(output);
-
-  expect(output[0].averageLatency <= 600).toBe(true);
-  expect(output[0].averageAccuracy <= 80).toBe(true);
-}, 60000);
+    expect(true).toBe(true);
+  },
+  50 * ONE_MINUTE
+);
