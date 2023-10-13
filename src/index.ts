@@ -1,1 +1,1 @@
-export * from "./undetermini.interface";
+export * from "./undetermini";
