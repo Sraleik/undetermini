@@ -51,11 +51,13 @@ Full References - [here](https://sraleik.github.io/undetermini/)
 
 ## Contributions
 
-I'm really curious to get feedback on this one. Feel free to start/join a discussion, issues or Pull requests.
+Feel free to start/join a discussion, issues or Pull requests.
 
 ## TODO
 
 ### Feature
+
+- [ ] use https://www.npmjs.com/package/console-table-printer for display 
 
 
 ### Documentation
