@@ -9,7 +9,7 @@ export type UseCaseFunction<T> = (
 
 export type UseCase<T> = {
   name: string;
-  modelName: LLM_MODEL_NAME;
+  modelName: LLM_MODEL_NAME; // should be of type string
   execute: UseCaseFunction<T>;
 };
 
@@ -151,11 +151,14 @@ export class Undetermini {
     return { latency, accuracy, cost: costOfThisRun };
   }
 
-  isTimesAboveRequestPerMinute(times: number, modelName: LLM_MODEL_NAME) {
+  private isTimesAboveRequestPerMinute(
+    times: number,
+    modelName: LLM_MODEL_NAME
+  ) {
     return times > LLM_MODEL_INFO[modelName].rateLimit.rpm;
   }
 
-  async runUseCaseMultipleTime<T = any>(payload: {
+  private async runUseCaseMultipleTime<T = any>(payload: {
     useCaseInput: T;
     useCase: UseCase<T>;
     expectedUseCaseOutput: Record<string, any>;

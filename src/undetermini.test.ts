@@ -1,91 +1,39 @@
-import { LLM_MODEL_NAME, Undetermini } from "./undetermini";
-import { GetCandidate } from "./GetCandidate";
-import { GetCandidateCohere } from "./GetCandidateCohere";
-import { GetCandidateSimpleSchema } from "./GetCandidateSimpleSchema";
+import { LLM_MODEL_NAME, Undetermini, UseCase } from "./undetermini";
+import { vi } from "vitest";
 
 const undetermini = new Undetermini();
 
-const ONE_SECOND = 1000;
-const ONE_MINUTE = ONE_SECOND * 60;
+it("should execute a single use case 1 time", async () => {
+  // Given a value given to our use case
+  const useCaseInput = { value: "COCO L'ASTICOT" };
+  type UseCaseInput = typeof useCaseInput;
 
-const gpt4GetCandidate = new GetCandidate("gpt-4-0613");
-const gpt4useCase = gpt4GetCandidate.execute.bind(gpt4GetCandidate);
+  // Given an expected output (here we expect the string to be lowercase)
+  const expectedUseCaseOutput = { value: "coco l'asticot" };
+  const execute = vi.fn();
+  execute.mockResolvedValue({ value: "coco l'asticot" });
 
-const gpt3GetCandidate = new GetCandidate("gpt-3.5-turbo-0613");
-const gpt3useCase = gpt4GetCandidate.execute.bind(gpt3GetCandidate);
+  // Given the UseCase
+  const useCase: UseCase<UseCaseInput> = {
+    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+    name: "mocked-use-case",
+    execute
+  };
 
-const gpt4GetCandidateSimpleSchema = new GetCandidateSimpleSchema("gpt-4-0613");
-const gpt4SimpleSchemaUseCase = gpt4GetCandidate.execute.bind(
-  gpt4GetCandidateSimpleSchema
-);
+  const results = await undetermini.run<UseCaseInput>({
+    useCaseInput,
+    expectedUseCaseOutput,
+    useCases: [useCase]
+  });
 
-const gpt3GetCandidateSimpleSchema = new GetCandidateSimpleSchema(
-  "gpt-3.5-turbo-0613"
-);
-const gpt3SimpleSchemaUseCase = gpt4GetCandidate.execute.bind(
-  gpt3GetCandidateSimpleSchema
-);
+  const useCaseResult = results[0];
+  expect(useCaseResult).toEqual({
+    averageAccuracy: 100,
+    name: "mocked-use-case",
+    averageLatency: expect.any(Number),
+    averageCost: expect.any(Number)
+  });
 
-const cohereGetCandidateZod = new GetCandidateCohere();
-const cohereGetCandidateZodUseCase = cohereGetCandidateZod.execute.bind(
-  cohereGetCandidateZod
-);
-
-it(
-  "should return the latency of use-case",
-  async () => {
-    const useCaseInput = {
-      pdfAsText: `
-			Nicolas Rotier
-			32 years old
-			Nantes
-
-			Software Engineer  
-	`
-    };
-    const times = 5;
-    const output = await undetermini.run<typeof useCaseInput>({
-      times,
-      useCaseInput,
-      useCases: [
-        {
-          name: "GetCandidateZod (gpt-4-0613)",
-          execute: gpt4useCase,
-          modelName: LLM_MODEL_NAME.GPT_4_0613
-        },
-        {
-          name: "GetCandidateZod (gpt-3.5-0613)",
-          execute: gpt3useCase,
-          modelName: LLM_MODEL_NAME.GPT_3_0613
-        },
-        {
-          name: "GetCandidateSimpleSchema (gpt-3.5-0613)",
-          execute: gpt3SimpleSchemaUseCase,
-          modelName: LLM_MODEL_NAME.GPT_3_0613
-        },
-        {
-          name: "GetCandidateZod(cohere-generate)",
-          execute: cohereGetCandidateZodUseCase,
-          modelName: LLM_MODEL_NAME.COHERE_GENERATE
-        },
-        {
-          name: "GetCandidateSimpleSchema (gpt-4-0613)",
-          execute: gpt4SimpleSchemaUseCase,
-          modelName: LLM_MODEL_NAME.GPT_4_0613
-        }
-      ],
-      expectedUseCaseOutput: {
-        firstname: "Nicolas",
-        lastname: "Rotier",
-        age: 32,
-        profession: "Software Engineer"
-      }
-    });
-
-    console.log(`Use case have been run x${times} times`);
-    console.table(output);
-
-    expect(true).toBe(true);
-  },
-  50 * ONE_MINUTE
-);
+  expect(execute).toHaveBeenCalledTimes(1);
+  expect(execute.mock.calls[0][0]).toEqual({ value: "COCO L'ASTICOT" });
+});
