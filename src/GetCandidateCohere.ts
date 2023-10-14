@@ -1,34 +1,14 @@
 import dotenv from "dotenv";
-import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 import { StructuredOutputParser } from "langchain/output_parsers";
+import cohere from "cohere-ai";
 import { z } from "zod";
-import { OPENAI_MODEL_NAME } from "./undetermini";
 
 dotenv.config();
 
-export class GetCandidate {
-  private heliconeApiKey = process.env.HELICONE_API_KEY;
-  private openAIApiKey = process.env.OPEN_AI_API_KEY;
-  private model: OpenAI;
-
-  //TODO inject an interface instead of implementation
-  constructor(private openAiModelName: OPENAI_MODEL_NAME) {
-    this.model = new OpenAI(
-      {
-        modelName: this.openAiModelName,
-        openAIApiKey: this.openAIApiKey
-      },
-      {
-        basePath: "https://oai.hconeai.com/v1",
-        baseOptions: {
-          headers: {
-            "Helicone-Auth": `Bearer ${this.heliconeApiKey}`,
-            "Helicone-Property-Schema": "zod"
-          }
-        }
-      }
-    );
+export class GetCandidateCohere {
+  constructor() {
+    cohere.init(process.env.COHERE_API_KEY!);
   }
 
   async execute(
@@ -62,12 +42,21 @@ export class GetCandidate {
       })
     ).trim();
 
-    const rawResult = await this.model.call(prompt);
+    const cohereResult = await cohere.generate({
+      prompt,
+      max_tokens: 100,
+      truncate: "END",
+      return_likelihoods: "NONE"
+    });
+
+    const rawResult = cohereResult.body.generations[0].text;
 
     if (handleCost) {
       await handleCost(prompt, rawResult);
     }
 
-    return parser.parse(rawResult);
+    const res = await parser.parse(rawResult);
+
+    return res;
   }
 }

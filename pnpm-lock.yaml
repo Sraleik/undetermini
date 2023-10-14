@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  cohere-ai:
+    specifier: ^6.2.2
+    version: 6.2.2
   dotenv:
     specifier: ^16.3.1
     version: 16.3.1
@@ -13,7 +16,7 @@ dependencies:
     version: 1.0.7
   langchain:
     specifier: ^0.0.166
-    version: 0.0.166
+    version: 0.0.166(cohere-ai@6.2.2)
   ulidx:
     specifier: ^2.2.1
     version: 2.2.1
@@ -1227,6 +1230,10 @@ packages:
     resolution: {integrity: sha512-q4dMFMlXtKR3XNBHyMHt/3pwYNA69EDk00lloMOaaUMKPUXBw6lpXtbu3MMVG6/uOihGnRDOlkyqsONEUj60+w==}
     dev: true
 
+  /cohere-ai@6.2.2:
+    resolution: {integrity: sha512-+Tq+4e8N/YWKJqFpWaULsfbZR/GOvGh8WWYFKR1bpipu8bCok3VcbTPnBmIToQiIqOgFpGk3HsA4b0guVyL3vg==}
+    dev: false
+
   /color-convert@1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==}
     dependencies:
@@ -2154,7 +2161,7 @@ packages:
     resolution: {integrity: sha512-Y+60/zizpJ3HRH8DCss+q95yr6145JXZo46OTpFvDZWLfRCE4qChOyk1b26nMaNpfHHgxagk9dXT5OP0Tfe+dQ==}
     dev: true
 
-  /langchain@0.0.166:
+  /langchain@0.0.166(cohere-ai@6.2.2):
     resolution: {integrity: sha512-ZO3hwZmvMaeR2bcGJGjyt8llCkzeGVso0c1KAj+StHZhf/piDgRMlxEL+4Hb8iFVCZboT228MY7xdgjaSGDMsg==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -2434,6 +2441,7 @@ packages:
       ansi-styles: 5.2.0
       binary-extensions: 2.2.0
       camelcase: 6.3.0
+      cohere-ai: 6.2.2
       decamelize: 1.2.0
       expr-eval: 2.0.2
       flat: 5.0.2

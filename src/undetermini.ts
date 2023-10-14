@@ -1,8 +1,10 @@
 import { ValueOf } from "./common/utils";
+import { encodingForModel } from "js-tiktoken";
+import cohere from "cohere-ai";
 
 export type UseCaseFunction<T> = (
   payload: T,
-  handleCost?: (cost: number) => unknown
+  handleCost?: (prompt: string, rawResult: string) => Promise<unknown>
 ) => Promise<Record<string, any>>;
 
 export type UseCase<T> = {
@@ -26,14 +28,40 @@ export type MultipleRunResult = {
   averageCost: number;
 };
 
-export const LLM_MODEL_NAME = {
+export const OPENAI_MODEL_NAME = {
   GPT_4_0613: "gpt-4-0613",
   GPT_3_0613: "gpt-3.5-turbo-0613"
 } as const;
 
-export type LLM_MODEL_NAME = ValueOf<typeof LLM_MODEL_NAME>;
+export const LLM_MODEL_NAME = {
+  ...OPENAI_MODEL_NAME,
+  COHERE_GENERATE: "cohere-generate"
+} as const;
 
-export const LLM_MODEL_INFO = {
+export type LLM_MODEL_NAME = ValueOf<typeof LLM_MODEL_NAME>;
+export type OPENAI_MODEL_NAME = ValueOf<typeof OPENAI_MODEL_NAME>;
+export type LLM_INFO = {
+  price: {
+    input1kToken: number;
+    output1kToken: number;
+  };
+  rateLimit: {
+    tpm: number;
+    rpm: number;
+  };
+};
+
+export const LLM_MODEL_INFO: Record<LLM_MODEL_NAME, LLM_INFO> = {
+  "cohere-generate": {
+    price: {
+      input1kToken: 1.5,
+      output1kToken: 1.5
+    },
+    rateLimit: {
+      tpm: 100_000, // fake value I don't have them
+      rpm: 50_000 // fake value I don't have them
+    }
+  },
   "gpt-4-0613": {
     price: {
       input1kToken: 3,
@@ -81,7 +109,7 @@ export class Undetermini {
   }
 
   private async singleRun<T>(payload: {
-    useCase: UseCaseFunction<T>;
+    useCase: UseCase<T>;
     useCaseInput: T;
     expectedUseCaseOutput: Output;
   }) {
@@ -89,9 +117,33 @@ export class Undetermini {
 
     let costOfThisRun = 0;
     const startTime = Date.now();
-    const output = await useCase(useCaseInput, async (cost: number) => {
-      costOfThisRun = cost;
-    });
+    const output = await useCase.execute(
+      useCaseInput,
+      async (prompt: string, rawResult: string) => {
+        let inputTokenCount = 0;
+        let outputTokenCount = 0;
+        if (useCase.modelName === LLM_MODEL_NAME.COHERE_GENERATE) {
+          inputTokenCount = (await cohere.tokenize({ text: prompt })).body
+            .tokens.length;
+          outputTokenCount = (await cohere.tokenize({ text: rawResult })).body
+            .tokens.length;
+        } else {
+          const enc = encodingForModel(useCase.modelName);
+          inputTokenCount = enc.encode(prompt).length;
+          outputTokenCount = enc.encode(rawResult).length;
+        }
+        const inputPrice =
+          (inputTokenCount *
+            LLM_MODEL_INFO[useCase.modelName].price.input1kToken) /
+          1000;
+        const outputPrice =
+          (outputTokenCount *
+            LLM_MODEL_INFO[useCase.modelName].price.input1kToken) /
+          1000;
+
+        costOfThisRun = inputPrice + outputPrice;
+      }
+    );
     const endTime = Date.now();
 
     const latency = endTime - startTime;
@@ -125,7 +177,7 @@ export class Undetermini {
         promises.push(
           this.singleRun<T>({
             useCaseInput,
-            useCase: useCase.execute,
+            useCase,
             expectedUseCaseOutput
           })
         );
@@ -160,7 +212,7 @@ export class Undetermini {
       for (let i = 0; i < (times || 1); i++) {
         const res = await this.singleRun<T>({
           useCaseInput,
-          useCase: useCase.execute,
+          useCase: useCase,
           expectedUseCaseOutput
         });
         totalLatency += res.latency;
@@ -210,10 +262,6 @@ export class Undetermini {
     const promisePerModel = useCasesPerModelToRunInParallel.map(
       async (useCasesToRunInSync) => {
         for (const useCase of useCasesToRunInSync) {
-          console.log(
-            "🚀 ~ file: undetermini.ts:213 ~ Undetermini ~ useCase:",
-            useCase.modelName
-          );
           const result = await this.runUseCaseMultipleTime({
             useCaseInput,
             useCase,

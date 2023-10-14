@@ -1,5 +1,6 @@
 import { LLM_MODEL_NAME, Undetermini } from "./undetermini";
 import { GetCandidate } from "./GetCandidate";
+import { GetCandidateCohere } from "./GetCandidateCohere";
 import { GetCandidateSimpleSchema } from "./GetCandidateSimpleSchema";
 
 const undetermini = new Undetermini();
@@ -25,6 +26,11 @@ const gpt3SimpleSchemaUseCase = gpt4GetCandidate.execute.bind(
   gpt3GetCandidateSimpleSchema
 );
 
+const cohereGetCandidateZod = new GetCandidateCohere();
+const cohereGetCandidateZodUseCase = cohereGetCandidateZod.execute.bind(
+  cohereGetCandidateZod
+);
+
 it(
   "should return the latency of use-case",
   async () => {
@@ -37,7 +43,7 @@ it(
 			Software Engineer  
 	`
     };
-    const times = 10;
+    const times = 5;
     const output = await undetermini.run<typeof useCaseInput>({
       times,
       useCaseInput,
@@ -56,6 +62,11 @@ it(
           name: "GetCandidateSimpleSchema (gpt-3.5-0613)",
           execute: gpt3SimpleSchemaUseCase,
           modelName: LLM_MODEL_NAME.GPT_3_0613
+        },
+        {
+          name: "GetCandidateZod(cohere-generate)",
+          execute: cohereGetCandidateZodUseCase,
+          modelName: LLM_MODEL_NAME.COHERE_GENERATE
         },
         {
           name: "GetCandidateSimpleSchema (gpt-4-0613)",
