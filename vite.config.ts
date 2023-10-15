@@ -15,15 +15,18 @@ export default defineConfig({
     rollupOptions: {
       // make sure to externalize deps that shouldn't be bundled
       // into your library
-      // external: ["postgres", "ulidx"],
-      // output: {
-      //   // Provide global variables to use in the UMD build
-      //   // for externalized deps
-      //   globals: {
-      //     postgres: "Postgres",
-      //     ulidx: "Ulidx"
-      //   }
-      // }
+      external: ["cohere-ai", "dotenv", "js-tiktoken", "ulidx", "zod"],
+      output: {
+        // Provide global variables to use in the UMD build
+        // for externalized deps
+        globals: {
+          "cohere-ai": "cohere-ai",
+          dotenv: "dotenv",
+          "js-tiktoken": "tiktoken",
+          ulidx: "ulidx",
+          zod: "zod"
+        }
+      }
     }
   },
   plugins: [dts()]
