@@ -1,4 +1,4 @@
-import { LLM_MODEL_NAME, Undetermini, UseCase } from "./undetermini";
+import { LLM_MODEL_NAME, Undetermini, Implementation } from "./undetermini";
 import { vi } from "vitest";
 
 function around(value: number, expected: number, delta: number = 0.01) {
@@ -17,7 +17,7 @@ it("should execute a UseCase with the right input", async () => {
   execute.mockResolvedValue({ value: "coco l'asticot" });
 
   // Given the UseCase
-  const useCase: UseCase<UseCaseInput> = {
+  const useCase: Implementation<UseCaseInput> = {
     modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
     name: "mocked-use-case",
     execute
@@ -26,7 +26,7 @@ it("should execute a UseCase with the right input", async () => {
   await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
-    useCases: [useCase]
+    implementations: [useCase]
   });
 
   expect(execute.mock.calls[0][0]).toEqual(useCaseInput);
@@ -43,7 +43,7 @@ it("should have the proper UseCase Name", async () => {
   execute.mockResolvedValue({ value: "coco l'asticot" });
 
   // Given the UseCase
-  const useCase: UseCase<UseCaseInput> = {
+  const useCase: Implementation<UseCaseInput> = {
     modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
     name: "mocked-use-case",
     execute
@@ -52,7 +52,7 @@ it("should have the proper UseCase Name", async () => {
   const results = await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
-    useCases: [useCase]
+    implementations: [useCase]
   });
 
   const useCaseResult = results[0];
@@ -79,7 +79,7 @@ it("should have the proper averageCost", async () => {
   });
 
   // Given the UseCase
-  const useCase: UseCase<UseCaseInput> = {
+  const useCase: Implementation<UseCaseInput> = {
     modelName: LLM_MODEL_NAME.GPT_4_0613, //TODO: should be someting like "fake-model"
     name: "mocked-use-case",
     execute
@@ -90,7 +90,7 @@ it("should have the proper averageCost", async () => {
   const results = await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
-    useCases: [useCase]
+    implementations: [useCase]
   });
 
   const useCaseResult = results[0];
@@ -115,7 +115,7 @@ it("should have the proper averageLatency", async () => {
   });
 
   // Given the UseCase
-  const useCase: UseCase<UseCaseInput> = {
+  const useCase: Implementation<UseCaseInput> = {
     modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
     name: "mocked-use-case",
     execute
@@ -126,7 +126,7 @@ it("should have the proper averageLatency", async () => {
   const results = await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
-    useCases: [useCase]
+    implementations: [useCase]
   });
 
   const useCaseResult = results[0];
@@ -151,7 +151,7 @@ it("should have an averageAccuracy of 100%", async () => {
   execute.mockResolvedValue({ value: "coco l'asticot" });
 
   // Given the UseCase
-  const useCase: UseCase<UseCaseInput> = {
+  const useCase: Implementation<UseCaseInput> = {
     modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
     name: "mocked-use-case",
     execute
@@ -160,7 +160,7 @@ it("should have an averageAccuracy of 100%", async () => {
   const results = await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
-    useCases: [useCase]
+    implementations: [useCase]
   });
 
   const useCaseResult = results[0];
@@ -180,7 +180,7 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
     execute.mockResolvedValue({ value: "coco l'asticot" });
 
     // Given the UseCase
-    const useCase: UseCase<UseCaseInput> = {
+    const useCase: Implementation<UseCaseInput> = {
       modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
       name: "mocked-use-case",
       execute
@@ -189,7 +189,7 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
     const results = await undetermini.run<UseCaseInput>({
       useCaseInput,
       expectedUseCaseOutput,
-      useCases: [useCase],
+      implementations: [useCase],
       times
     });
 

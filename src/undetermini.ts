@@ -2,15 +2,15 @@ import { ValueOf } from "./common/utils";
 import { encodingForModel } from "js-tiktoken";
 import cohere from "cohere-ai";
 
-export type UseCaseFunction<T> = (
+export type ImplementationFunction<T> = (
   payload: T,
   handleCost?: (prompt: string, rawResult: string) => Promise<unknown>
 ) => Promise<Record<string, any>>;
 
-export type UseCase<T> = {
+export type Implementation<T> = {
   name: string;
   modelName: LLM_MODEL_NAME; // should be of type string
-  execute: UseCaseFunction<T>;
+  execute: ImplementationFunction<T>;
 };
 
 export type Output = Record<string, any>;
@@ -108,37 +108,37 @@ export class Undetermini {
     return (matchCount / totalKeys) * 100;
   }
 
-  private async singleRun<T>(payload: {
-    useCase: UseCase<T>;
+  private async singleImplementationOnce<T>(payload: {
+    implementation: Implementation<T>;
     useCaseInput: T;
     expectedUseCaseOutput: Output;
   }) {
-    const { useCase, useCaseInput, expectedUseCaseOutput } = payload;
+    const { implementation, useCaseInput, expectedUseCaseOutput } = payload;
 
     let costOfThisRun = 0;
     const startTime = Date.now();
-    const output = await useCase.execute(
+    const output = await implementation.execute(
       useCaseInput,
       async (prompt: string, rawResult: string) => {
         let inputTokenCount = 0;
         let outputTokenCount = 0;
-        if (useCase.modelName === LLM_MODEL_NAME.COHERE_GENERATE) {
+        if (implementation.modelName === LLM_MODEL_NAME.COHERE_GENERATE) {
           inputTokenCount = (await cohere.tokenize({ text: prompt })).body
             .tokens.length;
           outputTokenCount = (await cohere.tokenize({ text: rawResult })).body
             .tokens.length;
         } else {
-          const enc = encodingForModel(useCase.modelName);
+          const enc = encodingForModel(implementation.modelName);
           inputTokenCount = enc.encode(prompt).length;
           outputTokenCount = enc.encode(rawResult).length;
         }
         const inputPrice =
           (inputTokenCount *
-            LLM_MODEL_INFO[useCase.modelName].price.input1kToken) /
+            LLM_MODEL_INFO[implementation.modelName].price.input1kToken) /
           1000;
         const outputPrice =
           (outputTokenCount *
-            LLM_MODEL_INFO[useCase.modelName].price.input1kToken) /
+            LLM_MODEL_INFO[implementation.modelName].price.input1kToken) /
           1000;
 
         costOfThisRun = inputPrice + outputPrice;
@@ -158,17 +158,18 @@ export class Undetermini {
     return times > LLM_MODEL_INFO[modelName].rateLimit.rpm;
   }
 
-  private async runUseCaseMultipleTime<T = any>(payload: {
+  private async runImplementationMultipleTime<T = any>(payload: {
     useCaseInput: T;
-    useCase: UseCase<T>;
+    implementation: Implementation<T>;
     expectedUseCaseOutput: Record<string, any>;
     times: number;
   }) {
-    const { useCase, useCaseInput, expectedUseCaseOutput, times } = payload;
+    const { implementation, useCaseInput, expectedUseCaseOutput, times } =
+      payload;
 
     const canParralelizeAll = !this.isTimesAboveRequestPerMinute(
       times,
-      useCase.modelName
+      implementation.modelName
     );
 
     let res: MultipleRunResult;
@@ -176,11 +177,11 @@ export class Undetermini {
     if (canParralelizeAll) {
       const promises: Promise<SingleRunResult>[] = [];
 
-      for (let i = 0; i < (times || 1); i++) {
+      for (let i = 0; i < times; i++) {
         promises.push(
-          this.singleRun<T>({
+          this.singleImplementationOnce<T>({
             useCaseInput,
-            useCase,
+            implementation,
             expectedUseCaseOutput
           })
         );
@@ -202,7 +203,7 @@ export class Undetermini {
       );
 
       res = {
-        name: useCase.name,
+        name: implementation.name,
         averageLatency: totals.latency / times,
         averageAccuracy: totals.accuracy / times,
         averageCost: totals.cost / times
@@ -213,9 +214,9 @@ export class Undetermini {
       let totalCost = 0;
 
       for (let i = 0; i < (times || 1); i++) {
-        const res = await this.singleRun<T>({
+        const res = await this.singleImplementationOnce<T>({
           useCaseInput,
-          useCase: useCase,
+          implementation: implementation,
           expectedUseCaseOutput
         });
         totalLatency += res.latency;
@@ -224,7 +225,7 @@ export class Undetermini {
       }
 
       res = {
-        name: useCase.name,
+        name: implementation.name,
         averageLatency: totalLatency / times,
         averageAccuracy: totalAccuracy / times,
         averageCost: totalCost / times
@@ -236,13 +237,13 @@ export class Undetermini {
 
   // Run UseCases
   async run<T = any>(payload: {
-    useCaseInput: T;
-    useCases: UseCase<T>[];
-    expectedUseCaseOutput: Record<string, any>;
     times?: number;
+    useCaseInput: T;
+    implementations: Implementation<T>[];
+    expectedUseCaseOutput: Record<string, any>;
   }) {
     const {
-      useCases,
+      implementations,
       useCaseInput,
       expectedUseCaseOutput,
       times = 1
@@ -250,24 +251,24 @@ export class Undetermini {
 
     const results: MultipleRunResult[] = [];
 
-    const useCasesPerModel = useCases.reduce(
-      (acc, useCase) => {
-        const currentModelUseCases = acc[useCase.modelName];
-        acc[useCase.modelName] = currentModelUseCases
-          ? [...currentModelUseCases, useCase]
-          : [useCase];
+    const implementationPerModel = implementations.reduce(
+      (acc, implementation) => {
+        const currentModelUseCases = acc[implementation.modelName];
+        acc[implementation.modelName] = currentModelUseCases
+          ? [...currentModelUseCases, implementation]
+          : [implementation];
         return acc;
       },
-      {} as Record<LLM_MODEL_NAME, UseCase<T>[]>
+      {} as Record<LLM_MODEL_NAME, Implementation<T>[]>
     );
 
-    const useCasesPerModelToRunInParallel = Object.values(useCasesPerModel);
-    const promisePerModel = useCasesPerModelToRunInParallel.map(
-      async (useCasesToRunInSync) => {
-        for (const useCase of useCasesToRunInSync) {
-          const result = await this.runUseCaseMultipleTime({
+    const implementationToRunInParallel = Object.values(implementationPerModel);
+    const promisePerModel = implementationToRunInParallel.map(
+      async (implementationsToRunInSync) => {
+        for (const implementation of implementationsToRunInSync) {
+          const result = await this.runImplementationMultipleTime({
             useCaseInput,
-            useCase,
+            implementation: implementation,
             expectedUseCaseOutput,
             times
           });
