@@ -2,7 +2,7 @@ import { vi } from "vitest";
 import { z } from "zod";
 import { StructuredOutputParser } from "langchain/output_parsers";
 import { PromptTemplate } from "langchain/prompts";
-import { GetCandidate } from "./GetCandidate";
+import { GetCandidate, GetCandidateStrategies } from "./GetCandidate";
 import { LLM_MODEL_NAME, Undetermini, Implementation } from "./undetermini";
 
 function around(value: number, expected: number, delta: number = 0.01) {
@@ -331,15 +331,19 @@ it("should return the proper candidate", async () => {
     execute: getCandidate.execute.bind(getCandidate)
   };
 
+  const getCandidateStrategies = new GetCandidateStrategies();
+  const implementations =
+    getCandidateStrategies.generateAllGetCandidateImplementation();
+  console.log(
+    "🚀 ~ file: undetermini.test.ts:336 ~ it.only ~ implementations:",
+    implementations.length
+  );
+
   const results = await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [implementation]
   });
-  console.log(
-    "🚀 ~ file: undetermini.test.ts:334 ~ it.only ~ results:",
-    results
-  );
 
   const implementationResult = results[0];
   expect(implementationResult.averageAccuracy).toEqual(100);
