@@ -273,7 +273,7 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
   }
 );
 
-it.only("should return the proper candidate", async () => {
+it("should return the proper candidate", async () => {
   // Given a value given to our use case
   const useCaseInput = {
     pdfAsText: "Nicolas Rotier Software Engineer 32 years old"
