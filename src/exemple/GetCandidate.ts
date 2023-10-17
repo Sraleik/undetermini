@@ -8,13 +8,22 @@ export type Candidate = {
 };
 
 export class GetCandidate {
-  //TODO inject an interface instead of implementation
-  constructor(
-    private promptTemplate: PromptTemplate,
-    private formatInstruction: string,
-    private extractCandidateFromPrompt: (prompt: string) => Promise<string>,
-    private parser: (value: string) => Promise<Candidate>
-  ) {}
+  private promptTemplate: PromptTemplate;
+  private formatInstruction: string;
+  private extractCandidateFromPrompt: (prompt: string) => Promise<string>;
+  private parser: (value: string) => Promise<Candidate>;
+
+  constructor(payload: {
+    promptTemplate: PromptTemplate;
+    formatInstruction: string;
+    extractCandidateFromPrompt: (prompt: string) => Promise<string>;
+    parser: (value: string) => Promise<Candidate>;
+  }) {
+    this.promptTemplate = payload.promptTemplate;
+    this.formatInstruction = payload.formatInstruction;
+    this.extractCandidateFromPrompt = payload.extractCandidateFromPrompt;
+    this.parser = payload.parser;
+  }
 
   async execute(
     payload: { pdfAsText: string },

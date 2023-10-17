@@ -1,118 +1,99 @@
-import { StructuredOutputParser } from "langchain/output_parsers";
-import { PromptTemplate } from "langchain/prompts";
-import { z } from "zod";
-import { Candidate, GetCandidate } from "./GetCandidate";
+import { GetCandidate } from "./GetCandidate";
 
-export type Strategy<T, V> = {
-  type: T;
-  name: string;
-  value: V;
+export type Method = {
+  methodName: string;
+  implementationName: string;
+  modelName?: string;
+  isActive: boolean;
+  implementation: any;
 };
 
-// GetCandidateImplementationFactory
-export class GetCandidateImplementationFactory {
-  private readonly promptTemplates: Array<
-    Strategy<"Prompt Template", PromptTemplate>
-  > = [];
-  private readonly formatInstructions: Array<
-    Strategy<"Format Instruction", string>
-  > = [];
-  private readonly extractCandidateFromPrompt: Array<
-    Strategy<"Extract Candidate", (prompt: string) => Promise<string>>
-  > = [];
-  private readonly parsers: Array<
-    Strategy<"Parser", (value: string) => Promise<Candidate>>
-  > = [];
-
-  addPromptTemplate(name: string, promptTemplate: PromptTemplate) {
-    const nameAlreadyExist = !!this.promptTemplates.find(
-      (promptTemplate) => promptTemplate.name === name
-    );
-    if (nameAlreadyExist)
-      throw new Error("This prompt template name already exist");
-
-    this.promptTemplates.push({
-      type: "Prompt Template",
-      name,
-      value: promptTemplate
-    });
+export function cartesianProduct(arrays: any[][]): any[][] {
+  // Base case: if there are no arrays or any of them is empty, return an empty array
+  if (arrays.length === 0 || arrays.some((array) => array.length === 0)) {
+    return [];
   }
 
-  addFormatInstruction(name: string, formatInstruction: string) {
-    this.formatInstructions.push({
-      type: "Format Instruction",
-      name,
-      value: formatInstruction
-    });
-  }
+  // Recursive case
+  function cartesianHelper(arrays: any[][], index: number): any[][] {
+    // If we've processed all arrays, return an array containing an empty tuple
+    if (index === arrays.length) {
+      return [[]];
+    }
 
-  addExtractCandidate(
-    name: string,
-    extractCandidate: (prompt: string) => Promise<string>
-  ) {
-    this.extractCandidateFromPrompt.push({
-      type: "Extract Candidate",
-      name,
-      value: extractCandidate
-    });
-  }
+    // Compute the Cartesian product of the remaining arrays
+    const remainingProduct = cartesianHelper(arrays, index + 1);
 
-  addParser(name: string, parser: (value: string) => Promise<Candidate>) {
-    this.parsers.push({
-      type: "Parser",
-      name,
-      value: parser
-    });
-  }
-
-  constructor() {
-    const parser1 = StructuredOutputParser.fromZodSchema(
-      z.object({
-        firstname: z.string().describe("the firstname of the candidate"),
-        lastname: z.string().describe("the lastname of the candidate"),
-        age: z.number({ coerce: true }).describe("the age of the candidate"),
-        profession: z.string().describe("the profession of the candidate")
-      })
-    );
-
-    this.addPromptTemplate(
-      "Prompt 1",
-      PromptTemplate.fromTemplate(`
-      {candidatePdfAsString}
-
-    	I just give you above the content of a resume. Please
-    	extract the relevant information following this instruction:
-
-    	{formatInstruction}`)
-    );
-
-    this.addFormatInstruction("Zod", parser1.getFormatInstructions());
-    this.addParser("Zod", parser1.parse.bind(parser1));
-  }
-
-  generateAllGetCandidateImplementation() {
-    const implementations: any[] = [];
-
-    for (const template of this.promptTemplates) {
-      for (const instruction of this.formatInstructions) {
-        for (const extractor of this.extractCandidateFromPrompt) {
-          for (const parser of this.parsers) {
-            const implem = new GetCandidate(
-              template.value,
-              instruction.value,
-              extractor.value,
-              parser.value
-            );
-            implementations.push({
-              name: `${template.name}, ${instruction.name}, ${extractor.name}, ${parser.name}`,
-              modelName: extractor.name,
-              execute: implem.execute.bind(implem)
-            });
-          }
-        }
+    // Prepend each element of the current array to each tuple of the remaining product
+    const result: any[][] = [];
+    for (const item of arrays[index]) {
+      for (const tuple of remainingProduct) {
+        result.push([item, ...tuple]);
       }
     }
 
-    return implementations;
+    return result;
+  }
+
+  return cartesianHelper(arrays, 0);
+}
+
+export class ImplementationFactory<T> {
+  constructor(
+    protected UseCaseConstructor: new (...args: any[]) => T,
+    protected methods: Method[] = []
+  ) {}
+
+  addMethod(payload: Method) {
+    this.methods.push(payload);
+    const { methodName } = payload;
+    if (!this[methodName]) {
+      Object.defineProperty(this, methodName, {
+        get: function () {
+          return this.methods.filter(
+            (method: Method) => method.methodName === methodName
+          );
+        }
+      });
+    }
+  }
+
+  get methodsName() {
+    return [...new Set(this.methods.map((method) => method.methodName))];
+  }
+
+  private get implementationsPayloadsAsArray() {
+    const matrix = this.methodsName.map((methodName) => this[methodName]);
+    return cartesianProduct(matrix) as Array<Array<Method>>;
+  }
+
+  get implementations() {
+    class UseCaseExtended extends this.UseCaseConstructor {
+      constructor(
+        private readonly implementationName: string,
+        payload: any
+      ) {
+        super(payload);
+      }
+    }
+    return this.implementationsPayloadsAsArray.map((implementationPayload) => {
+      const constructorPayload = implementationPayload.reduce((acc, method) => {
+        acc[method.methodName] = method.implementation;
+        return acc;
+      }, {});
+      const methodImplementationsName = implementationPayload.reduce(
+        (acc, method) => {
+          acc.push(method.implementationName);
+          return acc;
+        },
+        [] as Array<string>
+      );
+      const useCase = new UseCaseExtended(
+        methodImplementationsName.join(", "),
+        constructorPayload
+      );
+      // Object.getPrototypeOf(useCase).implementationName =
+      return useCase;
+    }) as unknown as Array<GetCandidate>;
   }
 }
