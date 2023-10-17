@@ -8,6 +8,14 @@
 This library is to be able to make decision on wich LLM implementation is the best suited for a 
 given use case.
 
+<div align="center">
+  <br/>
+  <img src="./image/time-improvement.jpg" />
+  <br/>
+  <br/>
+</div>
+
+
 ## Table of Contents
 
 - [Installation](#installation)
