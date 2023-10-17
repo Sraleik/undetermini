@@ -1,8 +1,4 @@
 import { vi } from "vitest";
-import { z } from "zod";
-import { StructuredOutputParser } from "langchain/output_parsers";
-import { PromptTemplate } from "langchain/prompts";
-import { GetCandidate, GetCandidateStrategies } from "./GetCandidate";
 import { LLM_MODEL_NAME, Undetermini, Implementation } from "./undetermini";
 
 function around(value: number, expected: number, delta: number = 0.01) {
@@ -272,79 +268,3 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
     expect(implementation3.execute).toHaveBeenCalledTimes(times);
   }
 );
-
-it("should return the proper candidate", async () => {
-  // Given a value given to our use case
-  const useCaseInput = {
-    pdfAsText: "Nicolas Rotier Software Engineer 32 years old"
-  };
-  type UseCaseInput = typeof useCaseInput;
-
-  // Given an expected output (here we expect the string to be lowercase)
-  const expectedUseCaseOutput = {
-    firstname: "Nicolas",
-    lastname: "Rotier",
-    age: 32,
-    profession: "Software Engineer"
-  };
-
-  // Given an Implementation
-
-  const promptTemplate = PromptTemplate.fromTemplate(
-    `
-			{candidatePdfAsString}
-
-			I just give you above the content of a resume. Please 
-			extract the relevant information following this instruction:
-
-			{formatInstruction}
-			`
-  );
-
-  const parser = StructuredOutputParser.fromZodSchema(
-    z.object({
-      firstname: z.string().describe("the firstname of the candidate"),
-      lastname: z.string().describe("the lastname of the candidate"),
-      age: z.number().describe("the age of the candidate"),
-      profession: z.string().describe("the profession of the candidate")
-    })
-  );
-
-  const getCandidate = new GetCandidate(
-    promptTemplate,
-    parser.getFormatInstructions(),
-    async () => {
-      const res = {
-        firstname: "Nicolas",
-        lastname: "Rotier",
-        age: 32,
-        profession: "Software Engineer"
-      };
-      return ` \`\`\`json ${JSON.stringify(res)} \`\`\` `;
-    },
-    parser.parse.bind(parser)
-  );
-
-  const implementation: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
-    name: "Get Candidate (Prompt: Prompt1, FormatInstruction: Zod, Model: Mock, Parser: Zod)",
-    execute: getCandidate.execute.bind(getCandidate)
-  };
-
-  const getCandidateStrategies = new GetCandidateStrategies();
-  const implementations =
-    getCandidateStrategies.generateAllGetCandidateImplementation();
-  console.log(
-    "🚀 ~ file: undetermini.test.ts:336 ~ it.only ~ implementations:",
-    implementations.length
-  );
-
-  const results = await undetermini.run<UseCaseInput>({
-    useCaseInput,
-    expectedUseCaseOutput,
-    implementations: [implementation]
-  });
-
-  const implementationResult = results[0];
-  expect(implementationResult.averageAccuracy).toEqual(100);
-});

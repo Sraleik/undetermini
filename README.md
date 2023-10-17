@@ -71,7 +71,8 @@ Feel free to start/join a discussion, issues or Pull requests.
 - [ ] display who is most accurate and by how much 
 - [ ] display who is fastest and by how much 
 - [ ] give accuracy fonction as a parameter 
-
+- [ ] add the price of the complete undetermini.run  
+- [ ] add cache on implementation 
 
 ### Documentation
 
