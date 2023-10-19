@@ -43,31 +43,40 @@ export function cartesianProduct(arrays: any[][]): any[][] {
   return cartesianHelper(arrays, 0);
 }
 
-// function createClass(Base: new (...args: any[]) => any) {
-//   return class extends Base {
-//     // should not be public
-//     public implementationName: string | undefined;
-//     public currentCost: number = 0;
+function createClass(Base: new (...args: any[]) => any) {
+  return class extends Base {
+    // should not be public
+    public implementationName: string | undefined;
+    public currentCost: number = 0;
 
-//     constructor(...args: any[]) {
-//       super(...args);
-//     }
+    constructor(...args: any[]) {
+      super(...args);
+    }
 
-//     setImplementationName(implementationName: string) {
-//       this.implementationName = implementationName;
-//     }
+    execute(paylaod: any) {
+      this.currentCost = 0;
+      super.execute(paylaod);
+    }
 
-//     addCost(value: number) {
-//       this.currentCost += value;
-//     }
-//   };
-// }
+    setImplementationName(implementationName: string) {
+      this.implementationName = implementationName;
+    }
+
+    addCost(value: number) {
+      this.currentCost += value;
+    }
+  };
+}
 
 export class ImplementationFactory<T> {
+  readonly ExtendedUseCase;
+
   constructor(
-    protected UseCaseConstructor: new (...args: any[]) => T,
+    protected UseCase: new (...args: any[]) => T,
     readonly methods: Method[] = []
-  ) {}
+  ) {
+    this.ExtendedUseCase = createClass(this.UseCase);
+  }
 
   addMethod(payload: AddMethodPayload) {
     const isImplementationExisting = !!this.methods.find(
@@ -86,19 +95,7 @@ export class ImplementationFactory<T> {
               method.methodName === methodName && method.isActive
           ) as Method[];
 
-          return methods.map((method) => {
-            if (!method.modelName) return method;
-            return {
-              ...method,
-              implementation: async function (input: string) {
-                (this as any).addCost(input.length);
-                const rawResult = await method.implementation(input);
-                (this as any).addCost(rawResult.length);
-
-                return rawResult;
-              }
-            } as Method;
-          });
+          return methods;
         },
         enumerable: true
       });
@@ -127,26 +124,10 @@ export class ImplementationFactory<T> {
         },
         [] as Array<string>
       );
-      const useCase = new this.UseCaseConstructor(constructorPayload);
-      Object.defineProperties(useCase, {
-        currentCost: {
-          value: 0,
-          enumerable: true,
-          writable: true
-        },
-        addCost: {
-          value: function (value: number) {
-            this.currentCost += value;
-          },
-          enumerable: true
-        },
-        implementationName: {
-          value: methodImplementationsName.join(", "),
-          enumerable: true
-        }
-      });
+      const useCase = new this.ExtendedUseCase(constructorPayload);
+      useCase.setImplementationName(methodImplementationsName.join(", "));
 
       return useCase;
-    }) as unknown as Array<GetCandidate>;
+    });
   }
 }
