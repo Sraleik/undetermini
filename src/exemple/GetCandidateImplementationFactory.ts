@@ -43,37 +43,38 @@ export function cartesianProduct(arrays: any[][]): any[][] {
   return cartesianHelper(arrays, 0);
 }
 
-function createClass(Base: new (...args: any[]) => any) {
-  return class extends Base {
-    // should not be public
-    public implementationName: string | undefined;
-    public currentCost: number = 0;
+// function createClass(Base: new (...args: any[]) => any) {
+//   return class extends Base {
+//     // should not be public
+//     public implementationName: string | undefined;
+//     public currentCost: number = 0;
 
-    constructor(...args: any[]) {
-      super(...args);
-    }
+//     constructor(...args: any[]) {
+//       super(...args);
+//     }
 
-    setImplementationName(implementationName: string) {
-      this.implementationName = implementationName;
-    }
+//     setImplementationName(implementationName: string) {
+//       this.implementationName = implementationName;
+//     }
 
-    addCost(value: number) {
-      this.currentCost += value;
-    }
-  };
-}
+//     addCost(value: number) {
+//       this.currentCost += value;
+//     }
+//   };
+// }
 
 export class ImplementationFactory<T> {
-  private ExtendedUseCase: new (...args: any[]) => any;
-
   constructor(
     protected UseCaseConstructor: new (...args: any[]) => T,
-    protected methods: Method[] = []
-  ) {
-    this.ExtendedUseCase = createClass(UseCaseConstructor);
-  }
+    readonly methods: Method[] = []
+  ) {}
 
   addMethod(payload: AddMethodPayload) {
+    const isImplementationExisting = !!this.methods.find(
+      (method) => method.implementationName === payload.implementationName
+    );
+    if (isImplementationExisting)
+      throw new Error("Implementation Name already exist");
     const isActive = payload.isActive ?? true;
     this.methods.push({ ...payload, isActive });
     const { methodName } = payload;
@@ -98,7 +99,8 @@ export class ImplementationFactory<T> {
               }
             } as Method;
           });
-        }
+        },
+        enumerable: true
       });
     }
   }
@@ -125,8 +127,24 @@ export class ImplementationFactory<T> {
         },
         [] as Array<string>
       );
-      const useCase = new this.ExtendedUseCase(constructorPayload);
-      useCase.setImplementationName(methodImplementationsName.join(", "));
+      const useCase = new this.UseCaseConstructor(constructorPayload);
+      Object.defineProperties(useCase, {
+        currentCost: {
+          value: 0,
+          enumerable: true,
+          writable: true
+        },
+        addCost: {
+          value: function (value: number) {
+            this.currentCost += value;
+          },
+          enumerable: true
+        },
+        implementationName: {
+          value: methodImplementationsName.join(", "),
+          enumerable: true
+        }
+      });
 
       return useCase;
     }) as unknown as Array<GetCandidate>;

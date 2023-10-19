@@ -140,81 +140,214 @@ getCandidateFactory.addMethod({
   implementationName: "Parser: Zod"
 });
 
-it("should return the proper candidate", async () => {
-  // Given a value given to our use case
-  const useCaseInput = {
-    pdfAsText: "Nicolas Rotier Software Engineer 32 years old"
-  };
-  type UseCaseInput = typeof useCaseInput;
+describe("Given a Factory with a simple TemplateUseCase", () => {
+  class SimpleUseCaseTemplate {
+    constructor(
+      private multiply: (x, y) => number,
+      private divide: (x, y) => number
+    ) {}
 
-  // Given an expected output (here we expect the string to be lowercase)
-  const expectedUseCaseOutput = {
-    firstname: "Nicolas",
-    lastname: "Rotier",
-    age: 32,
-    profession: "Software Engineer"
-  };
+    execute(payload: { x: number; y: number }) {
+      const { x, y } = payload;
+      const multiplyRes = this.multiply(x, y);
+      const divideRes = this.divide(multiplyRes, 5);
 
-  const getCandidate1 = getCandidateFactory.implementations[0];
-  await getCandidate1.execute(useCaseInput);
-  console.log(
-    "🚀 ~ file: GetCandidateImplementations.spec.ts:162 ~ it ~ getCandidate1:",
-    getCandidate1
-  );
-
-  const implementations = getCandidateFactory.implementations.map(
-    (getCandidate) => {
-      return {
-        name: (getCandidate as any).implementationName,
-        modelName: OPENAI_MODEL_NAME.GPT_3_0613,
-        execute: getCandidate.execute.bind(getCandidate)
-      };
+      return divideRes;
     }
-  );
-  console.log(
-    "🚀 ~ file: GetCandidateImplementations.spec.ts:169 ~ it ~ implementations:",
-    implementations
-  );
+  }
+  let uselessUseCaseFactory: ImplementationFactory<SimpleUseCaseTemplate>;
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  // function hashFunction(func: Function): string {
-  //   const functionString = func.toString();
-  //   const hash = crypto.createHash("sha256");
-  //   hash.update(functionString);
-  //   return hash.digest("hex");
-  // }
+  beforeEach(() => {
+    uselessUseCaseFactory = new ImplementationFactory(SimpleUseCaseTemplate);
+  });
 
-  // // eslint-disable-next-line @typescript-eslint/ban-types
-  // function getFunctionCode(fn: Function): string {
-  //   return fn.toString();
-  // }
+  describe("When adding 1 implementation of a Method named 'multiply'", () => {
+    beforeEach(() => {
+      uselessUseCaseFactory.addMethod({
+        methodName: "multiply",
+        implementation: (x: number, y: number) => x * y,
+        implementationName: "X * Y"
+      });
+    });
 
-  // function serializeInstance(instance: any): string {
-  //   const proto = Object.getPrototypeOf(instance);
-  //   const protoProps = Object.getOwnPropertyNames(proto)
-  //     .filter((prop) => typeof proto[prop] === "function")
-  //     .map((prop) => `${prop}:${getFunctionCode(proto[prop])}`);
-  //   const instanceProps = Object.keys(instance).map(
-  //     (prop) => `${prop}:${instance[prop]}`
-  //   );
-  //   return JSON.stringify([...instanceProps, ...protoProps]);
-  // }
+    test("Then the factory should have 1 Method in total", async () => {
+      expect(uselessUseCaseFactory.methods.length).toEqual(1);
+    });
 
-  // function generateHash(instance: any): string {
-  //   const serialized = serializeInstance(instance);
-  //   const hash = crypto.createHash("sha256");
-  //   hash.update(serialized);
-  //   return hash.digest("hex");
-  // }
+    test("Then it should have 1 Active Method", async () => {
+      expect(uselessUseCaseFactory.methods[0].isActive).toEqual(true);
+    });
 
-  // console.log(generateHash(getCandidateFactory.implementations[0]));
-  // console.log(generateHash(getCandidateFactory.implementations[1]));
+    test("Then it should have 1 implementation of the method 'multiply'", async () => {
+      expect(uselessUseCaseFactory["multiply"].length).toEqual(1);
+    });
+  });
 
-  // const results = await undetermini.run<UseCaseInput>({
-  //   useCaseInput,
-  //   expectedUseCaseOutput,
-  //   implementations,
-  //   times: 2
-  // });
-  // console.table(results);
-}, 60_000);
+  describe("When adding a method with an existing implementationName", () => {
+    test("Then the factory should throw an error", async () => {
+      uselessUseCaseFactory.addMethod({
+        methodName: "multiply",
+        implementation: (x: number, y: number) => x * y,
+        implementationName: "X * Y"
+      });
+
+      expect(() =>
+        uselessUseCaseFactory.addMethod({
+          methodName: "multiply",
+          implementation: (x: number, y: number) => x * y,
+          implementationName: "X * Y"
+        })
+      ).toThrow();
+    });
+  });
+
+  describe("When adding a method with an existing implementationName", () => {
+    test("Then the factory should throw an error", async () => {
+      uselessUseCaseFactory.addMethod({
+        methodName: "multiply",
+        implementation: (x: number, y: number) => x * y,
+        implementationName: "X * Y"
+      });
+
+      expect(() =>
+        uselessUseCaseFactory.addMethod({
+          methodName: "multiply",
+          implementation: (x: number, y: number) => x * y,
+          implementationName: "X * Y"
+        })
+      ).toThrow();
+    });
+  });
+
+  describe("When adding 3 implementation of a Method named 'multiply'", () => {
+    beforeEach(() => {
+      uselessUseCaseFactory.addMethod({
+        methodName: "multiply",
+        implementation: (x: number, y: number) => x * y,
+        implementationName: "X * Y"
+      });
+      uselessUseCaseFactory.addMethod({
+        methodName: "multiply",
+        implementation: (x: number, y: number) => y * x,
+        implementationName: "Y * X"
+      });
+
+      uselessUseCaseFactory.addMethod({
+        methodName: "multiply",
+        implementation: (x: number, y: number) => x / y,
+        implementationName: "Wrong: x / y"
+      });
+    });
+
+    describe("When adding 1 inactive Method", () => {
+      beforeEach(() => {
+        uselessUseCaseFactory.addMethod({
+          methodName: "multiply",
+          implementation: (x: number, y: number) => x * y,
+          implementationName: "Inactive: X * Y",
+          isActive: false
+        });
+      });
+
+      test("Then the factory should have 1 more Method in methods", async () => {
+        expect(uselessUseCaseFactory.methods.length).toEqual(4);
+      });
+
+      test("Then number of methods in 'multiply' should remain the same", async () => {
+        expect(uselessUseCaseFactory["multiply"].length).toEqual(3);
+      });
+    });
+
+    describe("When adding 3 implementation of a Method named 'divide'", () => {
+      beforeEach(() => {
+        uselessUseCaseFactory.addMethod({
+          methodName: "divide",
+          implementation: (x: number, y: number) => x / y,
+          implementationName: "X / Y"
+        });
+        uselessUseCaseFactory.addMethod({
+          methodName: "divide",
+          implementation: (x: number, y: number) => y / x,
+          implementationName: "Y / X"
+        });
+
+        uselessUseCaseFactory.addMethod({
+          methodName: "divide",
+          implementation: (x: number, y: number) => x * y,
+          implementationName: "Wrong: x * y"
+        });
+      });
+
+      test("Then the factory should have 6 Method", async () => {
+        expect(uselessUseCaseFactory.methods.length).toEqual(6);
+      });
+
+      test("Then it should have 3 implementation of the method 'divide'", async () => {
+        expect(uselessUseCaseFactory["divide"].length).toEqual(3);
+      });
+      test("Then every methods should be active", async () => {
+        expect(
+          uselessUseCaseFactory.methods.every((method) => method.isActive)
+        ).toBe(true);
+      });
+    });
+
+    test("Then the factory should have 3 Method", async () => {
+      expect(uselessUseCaseFactory.methods.length).toEqual(3);
+    });
+
+    test("Then it should have 3 implementation of the method 'multiply'", async () => {
+      expect(uselessUseCaseFactory["multiply"].length).toEqual(3);
+    });
+
+    test("Then every methods should be active", async () => {
+      expect(
+        uselessUseCaseFactory.methods.every((method) => method.isActive)
+      ).toBe(true);
+    });
+  });
+});
+
+// Then the implementation factory should have the right method implementation
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+// function hashFunction(func: Function): string {
+//   const functionString = func.toString();
+//   const hash = crypto.createHash("sha256");
+//   hash.update(functionString);
+//   return hash.digest("hex");
+// }
+
+// // eslint-disable-next-line @typescript-eslint/ban-types
+// function getFunctionCode(fn: Function): string {
+//   return fn.toString();
+// }
+
+// function serializeInstance(instance: any): string {
+//   const proto = Object.getPrototypeOf(instance);
+//   const protoProps = Object.getOwnPropertyNames(proto)
+//     .filter((prop) => typeof proto[prop] === "function")
+//     .map((prop) => `${prop}:${getFunctionCode(proto[prop])}`);
+//   const instanceProps = Object.keys(instance).map(
+//     (prop) => `${prop}:${instance[prop]}`
+//   );
+//   return JSON.stringify([...instanceProps, ...protoProps]);
+// }
+
+// function generateHash(instance: any): string {
+//   const serialized = serializeInstance(instance);
+//   const hash = crypto.createHash("sha256");
+//   hash.update(serialized);
+//   return hash.digest("hex");
+// }
+
+// console.log(generateHash(getCandidateFactory.implementations[0]));
+// console.log(generateHash(getCandidateFactory.implementations[1]));
+
+// const results = await undetermini.run<UseCaseInput>({
+//   useCaseInput,
+//   expectedUseCaseOutput,
+//   implementations,
+//   times: 2
+// });
+// console.table(results);
