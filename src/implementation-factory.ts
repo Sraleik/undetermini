@@ -2,7 +2,6 @@ export type Method = {
   //MAYBE: call it id
   methodName: string;
   implementationName: string;
-  modelName?: string;
   isActive: boolean;
   implementation: any;
 };
