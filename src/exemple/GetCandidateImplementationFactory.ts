@@ -1,5 +1,3 @@
-import { GetCandidate } from "./GetCandidate";
-
 export type Method = {
   //MAYBE: call it id
   methodName: string;
@@ -53,9 +51,10 @@ function createClass(Base: new (...args: any[]) => any) {
       super(...args);
     }
 
-    execute(paylaod: any) {
+    async execute(paylaod: any) {
       this.currentCost = 0;
-      super.execute(paylaod);
+      const res = await super.execute(paylaod);
+      return res;
     }
 
     setImplementationName(implementationName: string) {

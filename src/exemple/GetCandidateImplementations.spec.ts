@@ -167,25 +167,70 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
     simpleUseCaseFactory = new ImplementationFactory(SimpleUseCaseTemplate);
   });
 
-  describe("When adding 1 implementation of a Method named 'multiply'", () => {
+  describe("When adding one occurence of every required method", () => {
     beforeEach(() => {
       simpleUseCaseFactory.addMethod({
         methodName: "multiply",
         implementation: (x: number, y: number) => x * y,
         implementationName: "X * Y"
       });
+      simpleUseCaseFactory.addMethod({
+        methodName: "divide",
+        implementation: function (x: number, y: number) {
+          this.addCost(12); // this function has a fixed cost of 12
+          return x / y;
+        },
+        implementationName: "X / Y"
+      });
     });
 
-    test("Then the factory should have 1 Method in total", async () => {
-      expect(simpleUseCaseFactory.methods.length).toEqual(1);
+    test("Then the factory should have 2 Method in total", async () => {
+      expect(simpleUseCaseFactory.methods.length).toEqual(2);
     });
 
-    test("Then it should have 1 Active Method", async () => {
-      expect(simpleUseCaseFactory.methods[0].isActive).toEqual(true);
+    test("Then every methods should be active", async () => {
+      expect(
+        simpleUseCaseFactory.methods.every((method) => method.isActive)
+      ).toEqual(true);
     });
 
     test("Then it should have 1 implementation of the method 'multiply'", async () => {
       expect(simpleUseCaseFactory["multiply"].length).toEqual(1);
+    });
+
+    test("Then it should have 1 implementation of the method 'divide'", async () => {
+      expect(simpleUseCaseFactory["divide"].length).toEqual(1);
+    });
+
+    test("Then it should have 1 implementation of the UseCase", async () => {
+      expect(simpleUseCaseFactory.implementations.length).toEqual(1);
+    });
+
+    describe("Given the use case is executed", () => {
+      let useCaseResult;
+      let implementation;
+      beforeEach(async () => {
+        implementation = simpleUseCaseFactory.implementations[0];
+        useCaseResult = await implementation.execute({
+          x: 6,
+          y: 10
+        });
+      });
+      test("Then it should return the result", async () => {
+        expect(useCaseResult).toEqual(12);
+      });
+
+      describe("Given one method has a cost", () => {
+        test("Then the usecase implementation should have the cost", async () => {
+          expect(implementation.currentCost).toEqual(12);
+        });
+
+        describe("Given the usecase is executed twice", () => {
+          test("Then the usecase implementation cost should have been reset to 0", async () => {
+            expect(implementation.currentCost).toEqual(12);
+          });
+        });
+      });
     });
   });
 
@@ -204,167 +249,6 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
           implementationName: "X * Y"
         })
       ).toThrow();
-    });
-  });
-
-  describe("When adding 2 implementation to a method and 1 to another method", () => {
-    beforeEach(() => {
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: (x: number, y: number) => x * y,
-        implementationName: "X * Y"
-      });
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: (x: number, y: number) => y * x,
-        implementationName: "Y * X"
-      });
-
-      simpleUseCaseFactory.addMethod({
-        methodName: "divide",
-        implementation: (x: number, y: number) => x / y,
-        implementationName: "X / Y"
-      });
-    });
-    test("Then the factory should have 2 implementation of the UseCase", async () => {
-      expect(simpleUseCaseFactory.implementations.length).toEqual(2);
-    });
-
-    test("When executing those implementation they should not throw an error", async () => {
-      simpleUseCaseFactory.implementations.forEach((implementation) => {
-        expect(() => implementation.execute({ x: 2, y: 3 })).not.toThrow();
-      });
-    });
-  });
-
-  describe("When adding 3 implementation of a Method named 'multiply'", () => {
-    beforeEach(() => {
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: (x: number, y: number) => x * y,
-        implementationName: "X * Y"
-      });
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: (x: number, y: number) => y * x,
-        implementationName: "Y * X"
-      });
-
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: (x: number, y: number) => x / y,
-        implementationName: "Wrong: x / y"
-      });
-    });
-
-    describe("When adding 1 inactive Method", () => {
-      beforeEach(() => {
-        simpleUseCaseFactory.addMethod({
-          methodName: "multiply",
-          implementation: (x: number, y: number) => x * y,
-          implementationName: "Inactive: X * Y",
-          isActive: false
-        });
-      });
-
-      test("Then the factory should have 1 more Method in methods", async () => {
-        expect(simpleUseCaseFactory.methods.length).toEqual(4);
-      });
-
-      test("Then number of methods in 'multiply' should remain the same", async () => {
-        expect(simpleUseCaseFactory["multiply"].length).toEqual(3);
-      });
-    });
-
-    describe("When adding 3 implementation of a Method named 'divide'", () => {
-      beforeEach(() => {
-        simpleUseCaseFactory.addMethod({
-          methodName: "divide",
-          implementation: (x: number, y: number) => x / y,
-          implementationName: "X / Y"
-        });
-        simpleUseCaseFactory.addMethod({
-          methodName: "divide",
-          implementation: (x: number, y: number) => y / x,
-          implementationName: "Y / X"
-        });
-
-        simpleUseCaseFactory.addMethod({
-          methodName: "divide",
-          implementation: (x: number, y: number) => x * y,
-          implementationName: "Wrong: x * y"
-        });
-      });
-
-      test("Then the factory should have 6 Method", async () => {
-        expect(simpleUseCaseFactory.methods.length).toEqual(6);
-      });
-
-      test("Then it should have 3 implementation of the method 'divide'", async () => {
-        expect(simpleUseCaseFactory["divide"].length).toEqual(3);
-      });
-      test("Then every methods should be active", async () => {
-        expect(
-          simpleUseCaseFactory.methods.every((method) => method.isActive)
-        ).toBe(true);
-      });
-    });
-
-    test("Then the factory should have 3 Method", async () => {
-      expect(simpleUseCaseFactory.methods.length).toEqual(3);
-    });
-
-    test("Then it should have 3 implementation of the method 'multiply'", async () => {
-      expect(simpleUseCaseFactory["multiply"].length).toEqual(3);
-    });
-
-    test("Then every methods should be active", async () => {
-      expect(
-        simpleUseCaseFactory.methods.every((method) => method.isActive)
-      ).toBe(true);
-    });
-  });
-
-  describe("Given one method as a cost", () => {
-    beforeEach(() => {
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: function (x: number, y: number) {
-          this.addCost(x + y);
-          return x * y;
-        },
-        implementationName: "Inactive: X * Y"
-      });
-
-      simpleUseCaseFactory.addMethod({
-        methodName: "divide",
-        implementation: (x: number, y: number) => x / y,
-        implementationName: "X / Y"
-      });
-    });
-    describe("When the usecase is executed", () => {
-      let implementation: SimpleUseCaseTemplate;
-      beforeEach(() => {
-        implementation = simpleUseCaseFactory.implementations[0];
-        implementation.execute({ x: 6, y: 6 });
-      });
-
-      test("Then it should calculate the cost of the execution", async () => {
-        expect(implementation.currentCost).toEqual(12);
-      });
-    });
-
-    describe("When the usecase is executed twice", () => {
-      let implementation: SimpleUseCaseTemplate;
-      beforeEach(() => {
-        implementation = simpleUseCaseFactory.implementations[0];
-        implementation.execute({ x: 6, y: 6 });
-        implementation.execute({ x: 15, y: 5 });
-      });
-
-      test("Then it should calculate restart the price at 0 on second execution", async () => {
-        expect(implementation.currentCost).toEqual(20);
-      });
     });
   });
 });
