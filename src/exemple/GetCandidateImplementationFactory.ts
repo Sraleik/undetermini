@@ -1,11 +1,16 @@
 import { GetCandidate } from "./GetCandidate";
 
 export type Method = {
+  //MAYBE: call it id
   methodName: string;
   implementationName: string;
   modelName?: string;
   isActive: boolean;
   implementation: any;
+};
+
+export type AddMethodPayload = Omit<Method, "isActive"> & {
+  isActive?: boolean;
 };
 
 export function cartesianProduct(arrays: any[][]): any[][] {
@@ -38,21 +43,61 @@ export function cartesianProduct(arrays: any[][]): any[][] {
   return cartesianHelper(arrays, 0);
 }
 
+function createClass(Base: new (...args: any[]) => any) {
+  return class extends Base {
+    // should not be public
+    public implementationName: string | undefined;
+    public currentCost: number = 0;
+
+    constructor(...args: any[]) {
+      super(...args);
+    }
+
+    setImplementationName(implementationName: string) {
+      this.implementationName = implementationName;
+    }
+
+    addCost(value: number) {
+      this.currentCost += value;
+    }
+  };
+}
+
 export class ImplementationFactory<T> {
+  private ExtendedUseCase: new (...args: any[]) => any;
+
   constructor(
     protected UseCaseConstructor: new (...args: any[]) => T,
     protected methods: Method[] = []
-  ) {}
+  ) {
+    this.ExtendedUseCase = createClass(UseCaseConstructor);
+  }
 
-  addMethod(payload: Method) {
-    this.methods.push(payload);
+  addMethod(payload: AddMethodPayload) {
+    const isActive = payload.isActive ?? true;
+    this.methods.push({ ...payload, isActive });
     const { methodName } = payload;
     if (!this[methodName]) {
       Object.defineProperty(this, methodName, {
         get: function () {
-          return this.methods.filter(
-            (method: Method) => method.methodName === methodName
-          );
+          const methods = this.methods.filter(
+            (method: Method) =>
+              method.methodName === methodName && method.isActive
+          ) as Method[];
+
+          return methods.map((method) => {
+            if (!method.modelName) return method;
+            return {
+              ...method,
+              implementation: async function (input: string) {
+                (this as any).addCost(input.length);
+                const rawResult = await method.implementation(input);
+                (this as any).addCost(rawResult.length);
+
+                return rawResult;
+              }
+            } as Method;
+          });
         }
       });
     }
@@ -68,14 +113,6 @@ export class ImplementationFactory<T> {
   }
 
   get implementations() {
-    class UseCaseExtended extends this.UseCaseConstructor {
-      constructor(
-        private readonly implementationName: string,
-        payload: any
-      ) {
-        super(payload);
-      }
-    }
     return this.implementationsPayloadsAsArray.map((implementationPayload) => {
       const constructorPayload = implementationPayload.reduce((acc, method) => {
         acc[method.methodName] = method.implementation;
@@ -88,11 +125,9 @@ export class ImplementationFactory<T> {
         },
         [] as Array<string>
       );
-      const useCase = new UseCaseExtended(
-        methodImplementationsName.join(", "),
-        constructorPayload
-      );
-      // Object.getPrototypeOf(useCase).implementationName =
+      const useCase = new this.ExtendedUseCase(constructorPayload);
+      useCase.setImplementationName(methodImplementationsName.join(", "));
+
       return useCase;
     }) as unknown as Array<GetCandidate>;
   }

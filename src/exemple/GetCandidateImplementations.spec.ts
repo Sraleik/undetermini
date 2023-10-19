@@ -78,7 +78,6 @@ getCandidateFactory.addMethod({
     	extract the relevant information following this instruction:
 
     	{formatInstruction}`),
-  isActive: true,
   implementationName: "Prompt 1"
 });
 
@@ -90,7 +89,7 @@ getCandidateFactory.addMethod({
       Extract Candidate
 
     	{formatInstruction}`),
-  isActive: true,
+  isActive: false,
   implementationName: "Prompt 2"
 });
 
@@ -98,7 +97,6 @@ getCandidateFactory.addMethod({
 getCandidateFactory.addMethod({
   methodName: "extractCandidateFromPrompt",
   implementation: extractCandidateWithGpt3,
-  isActive: true,
   modelName: OPENAI_MODEL_NAME.GPT_3_0613,
   implementationName: "LLM Model: GPT 3"
 });
@@ -114,7 +112,7 @@ getCandidateFactory.addMethod({
 getCandidateFactory.addMethod({
   methodName: "extractCandidateFromPrompt",
   implementation: extractCandidateWithCohere,
-  isActive: true,
+  isActive: false,
   modelName: LLM_MODEL_NAME.COHERE_GENERATE,
   implementationName: "LLM Model: COHERE"
 });
@@ -157,6 +155,13 @@ it("should return the proper candidate", async () => {
     profession: "Software Engineer"
   };
 
+  const getCandidate1 = getCandidateFactory.implementations[0];
+  await getCandidate1.execute(useCaseInput);
+  console.log(
+    "🚀 ~ file: GetCandidateImplementations.spec.ts:162 ~ it ~ getCandidate1:",
+    getCandidate1
+  );
+
   const implementations = getCandidateFactory.implementations.map(
     (getCandidate) => {
       return {
@@ -172,38 +177,38 @@ it("should return the proper candidate", async () => {
   );
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  function hashFunction(func: Function): string {
-    const functionString = func.toString();
-    const hash = crypto.createHash("sha256");
-    hash.update(functionString);
-    return hash.digest("hex");
-  }
+  // function hashFunction(func: Function): string {
+  //   const functionString = func.toString();
+  //   const hash = crypto.createHash("sha256");
+  //   hash.update(functionString);
+  //   return hash.digest("hex");
+  // }
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  function getFunctionCode(fn: Function): string {
-    return fn.toString();
-  }
+  // // eslint-disable-next-line @typescript-eslint/ban-types
+  // function getFunctionCode(fn: Function): string {
+  //   return fn.toString();
+  // }
 
-  function serializeInstance(instance: any): string {
-    const proto = Object.getPrototypeOf(instance);
-    const protoProps = Object.getOwnPropertyNames(proto)
-      .filter((prop) => typeof proto[prop] === "function")
-      .map((prop) => `${prop}:${getFunctionCode(proto[prop])}`);
-    const instanceProps = Object.keys(instance).map(
-      (prop) => `${prop}:${instance[prop]}`
-    );
-    return JSON.stringify([...instanceProps, ...protoProps]);
-  }
+  // function serializeInstance(instance: any): string {
+  //   const proto = Object.getPrototypeOf(instance);
+  //   const protoProps = Object.getOwnPropertyNames(proto)
+  //     .filter((prop) => typeof proto[prop] === "function")
+  //     .map((prop) => `${prop}:${getFunctionCode(proto[prop])}`);
+  //   const instanceProps = Object.keys(instance).map(
+  //     (prop) => `${prop}:${instance[prop]}`
+  //   );
+  //   return JSON.stringify([...instanceProps, ...protoProps]);
+  // }
 
-  function generateHash(instance: any): string {
-    const serialized = serializeInstance(instance);
-    const hash = crypto.createHash("sha256");
-    hash.update(serialized);
-    return hash.digest("hex");
-  }
+  // function generateHash(instance: any): string {
+  //   const serialized = serializeInstance(instance);
+  //   const hash = crypto.createHash("sha256");
+  //   hash.update(serialized);
+  //   return hash.digest("hex");
+  // }
 
-  console.log(generateHash(getCandidateFactory.implementations[0]));
-  console.log(generateHash(getCandidateFactory.implementations[1]));
+  // console.log(generateHash(getCandidateFactory.implementations[0]));
+  // console.log(generateHash(getCandidateFactory.implementations[1]));
 
   // const results = await undetermini.run<UseCaseInput>({
   //   useCaseInput,
