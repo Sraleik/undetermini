@@ -139,72 +139,151 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
     simpleUseCaseFactory = new ImplementationFactory(SimpleUseCaseTemplate);
   });
 
-  describe("When adding one occurence of every required method", () => {
-    beforeEach(() => {
-      simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
-        implementation: (x: number, y: number) => x * y,
-        implementationName: "X * Y"
-      });
-      simpleUseCaseFactory.addMethod({
-        methodName: "divide",
-        implementation: function (x: number, y: number) {
-          this.addCost(12); // this function has a fixed cost of 12
-          return x / y;
+  describe.each([
+    {
+      methods: [
+        {
+          methodName: "multiply",
+          implementation: (x: number, y: number) => x * y,
+          implementationName: "X * Y"
         },
-        implementationName: "X / Y"
-      });
-    });
-
-    test("Then the factory should have 2 Method in total", async () => {
-      expect(simpleUseCaseFactory.methods.length).toEqual(2);
-    });
-
-    test("Then every methods should be active", async () => {
-      expect(
-        simpleUseCaseFactory.methods.every((method) => method.isActive)
-      ).toEqual(true);
-    });
-
-    test("Then it should have 1 implementation of the method 'multiply'", async () => {
-      expect(simpleUseCaseFactory["multiply"].length).toEqual(1);
-    });
-
-    test("Then it should have 1 implementation of the method 'divide'", async () => {
-      expect(simpleUseCaseFactory["divide"].length).toEqual(1);
-    });
-
-    test("Then it should have 1 implementation of the UseCase", async () => {
-      expect(simpleUseCaseFactory.implementations.length).toEqual(1);
-    });
-
-    describe("Given the use case is executed", () => {
-      let useCaseResult;
-      let implementation;
-      beforeEach(async () => {
-        implementation = simpleUseCaseFactory.implementations[0];
-        useCaseResult = await implementation.execute({
-          x: 6,
-          y: 10
+        {
+          methodName: "divide",
+          implementation: function (x: number, y: number) {
+            this.addCost(12); // this function has a fixed cost of 12
+            return x / y;
+          },
+          implementationName: "X / Y"
+        }
+      ],
+      occurenceOfRequiredMethod: 1,
+      implementationCount: 1
+    },
+    {
+      methods: [
+        {
+          methodName: "multiply",
+          implementation: (x: number, y: number) => x * y,
+          implementationName: "X * Y"
+        },
+        {
+          methodName: "multiply",
+          implementation: (x: number, y: number) => y * x,
+          implementationName: "Y * X"
+        },
+        {
+          methodName: "divide",
+          implementation: function (x: number, y: number) {
+            this.addCost(12); // this function has a fixed cost of 12
+            return x / y;
+          },
+          implementationName: "X / Y"
+        },
+        {
+          methodName: "divide",
+          implementation: function (x: number, y: number) {
+            this.addCost(12); // this function has a fixed cost of 12
+            return x / y;
+          },
+          implementationName: "X / Y duplicate"
+        }
+      ],
+      occurenceOfRequiredMethod: 2,
+      implementationCount: 4
+    }
+  ])(
+    "When adding $occurenceOfRequiredMethod occurence of every required method",
+    ({ methods, occurenceOfRequiredMethod, implementationCount }) => {
+      beforeEach(() => {
+        methods.forEach((method) => {
+          simpleUseCaseFactory.addMethod(method);
         });
       });
-      test("Then it should return the result", async () => {
-        expect(useCaseResult).toEqual(12);
+
+      test(`Then the factory should have ${methods.length} Method in total`, async () => {
+        expect(simpleUseCaseFactory.methods.length).toEqual(methods.length);
       });
 
-      describe("Given one method has a cost", () => {
-        test("Then the usecase implementation should have the cost", async () => {
-          expect(implementation.currentCost).toEqual(12);
+      test("Then every methods should be active", async () => {
+        expect(
+          simpleUseCaseFactory.methods.every((method) => method.isActive)
+        ).toEqual(true);
+      });
+
+      test(`Then it should have ${occurenceOfRequiredMethod} implementation of the method 'multiply'`, async () => {
+        expect(simpleUseCaseFactory["multiply"].length).toEqual(
+          occurenceOfRequiredMethod
+        );
+      });
+
+      test(`Then it should have ${occurenceOfRequiredMethod} implementation of the method 'divide'`, async () => {
+        expect(simpleUseCaseFactory["divide"].length).toEqual(
+          occurenceOfRequiredMethod
+        );
+      });
+
+      test(`Then it should have ${implementationCount} implementation of the UseCase`, async () => {
+        expect(simpleUseCaseFactory.implementations.length).toEqual(
+          implementationCount
+        );
+      });
+
+      describe(`Given the usecase${
+        implementationCount > 1 ? "s are" : " is"
+      } executed`, () => {
+        let useCaseResult;
+        let implementations;
+
+        beforeEach(async () => {
+          implementations = simpleUseCaseFactory.implementations;
+          const resultPromise = implementations.map((implementation) => {
+            return implementation.execute({
+              x: 60,
+              y: 100
+            });
+          });
+
+          useCaseResult = await Promise.all(resultPromise);
+        });
+        test(`Then ${
+          implementationCount > 1 ? "every usecases" : "it"
+        } should return the result`, async () => {
+          expect(useCaseResult.every((result) => result === 1200)).toEqual(
+            true
+          );
         });
 
-        describe("Given the usecase is executed twice", () => {
-          test("Then the usecase implementation cost should have been reset to 0", async () => {
-            expect(implementation.currentCost).toEqual(12);
+        describe("Given one method of the usecase has a cost", () => {
+          test(`Then the usecase${
+            implementationCount > 1 ? "s" : ""
+          } implementation should have the cost`, async () => {
+            implementations.forEach((implementation) => {
+              expect(implementation.currentCost).toEqual(12);
+            });
+          });
+
+          describe("Given the usecase is executed twice", () => {
+            beforeEach(async () => {
+              implementations = simpleUseCaseFactory.implementations;
+              const resultPromise = implementations.map((implementation) => {
+                return implementation.execute({
+                  x: 60,
+                  y: 100
+                });
+              });
+
+              useCaseResult = await Promise.all(resultPromise);
+            });
+            test("Then the usecase implementation cost should have been reset to 0", async () => {
+              implementations.forEach((implementation) => {
+                expect(implementation.currentCost).toEqual(12);
+              });
+            });
           });
         });
       });
-    });
-  });
+    }
+  );
 
   describe("When adding a method with an existing implementationName", () => {
     test("Then the factory should throw an error", async () => {

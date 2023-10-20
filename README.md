@@ -73,6 +73,7 @@ Feel free to start/join a discussion, issues or Pull requests.
 - [ ] give accuracy fonction as a parameter 
 - [ ] add the price of the complete undetermini.run  
 - [ ] add cache on implementation 
+- [ ] memoize implementations on ImplementationFactory 
 - [X] add possibility to deactivate methodImplementation 
 
 
