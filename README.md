@@ -66,15 +66,16 @@ Feel free to start/join a discussion, issues or Pull requests.
 ### Feature
 
 - [ ] use https://www.npmjs.com/package/console-table-printer for display 
-- [ ] improve price calculation (do not use float) 
+- [X] improve price calculation (do not use float) 
 - [ ] display who si cheapest and by how much 
 - [ ] display who is most accurate and by how much 
 - [ ] display who is fastest and by how much 
 - [ ] give accuracy fonction as a parameter 
 - [ ] add the price of the complete undetermini.run  
 - [ ] add cache on implementation 
-- [ ] memoize implementations on ImplementationFactory 
 - [X] add possibility to deactivate methodImplementation 
+- [X] allow to add LLM Model Info 
+- [ ] remove price calcultion from Undetermini class
 
 
 ### Documentation

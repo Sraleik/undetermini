@@ -1,5 +1,10 @@
 import currency from "currency.js";
-import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
+import {
+  LLM_MODEL_NAME,
+  ModelInfo,
+  computeCostOfLlmCall,
+  llmModelInfo
+} from "./llm-utils";
 
 it("should calculate the right price for a call to GPT3", async () => {
   const res = await computeCostOfLlmCall(
@@ -32,4 +37,23 @@ it("should calculate the right price for a call to GPT4", async () => {
 
   expect(res instanceof currency).toBe(true);
   expect(res.value).toEqual(0.054);
+});
+
+it("should add a Model Info properly", () => {
+  llmModelInfo.addModelInfo({
+    name: "EXTREMELY_CHEAP_FAKE_MODEL",
+    priceInCents: {
+      input: 0.000000001,
+      output: 0.000000002
+    },
+    rateLimit: {
+      tpm: 1_000_000,
+      rpm: 500_000
+    }
+  });
+
+  //@ts-expect-error does exist
+  expect(llmModelInfo.EXTREMELY_CHEAP_FAKE_MODEL as ModelInfo).toContain({
+    name: "EXTREMELY_CHEAP_FAKE_MODEL"
+  });
 });

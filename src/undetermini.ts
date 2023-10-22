@@ -1,6 +1,9 @@
-import cohere from "cohere-ai";
-import { encodingForModel } from "js-tiktoken";
-import { LLM_MODEL_NAME, LLM_MODEL_INFO } from "./llm-utils";
+import currency from "currency.js";
+import {
+  LLM_MODEL_NAME,
+  computeCostOfLlmCall,
+  llmModelInfo
+} from "./llm-utils";
 
 export type ImplementationFunction<T> = (
   payload: T,
@@ -59,47 +62,32 @@ export class Undetermini {
   }) {
     const { implementation, useCaseInput, expectedUseCaseOutput } = payload;
 
-    let costOfThisRun = 0;
+    let costOfThisRun: currency = currency(0);
     const startTime = Date.now();
+    //TODO: remove the cost calculation from here
     const output = await implementation.execute(
       useCaseInput,
       async (prompt: string, rawResult: string) => {
-        let inputTokenCount = 0;
-        let outputTokenCount = 0;
-        if (implementation.modelName === LLM_MODEL_NAME.COHERE_GENERATE) {
-          inputTokenCount = (await cohere.tokenize({ text: prompt })).body
-            .tokens.length;
-          outputTokenCount = (await cohere.tokenize({ text: rawResult })).body
-            .tokens.length;
-        } else {
-          const enc = encodingForModel(implementation.modelName);
-          inputTokenCount = enc.encode(prompt).length;
-          outputTokenCount = enc.encode(rawResult).length;
-        }
-        const inputPrice =
-          (inputTokenCount *
-            LLM_MODEL_INFO[implementation.modelName].price.input1kToken) /
-          1000;
-        const outputPrice =
-          (outputTokenCount *
-            LLM_MODEL_INFO[implementation.modelName].price.input1kToken) /
-          1000;
-
-        costOfThisRun = inputPrice + outputPrice;
+        costOfThisRun = await computeCostOfLlmCall(
+          implementation.modelName,
+          prompt,
+          rawResult
+        );
       }
     );
     const endTime = Date.now();
 
     const latency = endTime - startTime;
     const accuracy = this.computeAccuracyDefault(expectedUseCaseOutput, output);
-    return { latency, accuracy, cost: costOfThisRun };
+    return { latency, accuracy, cost: costOfThisRun.value };
   }
 
   private isTimesAboveRequestPerMinute(
     times: number,
     modelName: LLM_MODEL_NAME
   ) {
-    return times > LLM_MODEL_INFO[modelName].rateLimit.rpm;
+    //@ts-expect-error is ok
+    return times > llmModelInfo[modelName].rateLimit.rpm;
   }
 
   private async runImplementationMultipleTime<T = any>(payload: {
