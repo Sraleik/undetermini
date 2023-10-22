@@ -1,6 +1,6 @@
-import { ValueOf } from "./common/utils";
-import { encodingForModel } from "js-tiktoken";
 import cohere from "cohere-ai";
+import { encodingForModel } from "js-tiktoken";
+import { LLM_MODEL_NAME, LLM_MODEL_INFO } from "./llm-utils";
 
 export type ImplementationFunction<T> = (
   payload: T,
@@ -27,62 +27,6 @@ export type MultipleRunResult = {
   averageAccuracy: number;
   averageCost: number;
 };
-
-export const OPENAI_MODEL_NAME = {
-  GPT_4_0613: "gpt-4-0613",
-  GPT_3_0613: "gpt-3.5-turbo-0613"
-} as const;
-
-export const LLM_MODEL_NAME = {
-  ...OPENAI_MODEL_NAME,
-  COHERE_GENERATE: "cohere-generate"
-} as const;
-
-export type LLM_MODEL_NAME = ValueOf<typeof LLM_MODEL_NAME>;
-export type OPENAI_MODEL_NAME = ValueOf<typeof OPENAI_MODEL_NAME>;
-export type LLM_INFO = {
-  price: {
-    input1kToken: number;
-    output1kToken: number;
-  };
-  rateLimit: {
-    tpm: number;
-    rpm: number;
-  };
-};
-
-export const LLM_MODEL_INFO: Record<LLM_MODEL_NAME, LLM_INFO> = {
-  "cohere-generate": {
-    price: {
-      input1kToken: 1.5,
-      output1kToken: 1.5
-    },
-    rateLimit: {
-      tpm: 100_000, // fake value I don't have them
-      rpm: 50_000 // fake value I don't have them
-    }
-  },
-  "gpt-4-0613": {
-    price: {
-      input1kToken: 3,
-      output1kToken: 6
-    },
-    rateLimit: {
-      tpm: 90_000,
-      rpm: 3_500
-    }
-  },
-  "gpt-3.5-turbo-0613": {
-    price: {
-      input1kToken: 0.15,
-      output1kToken: 0.2
-    },
-    rateLimit: {
-      tpm: 40_000,
-      rpm: 500
-    }
-  }
-} as const;
 
 export class Undetermini {
   constructor() {}

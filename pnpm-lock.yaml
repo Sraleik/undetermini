@@ -8,6 +8,9 @@ dependencies:
   cohere-ai:
     specifier: ^6.2.2
     version: 6.2.2
+  currency.js:
+    specifier: ^2.0.4
+    version: 2.0.4
   dotenv:
     specifier: ^16.3.1
     version: 16.3.1
@@ -1332,6 +1335,11 @@ packages:
 
   /crypt@0.0.2:
     resolution: {integrity: sha512-mCxBlsHFYh9C+HVpiEacem8FEBnMXgU9gy4zmNC+SXAZNB/1idgp/aulFJ4FgCi7GPEVbfyng092GqL2k2rmow==}
+    dev: false
+
+  /currency.js@2.0.4:
+    resolution: {integrity: sha512-6/OplJYgJ0RUlli74d93HJ/OsKVBi8lB1+Z6eJYS1YZzBuIp4qKKHpJ7ad+GvTlWmLR/hLJOWTykN5Nm8NJ7+w==}
+    engines: {node: '>=4'}
     dev: false
 
   /debug@4.3.4:

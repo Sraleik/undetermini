@@ -1,4 +1,5 @@
 import { ImplementationFactory } from "./implementation-factory";
+import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 // import dotenv from "dotenv";
 // import { OpenAI } from "langchain/llms/openai";
 // import cohere from "cohere-ai";
@@ -149,11 +150,23 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
         },
         {
           methodName: "divide",
-          implementation: function (x: number, y: number) {
-            this.addCost(12); // this function has a fixed cost of 12
+          implementation: async function (x: number, y: number) {
+            const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+            const rawGPT3Result = `Here is your answer, you poor human: ${
+              x / y
+            }`;
+
+            const cost = await computeCostOfLlmCall(
+              LLM_MODEL_NAME.GPT_3_0613,
+              inputPrompt,
+              rawGPT3Result
+            );
+
+            this.addCost(cost); // this function has a fixed cost of 12
             return x / y;
           },
-          implementationName: "X / Y"
+          llmModelNamesUsed: [LLM_MODEL_NAME.GPT_3_0613],
+          implementationName: "Division through fake GPT3"
         }
       ],
       occurenceOfRequiredMethod: 1,
@@ -173,16 +186,36 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
         },
         {
           methodName: "divide",
-          implementation: function (x: number, y: number) {
-            this.addCost(12); // this function has a fixed cost of 12
+          implementation: async function (x: number, y: number) {
+            const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+            const rawGPT3Result = `Here is your answer, you poor human: ${
+              x / y
+            }`;
+
+            const cost = await computeCostOfLlmCall(
+              LLM_MODEL_NAME.GPT_3_0613,
+              inputPrompt,
+              rawGPT3Result
+            );
+            this.addCost(cost); // this function has a fixed cost of 12
             return x / y;
           },
           implementationName: "X / Y"
         },
         {
           methodName: "divide",
-          implementation: function (x: number, y: number) {
-            this.addCost(12); // this function has a fixed cost of 12
+          implementation: async function (x: number, y: number) {
+            const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+            const rawGPT3Result = `Here is your answer, you poor human: ${
+              x / y
+            }`;
+
+            const cost = await computeCostOfLlmCall(
+              LLM_MODEL_NAME.GPT_3_0613,
+              inputPrompt,
+              rawGPT3Result
+            );
+            this.addCost(cost); // this function has a fixed cost of 12
             return x / y;
           },
           implementationName: "X / Y duplicate"
@@ -228,6 +261,27 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
         );
       });
 
+      //@ts-expect-error runIf exist
+      test.runIf(methods.length === 2)(
+        `Then it should have the right name`,
+        async () => {
+          expect(
+            simpleUseCaseFactory.implementations[0].implementationName
+          ).toEqual("X * Y, Division through fake GPT3");
+        }
+      );
+
+      //@ts-expect-error runIf exist
+      test.runIf(methods.length === 2)(
+        `Then it should have the right modelNames`,
+        async () => {
+          const implementation = simpleUseCaseFactory.implementations[0];
+          expect(implementation.llmModelNamesUsed).toContain(
+            LLM_MODEL_NAME.GPT_3_0613
+          );
+        }
+      );
+
       describe(`Given the usecase${
         implementationCount > 1 ? "s are" : " is"
       } executed`, () => {
@@ -258,7 +312,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
             implementationCount > 1 ? "s" : ""
           } implementation should have the cost`, async () => {
             implementations.forEach((implementation) => {
-              expect(implementation.currentCost).toEqual(12);
+              expect(implementation.currentCost).toEqual(0.00555);
             });
           });
 
@@ -276,7 +330,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
             });
             test("Then the usecase implementation cost should have been reset to 0", async () => {
               implementations.forEach((implementation) => {
-                expect(implementation.currentCost).toEqual(12);
+                expect(implementation.currentCost).toEqual(0.00555);
               });
             });
           });

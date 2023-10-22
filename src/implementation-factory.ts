@@ -1,8 +1,11 @@
+import currency from "currency.js";
+
 export type Method = {
   //MAYBE: call it id
   methodName: string;
-  implementationName: string;
   isActive: boolean;
+  llmModelNamesUsed?: string[];
+  implementationName: string;
   implementation: any;
 };
 
@@ -43,25 +46,47 @@ export function cartesianProduct(arrays: any[][]): any[][] {
 function createClass(Base: new (...args: any[]) => any) {
   return class extends Base {
     // should not be public
-    public implementationName: string | undefined;
-    public currentCost: number = 0;
+    public methods: Method[] = [];
+    private _currentCost = currency(0, { precision: 10 });
 
     constructor(...args: any[]) {
       super(...args);
     }
 
     async execute(paylaod: any) {
-      this.currentCost = 0;
+      this._currentCost = currency(0, { precision: 10 });
       const res = await super.execute(paylaod);
       return res;
     }
 
-    setImplementationName(implementationName: string) {
-      this.implementationName = implementationName;
+    get implementationName() {
+      return this.methods.map((method) => method.implementationName).join(", ");
     }
 
-    addCost(value: number) {
-      this.currentCost += value;
+    get llmModelNamesUsed() {
+      if (!this.methods.length) return;
+      const llmModelNames = new Set<string>();
+      this.methods
+        .filter((method) => method.llmModelNamesUsed)
+        .forEach((method) => {
+          method.llmModelNamesUsed?.forEach((llmModelName) => {
+            llmModelNames.add(llmModelName);
+          });
+        });
+
+      return Array.from(llmModelNames);
+    }
+
+    get currentCost() {
+      return this._currentCost.value;
+    }
+
+    setMethods(methods: Method[]) {
+      this.methods = methods;
+    }
+
+    addCost(value: currency) {
+      this._currentCost = this._currentCost.add(value);
     }
   };
 }
@@ -115,15 +140,9 @@ export class ImplementationFactory<T> {
         acc[method.methodName] = method.implementation;
         return acc;
       }, {});
-      const methodImplementationsName = implementationPayload.reduce(
-        (acc, method) => {
-          acc.push(method.implementationName);
-          return acc;
-        },
-        [] as Array<string>
-      );
+
       const useCase = new this.ExtendedUseCase(constructorPayload);
-      useCase.setImplementationName(methodImplementationsName.join(", "));
+      useCase.setMethods(implementationPayload);
 
       return useCase;
     });
