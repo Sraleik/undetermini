@@ -162,7 +162,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
               rawGPT3Result
             );
 
-            this.addCost(cost); // this function has a fixed cost of 12
+            this.addCost(cost);
             return x / y;
           },
           llmModelNamesUsed: [LLM_MODEL_NAME.GPT_3_0613],
@@ -197,7 +197,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
               inputPrompt,
               rawGPT3Result
             );
-            this.addCost(cost); // this function has a fixed cost of 12
+            this.addCost(cost);
             return x / y;
           },
           implementationName: "X / Y"
@@ -215,7 +215,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
               inputPrompt,
               rawGPT3Result
             );
-            this.addCost(cost); // this function has a fixed cost of 12
+            this.addCost(cost);
             return x / y;
           },
           implementationName: "X / Y duplicate"

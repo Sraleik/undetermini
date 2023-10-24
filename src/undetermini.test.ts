@@ -107,7 +107,7 @@ it("should have the proper averageLatency", async () => {
     const result = { value: "coco l'asticot" };
 
     return new Promise((resolve) => {
-      setTimeout(() => resolve(result), 1000);
+      setTimeout(() => resolve(result), 300);
     });
   });
 
@@ -122,19 +122,62 @@ it("should have the proper averageLatency", async () => {
   const results = await undetermini.run<UseCaseInput>({
     useCaseInput,
     expectedUseCaseOutput,
-    implementations: [useCase]
+    implementations: [useCase],
+    times: 5
   });
 
   // Then
   const implementationResult = results[0];
-  const ONE_SECOND = 1_000;
   const isAroundOneSecond = around(
-    ONE_SECOND,
+    300,
     implementationResult.averageLatency,
-    300
+    100
   );
 
   expect(isAroundOneSecond).toBe(true);
+});
+
+it("should not rerun the implementation when enough occurences are cached", async () => {
+  // Given a value given to our use case
+  const useCaseInput = { value: "COCO L'ASTICOT" };
+  type UseCaseInput = typeof useCaseInput;
+
+  // Given an expected output (here we expect the string to be lowercase)
+  const expectedUseCaseOutput = {
+    value: "coco l'asticot",
+    keyShouldBe: "missing"
+  };
+  const execute = vi
+    .fn()
+    .mockResolvedValue({ value: "coco l'amqlkqsdfqsdfsdjfsticot" });
+
+  // Given an Implementation
+  const useCase: Implementation<UseCaseInput> = {
+    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+    name: "mocked-use-case",
+    execute
+  };
+
+  // Given the same function is asked to be run once
+  await undetermini.run<UseCaseInput>({
+    useCaseInput,
+    expectedUseCaseOutput,
+    implementations: [useCase],
+    times: 1
+  });
+  execute.mockClear();
+
+  //When ask for one run with cache
+  await undetermini.run<UseCaseInput>({
+    useCaseInput,
+    expectedUseCaseOutput,
+    implementations: [useCase],
+    times: 1,
+    useCache: true
+  });
+
+  // Then it should not call the implementation
+  expect(execute).not.toHaveBeenCalled();
 });
 
 it("should have an averageAccuracy of 50%", async () => {
@@ -219,6 +262,7 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
     });
 
     const implementationResult = results[0];
+
     expect(implementationResult).toEqual({
       averageAccuracy: 100,
       name: "mocked-use-case",

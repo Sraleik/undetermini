@@ -15,14 +15,24 @@ export default defineConfig({
     rollupOptions: {
       // make sure to externalize deps that shouldn't be bundled
       // into your library
-      external: ["cohere-ai", "dotenv", "js-tiktoken", "ulidx", "zod"],
+      external: [
+        "cohere-ai",
+        "currency.js",
+        "dotenv",
+        "js-tiktoken",
+        "lowdb",
+        "ulidx",
+        "zod"
+      ],
       output: {
         // Provide global variables to use in the UMD build
         // for externalized deps
         globals: {
           "cohere-ai": "cohere-ai",
+          "currency.js": "currency-js",
           dotenv: "dotenv",
           "js-tiktoken": "tiktoken",
+          lowdb: "lowdb",
           ulidx: "ulidx",
           zod: "zod"
         }

@@ -4,6 +4,8 @@ import {
   computeCostOfLlmCall,
   llmModelInfo
 } from "./llm-utils";
+import { defaultCache } from "./cache";
+import crypto from "node:crypto";
 
 export type ImplementationFunction<T> = (
   payload: T,
@@ -31,8 +33,16 @@ export type MultipleRunResult = {
   averageCost: number;
 };
 
+async function hashFunction(fn: (...args: any[]) => any) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(fn.toString());
+  const hash = crypto.createHash("sha256");
+  hash.update(data);
+  return hash.digest("hex");
+}
+
 export class Undetermini {
-  constructor() {}
+  constructor(private cacheClient = defaultCache) {}
 
   private computeAccuracyDefault(expectedOutput: Output, output: Output) {
     let matchCount = 0;
@@ -59,8 +69,23 @@ export class Undetermini {
     implementation: Implementation<T>;
     useCaseInput: T;
     expectedUseCaseOutput: Output;
+    useCache: boolean;
   }) {
-    const { implementation, useCaseInput, expectedUseCaseOutput } = payload;
+    const { implementation, useCaseInput, expectedUseCaseOutput, useCache } =
+      payload;
+
+    if (useCache) {
+      const oldRuns = this.cacheClient.getImplementationRunResults({
+        implementationId: await hashFunction(implementation.execute),
+        inputId: "osef"
+      });
+      const oldRun = oldRuns[0];
+      return {
+        cost: oldRun.cost,
+        accuracy: oldRun.accuracy,
+        latency: oldRun.latency
+      };
+    }
 
     let costOfThisRun: currency = currency(0);
     const startTime = Date.now();
@@ -79,7 +104,17 @@ export class Undetermini {
 
     const latency = endTime - startTime;
     const accuracy = this.computeAccuracyDefault(expectedUseCaseOutput, output);
-    return { latency, accuracy, cost: costOfThisRun.value };
+    const cost = costOfThisRun.value;
+
+    const implementationId = await hashFunction(implementation.execute);
+
+    this.cacheClient.addImplementationRunResult({
+      implementationId,
+      latency,
+      accuracy,
+      cost
+    });
+    return { latency, accuracy, cost };
   }
 
   private isTimesAboveRequestPerMinute(
@@ -95,9 +130,15 @@ export class Undetermini {
     implementation: Implementation<T>;
     expectedUseCaseOutput: Record<string, any>;
     times: number;
+    useCache: boolean;
   }) {
-    const { implementation, useCaseInput, expectedUseCaseOutput, times } =
-      payload;
+    const {
+      implementation,
+      useCaseInput,
+      expectedUseCaseOutput,
+      times,
+      useCache
+    } = payload;
 
     const canParralelizeAll = !this.isTimesAboveRequestPerMinute(
       times,
@@ -105,6 +146,15 @@ export class Undetermini {
     );
 
     let res: MultipleRunResult;
+    const implementationId = await hashFunction(implementation.execute);
+    const runExisting = useCache
+      ? this.cacheClient.getImplementationRunResults({
+          implementationId,
+          inputId: "osef"
+        }).length
+      : 0;
+
+    const callNeeded = useCache ? times - runExisting : times;
 
     if (canParralelizeAll) {
       const promises: Promise<SingleRunResult>[] = [];
@@ -114,7 +164,8 @@ export class Undetermini {
           this.singleImplementationOnce<T>({
             useCaseInput,
             implementation,
-            expectedUseCaseOutput
+            expectedUseCaseOutput,
+            useCache: i >= callNeeded
           })
         );
       }
@@ -149,7 +200,8 @@ export class Undetermini {
         const res = await this.singleImplementationOnce<T>({
           useCaseInput,
           implementation: implementation,
-          expectedUseCaseOutput
+          expectedUseCaseOutput,
+          useCache: i > callNeeded
         });
         totalLatency += res.latency;
         totalAccuracy += res.accuracy;
@@ -170,6 +222,7 @@ export class Undetermini {
   // Run UseCases
   async run<T = any>(payload: {
     times?: number;
+    useCache?: boolean;
     useCaseInput: T;
     implementations: Implementation<T>[];
     expectedUseCaseOutput: Record<string, any>;
@@ -178,7 +231,8 @@ export class Undetermini {
       implementations,
       useCaseInput,
       expectedUseCaseOutput,
-      times = 1
+      times = 1,
+      useCache = false
     } = payload;
 
     const results: MultipleRunResult[] = [];
@@ -202,7 +256,8 @@ export class Undetermini {
             useCaseInput,
             implementation: implementation,
             expectedUseCaseOutput,
-            times
+            times,
+            useCache
           });
           results.push(result);
         }
