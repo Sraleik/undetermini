@@ -20,6 +20,9 @@ dependencies:
   langchain:
     specifier: ^0.0.166
     version: 0.0.166(cohere-ai@6.2.2)
+  lokijs:
+    specifier: ^1.5.12
+    version: 1.5.12
   lowdb:
     specifier: ^6.1.1
     version: 6.1.1
@@ -40,6 +43,9 @@ devDependencies:
   '@types/jest':
     specifier: ^29.5.2
     version: 29.5.5
+  '@types/lokijs':
+    specifier: ^1.5.11
+    version: 1.5.11
   '@types/node':
     specifier: ^20.3.1
     version: 20.8.5
@@ -682,6 +688,10 @@ packages:
 
   /@types/json-schema@7.0.13:
     resolution: {integrity: sha512-RbSSoHliUbnXj3ny0CNFOoxrIDV6SUGyStHsvDqosw6CkdPV8TtWGlfecuK4ToyMEAql6pzNxgCFKanovUzlgQ==}
+    dev: true
+
+  /@types/lokijs@1.5.11:
+    resolution: {integrity: sha512-CRBWx6GTJVYPwkP/VSybiYIu/p67nAMgc2eIV3ZHxmYpFK3PYU6rhk37AaTgRAvNgpZlGWi4ecvTr8+0n2iZgg==}
     dev: true
 
   /@types/node-fetch@2.6.6:
@@ -2564,6 +2574,10 @@ packages:
   /lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
     dev: true
+
+  /lokijs@1.5.12:
+    resolution: {integrity: sha512-Q5ALD6JiS6xAUWCwX3taQmgwxyveCtIIuL08+ml0nHwT3k0S/GIFJN+Hd38b1qYIMaE5X++iqsqWVksz7SYW+Q==}
+    dev: false
 
   /loupe@2.3.6:
     resolution: {integrity: sha512-RaPMZKiMy8/JruncMU5Bt6na1eftNoo++R4Y+N2FrxkDVTrGvcyzFTsaGif4QTeKESheMGegbhw6iUAq+5A8zA==}

@@ -5,7 +5,7 @@ import {
   llmModelInfo
 } from "./llm-utils";
 import { defaultCache } from "./cache";
-import crypto from "node:crypto";
+import crypto from "crypto";
 
 export type ImplementationFunction<T> = (
   payload: T,

@@ -1,25 +1,33 @@
-import { LowSync } from "lowdb";
-import { JSONFileSync } from "lowdb/node";
+import loki from "lokijs";
 
 type CacheData = {
-  implementationsRunResult: Record<
-    string,
-    {
-      accuracy: number;
-      latency: number;
-      cost: number;
-      runnedAt: Date;
-    }[]
-  >;
+  implementationId: string;
+  accuracy: number;
+  latency: number;
+  cost: number;
+  runnedAt: Date;
 };
 
-class Cache {
-  constructor(
-    private db = new LowSync(new JSONFileSync<CacheData>("cache.json"), {
-      implementationsRunResult: {}
-    })
-  ) {
-    this.db.read();
+export interface Cache {
+  addImplementationRunResult(payload: {
+    implementationId: string;
+    accuracy: number;
+    latency: number;
+    cost: number;
+  }): void;
+
+  getImplementationRunResults(payload: {
+    implementationId: string;
+    inputId: string;
+  }): CacheData[];
+}
+
+export class CacheLoki implements Cache {
+  private executionResult;
+
+  constructor() {
+    const db = new loki("cache.db");
+    this.executionResult = db.addCollection("execution-result");
   }
 
   addImplementationRunResult(payload: {
@@ -31,35 +39,24 @@ class Cache {
     const { implementationId, accuracy, latency, cost } = payload;
     const runnedAt = new Date();
 
-    const hasAlreadyARunResultCached =
-      this.db.data.implementationsRunResult[implementationId];
-
-    if (hasAlreadyARunResultCached) {
-      this.db.data.implementationsRunResult[implementationId].push({
-        accuracy,
-        latency,
-        cost,
-        runnedAt
-      });
-    } else {
-      this.db.data.implementationsRunResult[implementationId] = [
-        {
-          accuracy,
-          latency,
-          cost,
-          runnedAt
-        }
-      ];
-    }
-    this.db.write();
+    this.executionResult.insert({
+      implementationId,
+      accuracy,
+      latency,
+      cost,
+      runnedAt
+    });
   }
 
   getImplementationRunResults(payload: {
     implementationId: string;
     inputId: string;
   }) {
-    return this.db.data.implementationsRunResult[payload.implementationId];
+    const results = this.executionResult.find({
+      implementationId: payload.implementationId
+    });
+    return results as CacheData[];
   }
 }
 
-export const defaultCache = new Cache();
+export const defaultCache = new CacheLoki() as Cache;

@@ -32,7 +32,7 @@ export default defineConfig({
           "currency.js": "currency-js",
           dotenv: "dotenv",
           "js-tiktoken": "tiktoken",
-          lowdb: "lowdb",
+          lokijs: "lokijs",
           ulidx: "ulidx",
           zod: "zod"
         }
