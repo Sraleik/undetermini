@@ -15,6 +15,9 @@ it("should return a run result without error", async () => {
 
   // Then it should return the right payload type
   expect(result).toEqual({
+    runId: expect.any(String),
+    implementationId: expect.any(String),
+    inputId: expect.any(String),
     cost: expect.any(Number),
     latency: expect.any(Number),
     accuracy: expect.any(Number),
@@ -36,6 +39,9 @@ it("should return a run result with an error", async () => {
 
   // Then it should return the right payload type
   expect(result).toEqual({
+    runId: expect.any(String),
+    implementationId: expect.any(String),
+    inputId: expect.any(String),
     cost: expect.any(Number),
     latency: expect.any(Number),
     accuracy: 0,
@@ -141,6 +147,63 @@ it("should have proper latency", async () => {
   expect(result.latency).toBeCloseTo(50, -1);
 });
 
+it("should return the hash of the run", async () => {
+  // Given a UsecaseImplementation
+  const usecaseImplementation = UsecaseImplementation.create({
+    name: "Always return true and take ~50ms",
+    execute: async function () {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return true;
+    }
+  });
+  // Given an Input
+  const useCaseInput = { value: "COCO L'ASTICOT" };
+
+  // When the implementation is run
+  const result = await usecaseImplementation.getRunHash(useCaseInput);
+
+  // Then it should return a latency close to 50ms
+  expect(result).toEqual(
+    "afea24909122d0d14204596d95108d942171a986efaafffa45a0b4c75b4b5fa7"
+  );
+});
+
+it("should return same hash when input is the same be not in the same order", async () => {
+  // Given a UsecaseImplementation
+  const usecaseImplementation = UsecaseImplementation.create({
+    name: "Always return true and take ~50ms",
+    execute: async function () {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return true;
+    }
+  });
+  // Given an Input
+  const useCaseInput1 = {
+    firstname: "Coco",
+    lastname: "l'asticot",
+    age: 32,
+    job: "Developer Web"
+  };
+  const useCaseInput2 = {
+    lastname: "l'asticot",
+    job: "Developer Web",
+    age: 32,
+    firstname: "Coco"
+  };
+
+  // When the implementation is run
+  const runHash1 = await usecaseImplementation.getRunHash(useCaseInput1);
+  const runHash2 = await usecaseImplementation.getRunHash(useCaseInput2);
+
+  // Then it should return the same hash
+  expect(runHash1).toEqual(
+    "ea8bd6c1a217ecdac6dd5c1f1648e334beb3d68452a1b6768e478b9125408b7b"
+  );
+  expect(runHash2).toEqual(
+    "ea8bd6c1a217ecdac6dd5c1f1648e334beb3d68452a1b6768e478b9125408b7b"
+  );
+});
+
 it("should call the execute function with the useCaseInput", async () => {
   // Given a UsecaseImplementation
   const execute = vi.fn(async function (input) {
@@ -165,7 +228,7 @@ it("should call the execute function with the useCaseInput", async () => {
   expect(execute).toBeCalledWith(useCaseInput);
 });
 
-it("should return right cost, latency, accuracy", async () => {
+it("should return right cost, latency, accuracy, runId, implementationId, inputId", async () => {
   // Given a UsecaseImplementation
   const execute = vi.fn(async function (input) {
     this.addCost(0.25); // 25 cents the function
@@ -191,6 +254,9 @@ it("should return right cost, latency, accuracy", async () => {
   expect(execute).toBeCalledWith(useCaseInput);
   expect(result.latency).toBeCloseTo(33, -1);
   expect(result).toContain({
+    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    implementationId: "",
+    inputId: "",
     cost: 0.25,
     accuracy: 100,
     error: undefined

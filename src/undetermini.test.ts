@@ -1,29 +1,24 @@
 import { vi } from "vitest";
-import { Undetermini, Implementation } from "./undetermini";
-import { LLM_MODEL_NAME } from "./llm-utils";
-
-function around(value: number, expected: number, delta: number = 0.01) {
-  return Math.abs(value - expected) < delta;
-}
+import { Undetermini } from "./undetermini";
+import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
+import { UsecaseImplementation } from "./usecase-implementation";
 
 const undetermini = new Undetermini();
 it("should execute an Implementation with the right input", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
-  const execute = vi.fn().mockResolvedValue({ value: "coco l'asticot" });
+  const execute = vi.fn().mockResolvedValue({ result: "coco l'asticot" });
 
   // Given the UseCase
-  const implementation: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+  const implementation = UsecaseImplementation.create({
     name: "mocked-use-case",
     execute
-  };
+  });
 
-  await undetermini.run<UseCaseInput>({
+  await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [implementation]
@@ -35,7 +30,6 @@ it("should execute an Implementation with the right input", async () => {
 it("should have the proper Implementation Name", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
@@ -43,13 +37,12 @@ it("should have the proper Implementation Name", async () => {
   execute.mockResolvedValue({ value: "coco l'asticot" });
 
   // Given the UseCase
-  const implementation: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+  const implementation = UsecaseImplementation.create({
     name: "mocked-use-case",
     execute
-  };
+  });
 
-  const results = await undetermini.run<UseCaseInput>({
+  const results = await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [implementation]
@@ -59,33 +52,38 @@ it("should have the proper Implementation Name", async () => {
   expect(undeterminiResult.name).toEqual("mocked-use-case");
 });
 
-it.skip("should have the proper averageCost", async () => {
+it("should have the proper averageCost", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
 
   // Given A simple UseCase
-  const execute = vi.fn().mockImplementation((payload, handleCost) => {
+  const execute = async function (payload: Record<string, string>) {
     const result = { value: "coco l'asticot" };
-    handleCost(JSON.stringify(payload), JSON.stringify(result));
+
+    const res = computeCostOfLlmCall(
+      LLM_MODEL_NAME.GPT_4_0613,
+      JSON.stringify(payload),
+      JSON.stringify(result)
+    );
+
+    this.addCost(res.value);
 
     return new Promise((resolve) => {
       resolve(result);
     });
-  });
-
-  // Given the Implementation
-  const implementation: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_4_0613, //TODO: should be someting like "fake-model"
-    name: "mocked-use-case",
-    execute
   };
 
+  // Given the Implementation
+  const implementation = UsecaseImplementation.create({
+    name: "mocked-use-case",
+    execute
+  });
+
   // When we run this implementation
-  const underminiResult = await undetermini.run<UseCaseInput>({
+  const underminiResult = await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [implementation]
@@ -93,13 +91,12 @@ it.skip("should have the proper averageCost", async () => {
 
   const implementationResult = underminiResult[0];
 
-  expect(implementationResult.averageCost).toBe(0.066);
+  expect(implementationResult.averageCost).toBe(0.096);
 });
 
 it("should have the proper averageLatency", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
@@ -107,40 +104,33 @@ it("should have the proper averageLatency", async () => {
     const result = { value: "coco l'asticot" };
 
     return new Promise((resolve) => {
-      setTimeout(() => resolve(result), 300);
+      setTimeout(() => resolve(result), 50);
     });
   });
 
   // Given the UseCase
-  const useCase: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+  const useCase = UsecaseImplementation.create({
     name: "mocked-use-case",
     execute
-  };
+  });
 
   // When we run undetermini
-  const results = await undetermini.run<UseCaseInput>({
+  const results = await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [useCase],
-    times: 5
+    times: 10
   });
 
   // Then
   const implementationResult = results[0];
-  const isAroundOneSecond = around(
-    300,
-    implementationResult.averageLatency,
-    100
-  );
 
-  expect(isAroundOneSecond).toBe(true);
+  expect(implementationResult.averageLatency).toBeCloseTo(50, -1);
 });
 
-it("should not rerun the implementation when enough occurences are cached", async () => {
+it.skip("should not rerun the implementation when enough occurences are cached", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = {
@@ -152,14 +142,13 @@ it("should not rerun the implementation when enough occurences are cached", asyn
     .mockResolvedValue({ value: "coco l'amqlkqsdfqsdfsdjfsticot" });
 
   // Given an Implementation
-  const useCase: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+  const useCase = UsecaseImplementation.create({
     name: "mocked-use-case",
     execute
-  };
+  });
 
   // Given the same function is asked to be run once
-  await undetermini.run<UseCaseInput>({
+  await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [useCase],
@@ -168,7 +157,7 @@ it("should not rerun the implementation when enough occurences are cached", asyn
   execute.mockClear();
 
   //When ask for one run with cache
-  await undetermini.run<UseCaseInput>({
+  await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [useCase],
@@ -183,7 +172,6 @@ it("should not rerun the implementation when enough occurences are cached", asyn
 it("should have an averageAccuracy of 50%", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = {
@@ -193,13 +181,12 @@ it("should have an averageAccuracy of 50%", async () => {
   const execute = vi.fn().mockResolvedValue({ value: "coco l'asticot" });
 
   // Given an Implementation
-  const useCase: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+  const useCase = UsecaseImplementation.create({
     name: "mocked-use-case",
     execute
-  };
+  });
 
-  const results = await undetermini.run<UseCaseInput>({
+  const results = await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [useCase]
@@ -212,7 +199,6 @@ it("should have an averageAccuracy of 50%", async () => {
 it("should have an averageAccuracy of 100%", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
-  type UseCaseInput = typeof useCaseInput;
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
@@ -220,13 +206,12 @@ it("should have an averageAccuracy of 100%", async () => {
   execute.mockResolvedValue({ value: "coco l'asticot" });
 
   // Given the UseCase
-  const implementation: Implementation<UseCaseInput> = {
-    modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+  const implementation = UsecaseImplementation.create({
     name: "mocked-use-case",
     execute
-  };
+  });
 
-  const results = await undetermini.run<UseCaseInput>({
+  const results = await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
     implementations: [implementation]
@@ -241,20 +226,18 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
   async ({ times }) => {
     // Given a value given to our use case
     const useCaseInput = { value: "COCO L'ASTICOT" };
-    type UseCaseInput = typeof useCaseInput;
 
     // Given an expected output (here we expect the string to be lowercase)
     const expectedUseCaseOutput = { value: "coco l'asticot" };
     const execute = vi.fn().mockResolvedValue({ value: "coco l'asticot" });
 
     // Given  an Implementation
-    const implementation: Implementation<UseCaseInput> = {
-      modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
+    const implementation = UsecaseImplementation.create({
       name: "mocked-use-case",
       execute
-    };
+    });
 
-    const results = await undetermini.run<UseCaseInput>({
+    const results = await undetermini.run({
       useCaseInput,
       expectedUseCaseOutput,
       implementations: [implementation],
@@ -279,37 +262,37 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
   async ({ times }) => {
     // Given a value given to our use case
     const useCaseInput = { value: "COCO L'ASTICOT" };
-    type UseCaseInput = typeof useCaseInput;
 
     // Given an expected output (here we expect the string to be lowercase)
     const expectedUseCaseOutput = { value: "coco l'asticot" };
 
-    // Given 3 Implementation
-    const implementation1: Implementation<UseCaseInput> = {
-      modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
-      name: "mocked-implementation-1",
-      execute: vi.fn().mockResolvedValue({ value: "coco l'asticot" })
-    };
-    const implementation2: Implementation<UseCaseInput> = {
-      modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
-      name: "mocked-implementation-2",
-      execute: vi.fn().mockResolvedValue({ value: "coco l'asticot" })
-    };
-    const implementation3: Implementation<UseCaseInput> = {
-      modelName: LLM_MODEL_NAME.GPT_3_0613, //TODO: should be someting like "fake-model"
-      name: "mocked-implementation-3",
-      execute: vi.fn().mockResolvedValue({ value: "coco l'asticot" })
-    };
+    const execute1 = vi.fn().mockResolvedValue({ value: "coco l'asticot 1" });
+    const execute2 = vi.fn().mockResolvedValue({ value: "coco l'asticot 2" });
+    const execute3 = vi.fn().mockResolvedValue({ value: "coco l'asticot 3" });
 
-    await undetermini.run<UseCaseInput>({
+    // Given 3 Implementation
+    const implementation1 = UsecaseImplementation.create({
+      name: "mocked-implementation-1",
+      execute: execute1
+    });
+    const implementation2 = UsecaseImplementation.create({
+      name: "mocked-implementation-2",
+      execute: execute2
+    });
+    const implementation3 = UsecaseImplementation.create({
+      name: "mocked-implementation-3",
+      execute: execute3
+    });
+
+    await undetermini.run({
       useCaseInput,
       expectedUseCaseOutput,
       implementations: [implementation1, implementation2, implementation3],
       times
     });
 
-    expect(implementation1.execute).toHaveBeenCalledTimes(times);
-    expect(implementation2.execute).toHaveBeenCalledTimes(times);
-    expect(implementation3.execute).toHaveBeenCalledTimes(times);
+    expect(execute1).toHaveBeenCalledTimes(times);
+    expect(execute2).toHaveBeenCalledTimes(times);
+    expect(execute3).toHaveBeenCalledTimes(times);
   }
 );

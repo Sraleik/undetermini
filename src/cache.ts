@@ -10,10 +10,13 @@ type CacheData = {
 
 export interface Cache {
   addImplementationRunResult(payload: {
+    runId: string;
     implementationId: string;
+    inputId: string;
     accuracy: number;
     latency: number;
     cost: number;
+    error?: Error;
   }): void;
 
   getImplementationRunResults(payload: {
@@ -31,16 +34,21 @@ export class CacheLoki implements Cache {
   }
 
   addImplementationRunResult(payload: {
+    runId: string;
     implementationId: string;
+    inputId: string;
+    input: any;
     accuracy: number;
     latency: number;
     cost: number;
+    error?: Error;
   }) {
-    const { implementationId, accuracy, latency, cost } = payload;
+    const { implementationId, input, accuracy, latency, cost } = payload;
     const runnedAt = new Date();
 
     this.executionResult.insert({
       implementationId,
+      input,
       accuracy,
       latency,
       cost,

@@ -130,7 +130,7 @@ class LlmModelInfo {
 
 export const llmModelInfo = new LlmModelInfo();
 
-async function tokenCountForLlmModel(modelName: LLM_MODEL_NAME, text: string) {
+function tokenCountForLlmModel(modelName: LLM_MODEL_NAME, text: string) {
   let enc: Tiktoken;
   if (modelName === LLM_MODEL_NAME.COHERE_GENERATE) {
     // For now this count token as if it was GPT3
@@ -138,6 +138,7 @@ async function tokenCountForLlmModel(modelName: LLM_MODEL_NAME, text: string) {
     // Because this is doing an http call and require an api key
     // return (await cohere.tokenize({ text })).body.tokens.length;
   } else {
+    llmModelInfo[modelName]?.tiktokenName;
     enc = encodingForModel(
       llmModelInfo[modelName]?.tiktokenName as TiktokenModel
     );
@@ -155,13 +156,13 @@ function costOfTokens(
   return llmModelInfo[modelName].priceInCents[type].multiply(tokenCount);
 }
 
-export async function computeCostOfLlmCall(
+export function computeCostOfLlmCall(
   modelName: LLM_MODEL_NAME,
   inputPrompt: string,
   rawResult: string
 ) {
-  const inputTokenCount = await tokenCountForLlmModel(modelName, inputPrompt);
-  const outputTokenCount = await tokenCountForLlmModel(modelName, rawResult);
+  const inputTokenCount = tokenCountForLlmModel(modelName, inputPrompt);
+  const outputTokenCount = tokenCountForLlmModel(modelName, rawResult);
 
   const costOfInputToken = costOfTokens(modelName, "input", inputTokenCount);
   const costOfOutputToken = costOfTokens(modelName, "output", outputTokenCount);

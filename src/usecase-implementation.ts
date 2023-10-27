@@ -1,4 +1,5 @@
 import currency from "currency.js";
+import crypto from "crypto";
 
 // Responsability: do everything related to this run
 // returning: cost, latency, accuracy & error
@@ -8,11 +9,10 @@ export class UsecaseImplementation {
   static create(payload: {
     name: string;
     execute: (...args: any) => Promise<unknown>;
+    usingServices?: string[];
   }) {
     const { name, execute } = payload;
-    const usecaseImplementation = new UsecaseImplementation(name, execute);
-    // execute.bind(usecaseImplementation);
-    return usecaseImplementation;
+    return new UsecaseImplementation(name, execute);
   }
 
   constructor(
@@ -51,7 +51,34 @@ export class UsecaseImplementation {
     return expectedOutput === output ? 100 : 0;
   }
 
-  async run(payload: { input?: any; expectedOutput: any }) {
+  private sortAndStringify(value: any) {
+    return typeof value === "object" && value !== null
+      ? JSON.stringify(
+          Object.keys(value)
+            .sort()
+            .reduce((result, key) => {
+              result[key] = value[key];
+              return result;
+            }, {})
+        )
+      : JSON.stringify(value);
+  }
+
+  async getRunHash(input: any) {
+    const inputStringified = this.sortAndStringify(input);
+
+    const encoder = new TextEncoder();
+    const functionData = encoder.encode(this.execute.toString());
+    const inputData = encoder.encode(inputStringified);
+
+    const hash = crypto.createHash("sha256");
+    hash.update(functionData);
+    hash.update(inputData);
+
+    return hash.digest("hex");
+  }
+
+  async run(payload: { input?: unknown; expectedOutput: unknown }) {
     const { input, expectedOutput } = payload;
     this.resetCurrentRunCost();
 
@@ -72,6 +99,9 @@ export class UsecaseImplementation {
     const accuracy = this.computeAccuracyDefault(expectedOutput, result);
 
     return {
+      runId: await this.getRunHash(input),
+      implementationId: "nul",
+      inputId: "nul",
       latency,
       cost,
       accuracy,
