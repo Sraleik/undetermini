@@ -20,7 +20,8 @@ export default defineConfig({
         "currency.js",
         "dotenv",
         "js-tiktoken",
-        "lowdb",
+        "langchain",
+        "lokijs",
         "ulidx",
         "zod"
       ],
@@ -32,6 +33,7 @@ export default defineConfig({
           "currency.js": "currency-js",
           dotenv: "dotenv",
           "js-tiktoken": "tiktoken",
+          langchain: "langchain",
           lokijs: "lokijs",
           ulidx: "ulidx",
           zod: "zod"
