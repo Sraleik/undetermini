@@ -65,7 +65,8 @@ Feel free to start/join a discussion, issues or Pull requests.
 
 ### Feature
 
-- [ ] use https://www.npmjs.com/package/console-table-printer for display 
+- [X] use https://www.npmjs.com/package/console-table-printer for display 
+- [ ] allow to choose how to sort on Presenter 
 - [ ] calculate average Error 
 - [X] improve price calculation (do not use float) 
 - [ ] display who si cheapest and by how much 
