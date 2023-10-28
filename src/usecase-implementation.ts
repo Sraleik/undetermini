@@ -2,7 +2,7 @@ import currency from "currency.js";
 import crypto from "crypto";
 
 // Responsability: do everything related to this run
-// returning: cost, latency, accuracy & error
+// returning: cost, latency, accuracy, error & hashes
 export class UsecaseImplementation {
   private _currentRunCost = currency(0, { precision: 10 });
 

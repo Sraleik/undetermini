@@ -1,4 +1,5 @@
-import { defaultCache } from "./cache";
+import currency from "currency.js";
+import { CacheData, defaultCache } from "./cache";
 import { UsecaseImplementation } from "./usecase-implementation";
 
 export type ImplementationFunction<T> = (
@@ -19,7 +20,19 @@ export type MultipleRunResult = {
 };
 
 export class Undetermini {
-  constructor(private cacheClient = defaultCache) {}
+  constructor(
+    private cacheResult = true,
+    private cacheClient = defaultCache
+  ) {}
+
+  private randomSelectionOfCacheResults(
+    cachedData: CacheData[],
+    numberToRetrieve: number
+  ) {
+    return cachedData
+      .sort(() => 0.5 - Math.random())
+      .slice(0, numberToRetrieve);
+  }
 
   private async singleImplementationOnce(payload: {
     implementation: UsecaseImplementation;
@@ -35,14 +48,16 @@ export class Undetermini {
         expectedOutput: expectedUseCaseOutput
       });
 
-    this.cacheClient.addImplementationRunResult({
-      runId,
-      implementationId,
-      inputId,
-      latency,
-      accuracy,
-      cost
-    });
+    if (this.cacheResult) {
+      this.cacheClient.addImplementationRunResult({
+        runId,
+        implementationId,
+        inputId,
+        latency,
+        accuracy,
+        cost
+      });
+    }
 
     return { name: implementation.name, latency, accuracy, cost };
   }
@@ -54,12 +69,60 @@ export class Undetermini {
     times: number;
     useCache: boolean;
   }) {
-    const { implementation, useCaseInput, expectedUseCaseOutput, times } =
-      payload;
+    const {
+      implementation,
+      useCaseInput,
+      expectedUseCaseOutput,
+      times,
+      useCache
+    } = payload;
 
     let totalLatency = 0;
     let totalAccuracy = 0;
     let totalCost = 0;
+
+    if (useCache) {
+      const runId = await implementation.getRunHash(useCaseInput);
+      const resultCachedForThisRun =
+        this.cacheClient.getImplementationRunResults({ runId });
+      console.log(
+        "🚀 ~ file: undetermini.ts:77 ~ Undetermini ~ resultCachedForThisRun:",
+        resultCachedForThisRun
+      );
+      const cacheResultCount = resultCachedForThisRun.length;
+      if (cacheResultCount >= times) {
+        const cachedResult = this.randomSelectionOfCacheResults(
+          resultCachedForThisRun,
+          times
+        );
+
+        return cachedResult.reduce(
+          (acc, cacheResult, currentIndex) => {
+            acc.averageAccuracy = acc.averageAccuracy + cacheResult.accuracy;
+            acc.averageLatency = acc.averageLatency + cacheResult.latency;
+            acc.averageCost = currency(acc.averageCost, { precision: 10 }).add(
+              currency(cacheResult.cost, { precision: 10 })
+            ).value;
+
+            if (currentIndex === cachedResult.length - 1) {
+              acc.averageAccuracy = acc.averageAccuracy / (currentIndex + 1);
+              acc.averageLatency = acc.averageLatency / (currentIndex + 1);
+              acc.averageCost = currency(acc.averageCost, {
+                precision: 10
+              }).divide(currentIndex + 1).value;
+            }
+
+            return acc;
+          },
+          {
+            name: implementation.name,
+            averageLatency: 0,
+            averageAccuracy: 0,
+            averageCost: 0
+          }
+        );
+      }
+    }
 
     for (let i = 0; i < (times || 1); i++) {
       const res = await this.singleImplementationOnce({
@@ -83,7 +146,6 @@ export class Undetermini {
     return res;
   }
 
-  // Run UseCases
   async run(payload: {
     times?: number;
     useCache?: boolean;

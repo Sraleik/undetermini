@@ -3,7 +3,7 @@ import { Undetermini } from "./undetermini";
 import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 import { UsecaseImplementation } from "./usecase-implementation";
 
-const undetermini = new Undetermini();
+let undetermini = new Undetermini(false);
 it("should execute an Implementation with the right input", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
@@ -128,7 +128,8 @@ it("should have the proper averageLatency", async () => {
   expect(implementationResult.averageLatency).toBeCloseTo(50, -1);
 });
 
-it.skip("should not rerun the implementation when enough occurences are cached", async () => {
+it.only("should not rerun the implementation when enough occurences are cached", async () => {
+  undetermini = new Undetermini(true);
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
 
