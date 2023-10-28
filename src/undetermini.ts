@@ -1,28 +1,15 @@
 import currency from "currency.js";
 import { RunResult, RunResultRepository } from "./run-result.repository";
 import { UsecaseImplementation } from "./usecase-implementation";
-
-export type ImplementationFunction<T> = (
-  payload: T
-) => Promise<{ result: any; costInCents?: number }>;
-
-export type SingleRunResult = {
-  latency: number;
-  accuracy: number;
-  cost: number;
-};
-
-export type MultipleRunResult = {
-  name: string;
-  averageLatency: number;
-  averageAccuracy: number;
-  averageCost: number;
-};
+import { ResultPresenter } from "./result-presenter";
 
 export class Undetermini {
   private runResultRepository: RunResultRepository;
 
-  constructor(private persistResultOnDisk = false) {
+  constructor(
+    private persistResultOnDisk = false,
+    private presenter = new ResultPresenter()
+  ) {
     this.runResultRepository = this.persistResultOnDisk
       ? new RunResultRepository(true)
       : new RunResultRepository(false);
@@ -45,7 +32,9 @@ export class Undetermini {
     );
 
     return {
-      averageCost: total.cost / resResults.length,
+      averageCost: currency(total.cost, { precision: 10 }).divide(
+        resResults.length
+      ).value,
       averageLatency: total.latency / resResults.length,
       averageAccuracy: total.accuracy / resResults.length
     };
@@ -147,13 +136,15 @@ export class Undetermini {
     useCaseInput: any;
     implementations: UsecaseImplementation[];
     expectedUseCaseOutput: Record<string, any>;
+    usePresenter?: boolean;
   }) {
     const {
       implementations,
       useCaseInput,
       expectedUseCaseOutput,
       times = 1,
-      useCache = false
+      useCache = false,
+      usePresenter = false
     } = payload;
 
     const promiseRuns = implementations.map((implementation) => {
@@ -167,6 +158,8 @@ export class Undetermini {
     });
 
     const results = await Promise.all(promiseRuns);
+
+    if (usePresenter) this.presenter.displayResults(results);
 
     return results;
   }

@@ -17,6 +17,7 @@ export default defineConfig({
       // into your library
       external: [
         "cohere-ai",
+        "console-table-printer",
         "currency.js",
         "dotenv",
         "js-tiktoken",
@@ -30,6 +31,7 @@ export default defineConfig({
         // for externalized deps
         globals: {
           "cohere-ai": "cohere-ai",
+          "console-table-printer": "console-table-printer",
           "currency.js": "currency-js",
           dotenv: "dotenv",
           "js-tiktoken": "tiktoken",
