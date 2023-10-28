@@ -52,6 +52,9 @@ export class UsecaseImplementation {
   }
 
   private sortAndStringify(value: any) {
+    if (typeof value === "function") {
+      return value.toString();
+    }
     return typeof value === "object" && value !== null
       ? JSON.stringify(
           Object.keys(value)
@@ -63,13 +66,30 @@ export class UsecaseImplementation {
         )
       : JSON.stringify(value);
   }
+  private dataToUint8Array(data: unknown) {
+    const inputStringified = this.sortAndStringify(data);
+    const encoder = new TextEncoder();
+    return encoder.encode(inputStringified);
+  }
+
+  async getInputHash(input: unknown) {
+    const inputData = this.dataToUint8Array(input);
+
+    const hash = crypto.createHash("sha256");
+    hash.update(inputData);
+    return hash.digest("hex");
+  }
+  async getImplementationHash() {
+    const functionData = this.dataToUint8Array(this.execute);
+
+    const hash = crypto.createHash("sha256");
+    hash.update(functionData);
+    return hash.digest("hex");
+  }
 
   async getRunHash(input: any) {
-    const inputStringified = this.sortAndStringify(input);
-
-    const encoder = new TextEncoder();
-    const functionData = encoder.encode(this.execute.toString());
-    const inputData = encoder.encode(inputStringified);
+    const functionData = this.dataToUint8Array(this.execute);
+    const inputData = this.dataToUint8Array(input);
 
     const hash = crypto.createHash("sha256");
     hash.update(functionData);
@@ -100,8 +120,8 @@ export class UsecaseImplementation {
 
     return {
       runId: await this.getRunHash(input),
-      implementationId: "nul",
-      inputId: "nul",
+      implementationId: await this.getImplementationHash(),
+      inputId: await this.getInputHash(input),
       latency,
       cost,
       accuracy,
