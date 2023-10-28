@@ -28,20 +28,33 @@ export class Undetermini {
       : new RunResultRepository(false);
   }
 
-  private randomSelectionOfCacheResults(
-    cachedData: RunResult[],
-    numberToRetrieve: number
-  ) {
-    return cachedData
-      .sort(() => 0.5 - Math.random())
-      .slice(0, numberToRetrieve);
+  private computeAverages(resResults: RunResult[]): {
+    averageCost: number;
+    averageLatency: number;
+    averageAccuracy: number;
+  } {
+    const total = resResults.reduce(
+      (acc, result) => {
+        return {
+          cost: currency(acc.cost, { precision: 10 }).add(result.cost).value,
+          latency: acc.latency + result.latency,
+          accuracy: acc.accuracy + result.accuracy
+        };
+      },
+      { cost: 0, latency: 0, accuracy: 0 }
+    );
+
+    return {
+      averageCost: total.cost / resResults.length,
+      averageLatency: total.latency / resResults.length,
+      averageAccuracy: total.accuracy / resResults.length
+    };
   }
 
   private async singleImplementationOnce(payload: {
     implementation: UsecaseImplementation;
     useCaseInput: unknown;
     expectedUseCaseOutput: unknown;
-    useCache: boolean;
   }) {
     const { implementation, useCaseInput, expectedUseCaseOutput } = payload;
 
@@ -59,7 +72,7 @@ export class Undetermini {
       expectedOutput: expectedUseCaseOutput
     });
 
-    this.runResultRepository.addRunResult({
+    await this.runResultRepository.addRunResult({
       runId,
       implementationId,
       inputId,
@@ -69,87 +82,60 @@ export class Undetermini {
       accuracy,
       cost
     });
-
-    return { name: implementation.name, latency, accuracy, cost };
   }
 
   private async runImplementationMultipleTime(payload: {
     implementation: UsecaseImplementation;
     useCaseInput: unknown;
     expectedUseCaseOutput: Record<string, any>;
-    times: number;
+    times?: number;
     useCache: boolean;
   }) {
     const {
       implementation,
       useCaseInput,
       expectedUseCaseOutput,
-      times,
+      times = 1,
       useCache
     } = payload;
 
-    let totalLatency = 0;
-    let totalAccuracy = 0;
-    let totalCost = 0;
+    let runResultExistingCount = 0;
+    const runId = await implementation.getRunHash(useCaseInput);
 
     if (useCache) {
-      const runId = await implementation.getRunHash(useCaseInput);
-      const resultCachedForThisRun =
-        await this.runResultRepository.getRunResults({
+      runResultExistingCount =
+        await this.runResultRepository.getRunResultsCount({
           runId
         });
-      const cacheResultCount = resultCachedForThisRun.length;
-      if (cacheResultCount >= times) {
-        const cachedResult = this.randomSelectionOfCacheResults(
-          resultCachedForThisRun,
-          times
-        );
-
-        return cachedResult.reduce(
-          (acc, cacheResult, currentIndex) => {
-            acc.averageAccuracy = acc.averageAccuracy + cacheResult.accuracy;
-            acc.averageLatency = acc.averageLatency + cacheResult.latency;
-            acc.averageCost = currency(acc.averageCost, { precision: 10 }).add(
-              currency(cacheResult.cost, { precision: 10 })
-            ).value;
-
-            if (currentIndex === cachedResult.length - 1) {
-              acc.averageAccuracy = acc.averageAccuracy / (currentIndex + 1);
-              acc.averageLatency = acc.averageLatency / (currentIndex + 1);
-              acc.averageCost = currency(acc.averageCost, {
-                precision: 10
-              }).divide(currentIndex + 1).value;
-            }
-
-            return acc;
-          },
-          {
-            name: implementation.name,
-            averageLatency: 0,
-            averageAccuracy: 0,
-            averageCost: 0
-          }
-        );
-      }
     }
 
-    for (let i = 0; i < (times || 1); i++) {
-      const res = await this.singleImplementationOnce({
-        useCaseInput,
-        implementation,
-        expectedUseCaseOutput,
-        useCache: false
-      });
-      totalLatency += res.latency;
-      totalAccuracy += res.accuracy;
-      totalCost += res.cost;
+    const realCallNeeded =
+      runResultExistingCount >= times ? 0 : times - runResultExistingCount;
+
+    const runResultPromises: Promise<unknown>[] = [];
+
+    for (let i = 0; i < realCallNeeded; i++) {
+      runResultPromises.push(
+        this.singleImplementationOnce({
+          useCaseInput,
+          implementation,
+          expectedUseCaseOutput
+        })
+      );
     }
+
+    await Promise.all(runResultPromises);
+
+    const neededResults = await this.runResultRepository.getLastRunResults({
+      runId,
+      limit: times
+    });
+
+    const averages = this.computeAverages(neededResults);
 
     const res = {
-      name: implementation.name,
-      averageLatency: totalLatency / times,
-      averageAccuracy: totalAccuracy / times,
-      averageCost: totalCost / times
+      ...averages,
+      name: implementation.name
     };
 
     return res;
@@ -170,7 +156,7 @@ export class Undetermini {
       useCache = false
     } = payload;
 
-    const promisePerModel = implementations.map((implementation) => {
+    const promiseRuns = implementations.map((implementation) => {
       return this.runImplementationMultipleTime({
         useCaseInput,
         implementation,
@@ -180,7 +166,7 @@ export class Undetermini {
       });
     });
 
-    const results = await Promise.all(promisePerModel);
+    const results = await Promise.all(promiseRuns);
 
     return results;
   }

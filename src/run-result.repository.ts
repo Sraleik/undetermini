@@ -51,9 +51,9 @@ export class RunResultRepository {
         accuracy,
         latency,
         cost,
-        error
+        error,
+        runnedAt
       } = payload;
-      const runnedAt = new Date();
 
       this.executionResult.insert({
         runId,
@@ -65,7 +65,7 @@ export class RunResultRepository {
         latency,
         cost,
         error,
-        runnedAt
+        runnedAt: runnedAt || new Date()
       });
 
       if (this.persistOnDisk) {
@@ -77,6 +77,38 @@ export class RunResultRepository {
         resolve(undefined);
       }
     });
+  }
+  async getRunResultsCount(payload: { runId: string }) {
+    const results = this.executionResult.count({
+      runId: payload.runId
+    });
+    return results;
+  }
+
+  async getLastRunResults(payload: { runId: string; limit: number }) {
+    const results = this.executionResult
+      .chain()
+      .find({
+        runId: payload.runId
+      })
+      .simplesort("runnedAt", { desc: true })
+      .limit(payload.limit)
+      .data()
+      .map((lokiResult: any) => {
+        return {
+          runId: lokiResult.runId,
+          implementationId: lokiResult.implementationId,
+          inputId: lokiResult.inputId,
+          input: lokiResult.input,
+          result: lokiResult.result,
+          accuracy: lokiResult.accuracy,
+          latency: lokiResult.latency,
+          cost: lokiResult.cost,
+          error: lokiResult.error ? new Error(lokiResult.error) : undefined,
+          runnedAt: new Date(lokiResult.runnedAt)
+        };
+      });
+    return results as RunResult[];
   }
 
   async getRunResults(payload: { runId: string }) {

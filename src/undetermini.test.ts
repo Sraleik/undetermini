@@ -3,7 +3,12 @@ import { Undetermini } from "./undetermini";
 import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 import { UsecaseImplementation } from "./usecase-implementation";
 
-let undetermini = new Undetermini(false);
+let undetermini: Undetermini;
+
+beforeEach(() => {
+  undetermini = new Undetermini(false);
+});
+
 it("should execute an Implementation with the right input", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
@@ -128,8 +133,7 @@ it("should have the proper averageLatency", async () => {
   expect(implementationResult.averageLatency).toBeCloseTo(50, -1);
 });
 
-it.only("should not rerun the implementation when enough occurences are cached", async () => {
-  undetermini = new Undetermini(false);
+it("should not rerun the implementation when enough occurences are cached", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
 
@@ -168,6 +172,47 @@ it.only("should not rerun the implementation when enough occurences are cached",
 
   // Then it should not call the implementation
   expect(execute).not.toHaveBeenCalled();
+});
+
+it("should run the implementation only the needed number of times", async () => {
+  // Given a value given to our use case
+  const useCaseInput = { value: "COCO L'ASTICOT" };
+
+  // Given an expected output (here we expect the string to be lowercase)
+  const expectedUseCaseOutput = {
+    value: "coco l'asticot",
+    keyShouldBe: "missing"
+  };
+  const execute = vi
+    .fn()
+    .mockResolvedValue({ value: "coco l'amqlkqsdfqsdfsdjfsticot" });
+
+  // Given an Implementation
+  const useCase = UsecaseImplementation.create({
+    name: "mocked-use-case",
+    execute
+  });
+
+  // Given the same function is asked to be run once
+  await undetermini.run({
+    useCaseInput,
+    expectedUseCaseOutput,
+    implementations: [useCase],
+    times: 4
+  });
+  execute.mockClear();
+
+  //When ask for one run with cache
+  await undetermini.run({
+    useCaseInput,
+    expectedUseCaseOutput,
+    implementations: [useCase],
+    times: 10,
+    useCache: true
+  });
+
+  // Then it should not call the implementation
+  expect(execute).toHaveBeenCalledTimes(6);
 });
 
 it("should have an averageAccuracy of 50%", async () => {
