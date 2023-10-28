@@ -18,6 +18,8 @@ it("should return a run result without error", async () => {
     runId: expect.any(String),
     implementationId: expect.any(String),
     inputId: expect.any(String),
+    input: undefined,
+    result: true,
     cost: expect.any(Number),
     latency: expect.any(Number),
     accuracy: expect.any(Number),

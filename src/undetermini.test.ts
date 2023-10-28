@@ -129,7 +129,7 @@ it("should have the proper averageLatency", async () => {
 });
 
 it.only("should not rerun the implementation when enough occurences are cached", async () => {
-  undetermini = new Undetermini(true);
+  undetermini = new Undetermini(false);
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
 

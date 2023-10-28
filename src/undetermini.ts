@@ -1,5 +1,5 @@
 import currency from "currency.js";
-import { CacheData, defaultCache } from "./cache";
+import { RunResult, RunResultRepository } from "./run-result.repository";
 import { UsecaseImplementation } from "./usecase-implementation";
 
 export type ImplementationFunction<T> = (
@@ -20,13 +20,16 @@ export type MultipleRunResult = {
 };
 
 export class Undetermini {
-  constructor(
-    private cacheResult = true,
-    private cacheClient = defaultCache
-  ) {}
+  private runResultRepository: RunResultRepository;
+
+  constructor(private persistResultOnDisk = false) {
+    this.runResultRepository = this.persistResultOnDisk
+      ? new RunResultRepository(true)
+      : new RunResultRepository(false);
+  }
 
   private randomSelectionOfCacheResults(
-    cachedData: CacheData[],
+    cachedData: RunResult[],
     numberToRetrieve: number
   ) {
     return cachedData
@@ -42,22 +45,30 @@ export class Undetermini {
   }) {
     const { implementation, useCaseInput, expectedUseCaseOutput } = payload;
 
-    const { runId, implementationId, inputId, cost, accuracy, latency } =
-      await implementation.run({
-        input: useCaseInput,
-        expectedOutput: expectedUseCaseOutput
-      });
+    const {
+      runId,
+      implementationId,
+      inputId,
+      input,
+      result,
+      cost,
+      accuracy,
+      latency
+    } = await implementation.run({
+      input: useCaseInput,
+      expectedOutput: expectedUseCaseOutput
+    });
 
-    if (this.cacheResult) {
-      this.cacheClient.addImplementationRunResult({
-        runId,
-        implementationId,
-        inputId,
-        latency,
-        accuracy,
-        cost
-      });
-    }
+    this.runResultRepository.addRunResult({
+      runId,
+      implementationId,
+      inputId,
+      input,
+      result,
+      latency,
+      accuracy,
+      cost
+    });
 
     return { name: implementation.name, latency, accuracy, cost };
   }
@@ -84,11 +95,9 @@ export class Undetermini {
     if (useCache) {
       const runId = await implementation.getRunHash(useCaseInput);
       const resultCachedForThisRun =
-        this.cacheClient.getImplementationRunResults({ runId });
-      console.log(
-        "🚀 ~ file: undetermini.ts:77 ~ Undetermini ~ resultCachedForThisRun:",
-        resultCachedForThisRun
-      );
+        await this.runResultRepository.getRunResults({
+          runId
+        });
       const cacheResultCount = resultCachedForThisRun.length;
       if (cacheResultCount >= times) {
         const cachedResult = this.randomSelectionOfCacheResults(

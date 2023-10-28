@@ -114,14 +114,20 @@ export class UsecaseImplementation {
       }));
     const endTime = Date.now();
 
-    const latency = endTime - startTime;
+    // Cost has to be return here, addCost is only accessible here at run time
     const cost = this._currentRunCost.value;
+
+    //MAYBE: Since we save the result we could compute accuracy in undetermini
     const accuracy = this.computeAccuracyDefault(expectedOutput, result);
+    //MAYBE: We could store startTime & endTime and compute latency in undetermini
+    const latency = endTime - startTime;
 
     return {
       runId: await this.getRunHash(input),
       implementationId: await this.getImplementationHash(),
       inputId: await this.getInputHash(input),
+      input,
+      result,
       latency,
       cost,
       accuracy,
