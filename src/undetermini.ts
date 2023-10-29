@@ -14,10 +14,7 @@ export type MultipleRunResult = {
 export class Undetermini {
   private runResultRepository: RunResultRepository;
 
-  constructor(
-    private persistResultOnDisk = false,
-    private presenter = new ResultPresenter()
-  ) {
+  constructor(private persistResultOnDisk = false) {
     this.runResultRepository = this.persistResultOnDisk
       ? new RunResultRepository(true)
       : new RunResultRepository(false);
@@ -167,7 +164,11 @@ export class Undetermini {
 
     const results = await Promise.all(promiseRuns);
 
-    if (usePresenter) this.presenter.displayResults({ data: results });
+    if (usePresenter) {
+      const presenter = new ResultPresenter();
+      presenter.addResults(results);
+      presenter.displayResults();
+    }
 
     return results;
   }
