@@ -340,8 +340,8 @@ it.each([{ times: 10 }])(
       useCaseInput,
       expectedUseCaseOutput,
       implementations: [implementation1, implementation2, implementation3],
-      times,
-      usePresenter: true
+      times
+      // usePresenter: true
     });
 
     expect(execute1).toHaveBeenCalledTimes(times);

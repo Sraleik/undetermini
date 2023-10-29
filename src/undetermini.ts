@@ -3,6 +3,14 @@ import { RunResult, RunResultRepository } from "./run-result.repository";
 import { UsecaseImplementation } from "./usecase-implementation";
 import { ResultPresenter } from "./result-presenter";
 
+export type MultipleRunResult = {
+  name: string;
+  averageCost: number;
+  averageLatency: number;
+  averageAccuracy: number;
+  numberOfRun?: number;
+};
+
 export class Undetermini {
   private runResultRepository: RunResultRepository;
 
@@ -127,7 +135,7 @@ export class Undetermini {
       name: implementation.name
     };
 
-    return res;
+    return res as MultipleRunResult;
   }
 
   async run(payload: {
@@ -136,7 +144,7 @@ export class Undetermini {
     useCaseInput: any;
     implementations: UsecaseImplementation[];
     expectedUseCaseOutput: Record<string, any>;
-    usePresenter?: boolean;
+    usePresenter?: boolean; //TODO this should be presenter options and the presenter should be instanciated here
   }) {
     const {
       implementations,
@@ -159,7 +167,7 @@ export class Undetermini {
 
     const results = await Promise.all(promiseRuns);
 
-    if (usePresenter) this.presenter.displayResults(results);
+    if (usePresenter) this.presenter.displayResults({ data: results });
 
     return results;
   }
