@@ -73,7 +73,7 @@ describe("Repo In Memory", () => {
     expect(runResultsCount).toEqual(4);
   });
 
-  it.only("should return the last 2 result by runnedAt", async () => {
+  it("should return the last 2 result by runnedAt", async () => {
     const runResultRepository = new RunResultRepository(false);
     const resResult1 = {
       runId: "8fe94294-3365-480f-b0a5-16a9ce72b545",
