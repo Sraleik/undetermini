@@ -49,9 +49,13 @@ export function cartesianProduct(arrays: any[][]): any[][] {
   return cartesianHelper(arrays, 0);
 }
 
-export class ImplementationFactory<T> {
+export abstract class UseCaseTemplate {
+  abstract execute(...args: unknown[]): unknown;
+}
+
+export class ImplementationFactory {
   constructor(
-    protected UseCase: new (...args: any[]) => T,
+    protected UseCase: new (...args: any[]) => UseCaseTemplate,
     readonly methods: Method[] = []
   ) {}
 

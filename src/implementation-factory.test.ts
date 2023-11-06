@@ -1,4 +1,3 @@
-import currency from "currency.js";
 import { ImplementationFactory } from "./implementation-factory";
 import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 // import dotenv from "dotenv";
@@ -195,7 +194,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
       return divideRes;
     }
   }
-  let simpleUseCaseFactory: ImplementationFactory<SimpleUseCaseTemplate>;
+  let simpleUseCaseFactory: ImplementationFactory;
 
   beforeEach(() => {
     simpleUseCaseFactory = new ImplementationFactory(SimpleUseCaseTemplate);
@@ -336,17 +335,6 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
         }
       );
 
-      //@ts-expect-error runIf exist
-      // test.runIf(methods.length === 2)(
-      //   `Then it should have the right modelNames`,
-      //   async () => {
-      //     const implementation = simpleUseCaseFactory.implementations[0];
-      //     expect(implementation.llmModelNamesUsed).toContain(
-      //       LLM_MODEL_NAME.GPT_3_0613
-      //     );
-      //   }
-      // );
-
       describe(`Given the usecase${
         implementationCount > 1 ? "s are" : " is"
       } executed`, () => {
@@ -422,47 +410,3 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
     });
   });
 });
-
-// Then the implementation factory should have the right method implementation
-
-// eslint-disable-next-line @typescript-eslint/ban-types
-// function hashFunction(func: Function): string {
-//   const functionString = func.toString();
-//   const hash = crypto.createHash("sha256");
-//   hash.update(functionString);
-//   return hash.digest("hex");
-// }
-
-// // eslint-disable-next-line @typescript-eslint/ban-types
-// function getFunctionCode(fn: Function): string {
-//   return fn.toString();
-// }
-
-// function serializeInstance(instance: any): string {
-//   const proto = Object.getPrototypeOf(instance);
-//   const protoProps = Object.getOwnPropertyNames(proto)
-//     .filter((prop) => typeof proto[prop] === "function")
-//     .map((prop) => `${prop}:${getFunctionCode(proto[prop])}`);
-//   const instanceProps = Object.keys(instance).map(
-//     (prop) => `${prop}:${instance[prop]}`
-//   );
-//   return JSON.stringify([...instanceProps, ...protoProps]);
-// }
-
-// function generateHash(instance: any): string {
-//   const serialized = serializeInstance(instance);
-//   const hash = crypto.createHash("sha256");
-//   hash.update(serialized);
-//   return hash.digest("hex");
-// }
-
-// console.log(generateHash(getCandidateFactory.implementations[0]));
-// console.log(generateHash(getCandidateFactory.implementations[1]));
-
-// const results = await undetermini.run<UseCaseInput>({
-//   useCaseInput,
-//   expectedUseCaseOutput,
-//   implementations,
-//   times: 2
-// });
-// console.table(results);
