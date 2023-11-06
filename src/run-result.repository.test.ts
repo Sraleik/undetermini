@@ -41,7 +41,6 @@ describe.each([
       input: { fake: "input" },
       result: { fake: "result" },
       cost: 1,
-      accuracy: 100,
       latency: 1
     };
     await runResultRepository.addRunResult(resResult);

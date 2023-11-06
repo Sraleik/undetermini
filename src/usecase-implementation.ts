@@ -88,8 +88,8 @@ export class UsecaseImplementation {
     return hash.digest("hex");
   }
 
-  async run(payload: { input?: unknown }) {
-    const { input } = payload;
+  async run(payload?: { input?: unknown }) {
+    const input = payload?.input;
     this.resetCurrentRunCost();
 
     const startTime = Date.now();
