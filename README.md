@@ -74,6 +74,7 @@ Feel free to start/join a discussion, issues or Pull requests.
 - [ ] display who is fastest and by how much 
 - [ ] give accuracy fonction as a parameter 
 - [ ] add the price of the complete undetermini.run  
+- [ ] retrieve all type and put them in their proper places 
 - [X] add cache on implementation 
 - [X] add possibility to deactivate methodImplementation 
 - [X] allow to add LLM Model Info 

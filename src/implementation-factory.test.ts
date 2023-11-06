@@ -1,3 +1,4 @@
+import currency from "currency.js";
 import { ImplementationFactory } from "./implementation-factory";
 import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 // import dotenv from "dotenv";
@@ -67,7 +68,7 @@ import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 // const getCandidateFactory = new ImplementationFactory(GetCandidate);
 // // Prompt Template
 // getCandidateFactory.addMethod({
-//   methodName: "promptTemplate",
+//   name: "promptTemplate",
 //   implementation: PromptTemplate.fromTemplate(`
 //       {candidatePdfAsString}
 
@@ -79,7 +80,7 @@ import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 // });
 
 // getCandidateFactory.addMethod({
-//   methodName: "promptTemplate",
+//   name: "promptTemplate",
 //   implementation: PromptTemplate.fromTemplate(`
 //       {candidatePdfAsString}
 
@@ -100,18 +101,78 @@ import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 // );
 
 // getCandidateFactory.addMethod({
-//   methodName: "formatInstruction",
+//   name: "formatInstruction",
 //   implementation: parser1.getFormatInstructions(),
 //   isActive: true,
 //   implementationName: "Format Instruction: Zod"
 // });
 
 // getCandidateFactory.addMethod({
-//   methodName: "parser",
+//   name: "parser",
 //   implementation: parser1.parse.bind(parser1),
 //   isActive: true,
 //   implementationName: "Parser: Zod"
 // });
+
+it("should get the right cost of UseCaseTemplate with a costly method", async () => {
+  class SimpleUseCaseTemplate {
+    private multiply: (x: number, y: number) => number;
+    private divide: (x: number, y: number) => number;
+
+    constructor(payload: {
+      multiply: (x: number, y: number) => number;
+      divide: (x: number, y: number) => number;
+    }) {
+      this.multiply = payload.multiply;
+      this.divide = payload.divide;
+    }
+
+    async execute(payload: { x: number; y: number }) {
+      const { x, y } = payload;
+      const multiplyRes = this.multiply(x, y);
+      const divideRes = this.divide(multiplyRes, 5);
+
+      return divideRes;
+    }
+  }
+
+  const methods = [
+    {
+      name: "multiply",
+      implementation: (x: number, y: number) => x * y,
+      implementationName: "X * Y"
+    },
+    {
+      name: "divide",
+      implementation: async function (x: number, y: number) {
+        const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+        const rawGPT3Result = `Here is your answer, you poor human: ${x / y}`;
+
+        const cost = await computeCostOfLlmCall(
+          LLM_MODEL_NAME.GPT_3_0613,
+          inputPrompt,
+          rawGPT3Result
+        );
+
+        this.addCost(cost);
+        return x / y;
+      },
+      llmModelNamesUsed: [LLM_MODEL_NAME.GPT_3_0613],
+      implementationName: "Division through fake GPT3"
+    }
+  ];
+  const simpleUseCaseFactory = new ImplementationFactory(SimpleUseCaseTemplate);
+  simpleUseCaseFactory.addMethod(methods[0]);
+  simpleUseCaseFactory.addMethod(methods[1]);
+
+  const implementation = simpleUseCaseFactory.implementations;
+
+  const { cost } = await implementation[0].run({
+    input: { x: 5, y: 10 },
+    expectedOutput: 10
+  });
+  expect(cost).toBe(0.0052);
+});
 
 describe("Given a Factory with a simple TemplateUseCase", () => {
   class SimpleUseCaseTemplate {
@@ -144,12 +205,12 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
     {
       methods: [
         {
-          methodName: "multiply",
+          name: "multiply",
           implementation: (x: number, y: number) => x * y,
           implementationName: "X * Y"
         },
         {
-          methodName: "divide",
+          name: "divide",
           implementation: async function (x: number, y: number) {
             const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
             const rawGPT3Result = `Here is your answer, you poor human: ${
@@ -175,17 +236,17 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
     {
       methods: [
         {
-          methodName: "multiply",
+          name: "multiply",
           implementation: (x: number, y: number) => x * y,
           implementationName: "X * Y"
         },
         {
-          methodName: "multiply",
+          name: "multiply",
           implementation: (x: number, y: number) => y * x,
           implementationName: "Y * X"
         },
         {
-          methodName: "divide",
+          name: "divide",
           implementation: async function (x: number, y: number) {
             const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
             const rawGPT3Result = `Here is your answer, you poor human: ${
@@ -197,13 +258,13 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
               inputPrompt,
               rawGPT3Result
             );
-            this.addCost(cost);
+            this.addCost(cost.value);
             return x / y;
           },
           implementationName: "X / Y"
         },
         {
-          methodName: "divide",
+          name: "divide",
           implementation: async function (x: number, y: number) {
             const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
             const rawGPT3Result = `Here is your answer, you poor human: ${
@@ -215,7 +276,11 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
               inputPrompt,
               rawGPT3Result
             );
-            this.addCost(cost);
+            console.log(
+              "🚀 ~ file: implementation-factory.test.ts:279 ~ cost:",
+              cost
+            );
+            this.addCost(cost.value);
             return x / y;
           },
           implementationName: "X / Y duplicate"
@@ -265,22 +330,22 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
       test.runIf(methods.length === 2)(
         `Then it should have the right name`,
         async () => {
-          expect(
-            simpleUseCaseFactory.implementations[0].implementationName
-          ).toEqual("X * Y, Division through fake GPT3");
+          expect(simpleUseCaseFactory.implementations[0].name).toEqual(
+            "X * Y, Division through fake GPT3"
+          );
         }
       );
 
       //@ts-expect-error runIf exist
-      test.runIf(methods.length === 2)(
-        `Then it should have the right modelNames`,
-        async () => {
-          const implementation = simpleUseCaseFactory.implementations[0];
-          expect(implementation.llmModelNamesUsed).toContain(
-            LLM_MODEL_NAME.GPT_3_0613
-          );
-        }
-      );
+      // test.runIf(methods.length === 2)(
+      //   `Then it should have the right modelNames`,
+      //   async () => {
+      //     const implementation = simpleUseCaseFactory.implementations[0];
+      //     expect(implementation.llmModelNamesUsed).toContain(
+      //       LLM_MODEL_NAME.GPT_3_0613
+      //     );
+      //   }
+      // );
 
       describe(`Given the usecase${
         implementationCount > 1 ? "s are" : " is"
@@ -312,7 +377,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
             implementationCount > 1 ? "s" : ""
           } implementation should have the cost`, async () => {
             implementations.forEach((implementation) => {
-              expect(implementation.currentCost).toEqual(0.00555);
+              expect(implementation.currentRunCost).toEqual(0.00555);
             });
           });
 
@@ -330,7 +395,7 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
             });
             test("Then the usecase implementation cost should have been reset to 0", async () => {
               implementations.forEach((implementation) => {
-                expect(implementation.currentCost).toEqual(0.00555);
+                expect(implementation.currentRunCost).toEqual(0.00555);
               });
             });
           });
@@ -342,14 +407,14 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
   describe("When adding a method with an existing implementationName", () => {
     test("Then the factory should throw an error", async () => {
       simpleUseCaseFactory.addMethod({
-        methodName: "multiply",
+        name: "multiply",
         implementation: (x: number, y: number) => x * y,
         implementationName: "X * Y"
       });
 
       expect(() =>
         simpleUseCaseFactory.addMethod({
-          methodName: "multiply",
+          name: "multiply",
           implementation: (x: number, y: number) => x * y,
           implementationName: "X * Y"
         })

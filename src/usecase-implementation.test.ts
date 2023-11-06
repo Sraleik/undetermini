@@ -132,6 +132,47 @@ it("should return proper cost", async () => {
   expect(result.cost).toEqual(0.12);
 });
 
+it("should return proper cost with usecaseTemplate", async () => {
+  // Given a UsecaseImplementation
+  const usecaseImplementation = UsecaseImplementation.create({
+    name: "Multiply and divise by 10",
+    execute: async function ({ x, y }: { x: number; y: number }) {
+      const res1 = this.multiply(x, y);
+      const res2 = this.divide(res1, 10);
+      return res2;
+    }
+  });
+
+  usecaseImplementation.addMethod({
+    name: "multiply",
+    implementationName: "multiply x * y",
+    implementation: function (x: number, y: number) {
+      return x * y;
+    },
+    isActive: true
+  });
+
+  usecaseImplementation.addMethod({
+    name: "divide",
+    implementationName: "divide x / y",
+    implementation: function (x: number, y: number) {
+      this.addCost(0.12);
+      return x / y;
+    },
+    isActive: true
+  });
+
+  // When the implementation is run
+  const { result, cost } = await usecaseImplementation.run({
+    input: { x: 4, y: 50 },
+    expectedOutput: true
+  });
+
+  // Then it should return the right cost
+  expect(result).toEqual(20);
+  expect(cost).toEqual(0.12);
+});
+
 it("should have proper latency", async () => {
   // Given a UsecaseImplementation
   const usecaseImplementation = UsecaseImplementation.create({

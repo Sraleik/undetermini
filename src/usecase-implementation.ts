@@ -1,5 +1,7 @@
 import currency from "currency.js";
 import crypto from "crypto";
+import { Method } from "./implementation-factory";
+import { Prettify } from "./common/utils";
 
 // Responsability: do everything related to this run
 // returning: cost, latency, accuracy, error & hashes
@@ -12,13 +14,29 @@ export class UsecaseImplementation {
     usingServices?: string[];
   }) {
     const { name, execute } = payload;
-    return new UsecaseImplementation(name, execute);
+    const useCase = new UsecaseImplementation(name, execute);
+    execute.bind(this);
+    return useCase;
   }
 
   constructor(
     readonly name: string,
     private execute: (...args: any) => Promise<unknown>
   ) {}
+
+  addMethod(method: Prettify<Method>) {
+    this[method.name] = method.implementation.bind(this);
+  }
+
+  addCost(value: number) {
+    this._currentRunCost = this._currentRunCost.add(
+      currency(value, { precision: 10 })
+    );
+  }
+
+  get currentRunCost() {
+    return this._currentRunCost.value;
+  }
 
   private resetCurrentRunCost() {
     this._currentRunCost = currency(0, { precision: 10 });
@@ -133,15 +151,5 @@ export class UsecaseImplementation {
       accuracy,
       error
     };
-  }
-
-  addCost(value: number) {
-    this._currentRunCost = this._currentRunCost.add(
-      currency(value, { precision: 10 })
-    );
-  }
-
-  get currentRunCost() {
-    return this._currentRunCost.value;
   }
 }

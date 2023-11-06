@@ -1,12 +1,18 @@
-import currency from "currency.js";
+import { UsecaseImplementation } from "./usecase-implementation";
 
 export type Method = {
   //MAYBE: call it id
-  methodName: string;
+  name: string;
   isActive: boolean;
-  llmModelNamesUsed?: string[];
+  // TODO change this to implementation: {name: string, value: () => any}
   implementationName: string;
   implementation: any;
+  //TODO replace llmModelNamesUsed by servicesUsed
+  llmModelNamesUsed?: string[];
+  servicesUsed?: {
+    name: string[];
+    addCost: (...args: unknown[]) => Promise<unknown>;
+  }[];
 };
 
 export type AddMethodPayload = Omit<Method, "isActive"> & {
@@ -43,63 +49,11 @@ export function cartesianProduct(arrays: any[][]): any[][] {
   return cartesianHelper(arrays, 0);
 }
 
-function createClass(Base: new (...args: any[]) => any) {
-  return class extends Base {
-    // should not be public
-    public methods: Method[] = [];
-    private _currentCost = currency(0, { precision: 10 });
-
-    constructor(...args: any[]) {
-      super(...args);
-    }
-
-    async execute(paylaod: any) {
-      this._currentCost = currency(0, { precision: 10 });
-      const res = await super.execute(paylaod);
-      return res;
-    }
-
-    get implementationName() {
-      return this.methods.map((method) => method.implementationName).join(", ");
-    }
-
-    get llmModelNamesUsed() {
-      if (!this.methods.length) return;
-      const llmModelNames = new Set<string>();
-      this.methods
-        .filter((method) => method.llmModelNamesUsed)
-        .forEach((method) => {
-          method.llmModelNamesUsed?.forEach((llmModelName) => {
-            llmModelNames.add(llmModelName);
-          });
-        });
-
-      return Array.from(llmModelNames);
-    }
-
-    get currentCost() {
-      return this._currentCost.value;
-    }
-
-    setMethods(methods: Method[]) {
-      this.methods = methods;
-    }
-
-    addCost(value: currency) {
-      this._currentCost = this._currentCost.add(value);
-    }
-  };
-}
-
 export class ImplementationFactory<T> {
-  readonly ExtendedUseCase;
-
   constructor(
     protected UseCase: new (...args: any[]) => T,
     readonly methods: Method[] = []
-  ) {
-    this.ExtendedUseCase = createClass(this.UseCase);
-  }
+  ) {}
 
   addMethod(payload: AddMethodPayload) {
     const isImplementationExisting = !!this.methods.find(
@@ -109,13 +63,12 @@ export class ImplementationFactory<T> {
       throw new Error("Implementation Name already exist");
     const isActive = payload.isActive ?? true;
     this.methods.push({ ...payload, isActive });
-    const { methodName } = payload;
+    const { name: methodName } = payload;
     if (!this[methodName]) {
       Object.defineProperty(this, methodName, {
         get: function () {
           const methods = this.methods.filter(
-            (method: Method) =>
-              method.methodName === methodName && method.isActive
+            (method: Method) => method.name === methodName && method.isActive
           ) as Method[];
 
           return methods;
@@ -126,7 +79,7 @@ export class ImplementationFactory<T> {
   }
 
   get methodsName() {
-    return [...new Set(this.methods.map((method) => method.methodName))];
+    return [...new Set(this.methods.map((method) => method.name))];
   }
 
   private get implementationsPayloadsAsArray() {
@@ -137,12 +90,21 @@ export class ImplementationFactory<T> {
   get implementations() {
     return this.implementationsPayloadsAsArray.map((implementationPayload) => {
       const constructorPayload = implementationPayload.reduce((acc, method) => {
-        acc[method.methodName] = method.implementation;
+        acc[method.name] = method.implementation;
         return acc;
       }, {});
 
-      const useCase = new this.ExtendedUseCase(constructorPayload);
-      useCase.setMethods(implementationPayload);
+      const useCaseInstance = new this.UseCase(constructorPayload);
+      const useCase = UsecaseImplementation.create({
+        name: implementationPayload
+          .map((method) => method.implementationName)
+          .join(", "),
+        execute: useCaseInstance.execute
+      });
+
+      implementationPayload.forEach((method) => {
+        useCase.addMethod(method);
+      });
 
       return useCase;
     });
