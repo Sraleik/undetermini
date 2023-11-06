@@ -8,6 +8,7 @@ export type MultipleRunResult = {
   averageCost: number;
   averageLatency: number;
   averageAccuracy: number;
+  averageError: number;
   numberOfRun?: number;
 };
 
@@ -22,20 +23,22 @@ export class Undetermini {
 
   private constructor(private runResultRepository: RunResultRepository) {}
 
-  private computeAverages(resResults: RunResult[]): {
+  private computeAverages(resResults: (RunResult & { accuracy: number })[]): {
     averageCost: number;
     averageLatency: number;
     averageAccuracy: number;
+    averageError: number;
   } {
     const total = resResults.reduce(
       (acc, result) => {
         return {
           cost: currency(acc.cost, { precision: 10 }).add(result.cost).value,
           latency: acc.latency + result.latency,
-          accuracy: acc.accuracy + result.accuracy
+          accuracy: acc.accuracy + result.accuracy,
+          error: result.error ? acc.error + 1 : acc.error
         };
       },
-      { cost: 0, latency: 0, accuracy: 0 }
+      { cost: 0, latency: 0, accuracy: 0, error: 0 }
     );
 
     return {
@@ -43,16 +46,43 @@ export class Undetermini {
         resResults.length
       ).value,
       averageLatency: total.latency / resResults.length,
-      averageAccuracy: total.accuracy / resResults.length
+      averageAccuracy: total.accuracy / resResults.length,
+      averageError: (total.error * 100) / resResults.length
     };
+  }
+
+  private computeAccuracyDefault(expectedOutput: any, output: any) {
+    const expectedOutputType = typeof expectedOutput;
+    const outputType = typeof output;
+
+    if (expectedOutputType === "object" && outputType === "object") {
+      let matchCount = 0;
+      let totalKeys = 0;
+
+      for (const key in expectedOutput) {
+        totalKeys++;
+        if (expectedOutput[key] === output[key]) {
+          matchCount++;
+        }
+      }
+
+      // Considering keys in responseJson that might not be in validJson
+      for (const key in output) {
+        if (!(key in expectedOutput)) {
+          totalKeys++;
+        }
+      }
+
+      return (matchCount / totalKeys) * 100;
+    }
+    return expectedOutput === output ? 100 : 0;
   }
 
   private async singleImplementationOnce(payload: {
     implementation: UsecaseImplementation;
     useCaseInput: unknown;
-    expectedUseCaseOutput: unknown;
   }) {
-    const { implementation, useCaseInput, expectedUseCaseOutput } = payload;
+    const { implementation, useCaseInput } = payload;
 
     const {
       runId,
@@ -61,11 +91,10 @@ export class Undetermini {
       input,
       result,
       cost,
-      accuracy,
-      latency
+      latency,
+      error
     } = await implementation.run({
-      input: useCaseInput,
-      expectedOutput: expectedUseCaseOutput
+      input: useCaseInput
     });
 
     await this.runResultRepository.addRunResult({
@@ -75,8 +104,8 @@ export class Undetermini {
       input,
       result,
       latency,
-      accuracy,
-      cost
+      cost,
+      error
     });
   }
 
@@ -114,8 +143,7 @@ export class Undetermini {
       runResultPromises.push(
         this.singleImplementationOnce({
           useCaseInput,
-          implementation,
-          expectedUseCaseOutput
+          implementation
         })
       );
     }
@@ -127,7 +155,17 @@ export class Undetermini {
       limit: times
     });
 
-    const averages = this.computeAverages(neededResults);
+    const resultWithAccuracy = neededResults.map((runResult) => {
+      return {
+        ...runResult,
+        accuracy: runResult.result
+          ? this.computeAccuracyDefault(expectedUseCaseOutput, runResult.result)
+          : 100, // Accuracy is not impacted by errors
+        error: runResult.error
+      };
+    });
+
+    const averages = this.computeAverages(resultWithAccuracy);
 
     const res = {
       ...averages,

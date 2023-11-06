@@ -6,10 +6,9 @@ export type RunResult = {
   implementationId: string;
   inputId: string;
   input: unknown;
-  result?: unknown;
-  accuracy: number;
   latency: number;
   cost: number;
+  result?: unknown;
   error?: Error;
   runnedAt?: Date;
 };
@@ -57,7 +56,6 @@ export class RunResultRepository {
         inputId,
         input,
         result,
-        accuracy,
         latency,
         cost,
         error,
@@ -70,7 +68,6 @@ export class RunResultRepository {
         inputId,
         input,
         result,
-        accuracy,
         latency,
         cost,
         error,

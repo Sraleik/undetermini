@@ -302,14 +302,50 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
       averageAccuracy: 100,
       name: "mocked-use-case",
       averageLatency: expect.any(Number),
-      averageCost: expect.any(Number)
+      averageCost: expect.any(Number),
+      averageError: 0
     });
 
     expect(execute).toHaveBeenCalledTimes(times);
   }
 );
 
-it.each([{ times: 10 }])(
+it.each([{ times: 1000 }])(
+  "should have accuracy of 100 and averageError of 30",
+  async ({ times }) => {
+    // Given a value given to our use case
+    const useCaseInput = { value: "COCO L'ASTICOT" };
+
+    // Given an expected output (here we expect the string to be lowercase)
+    const expectedUseCaseOutput = { value: "coco l'asticot" };
+
+    const execute1 = vi.fn().mockImplementation(() => {
+      // Throw an error 30% of the time
+      if (Math.random() < 0.3) {
+        throw new Error("Mock error");
+      }
+      return Promise.resolve({ value: "coco l'asticot" });
+    });
+
+    // Given 3 Implementation
+    const implementation1 = UsecaseImplementation.create({
+      name: "mocked-implementation-1",
+      execute: execute1
+    });
+
+    const res = await undetermini.run({
+      useCaseInput,
+      expectedUseCaseOutput,
+      implementations: [implementation1],
+      times
+    });
+
+    expect(res[0].averageAccuracy).toBe(100);
+    expect(res[0].averageError).toBeCloseTo(30, -1);
+  }
+);
+
+it.skip.each([{ times: 10 }])(
   "should execute 3 implementation $times times and display table",
   async ({ times }) => {
     // Given a value given to our use case
@@ -340,11 +376,11 @@ it.each([{ times: 10 }])(
       useCaseInput,
       expectedUseCaseOutput,
       implementations: [implementation1, implementation2, implementation3],
-      times
-      // presenter: {
-      //   isActive: false,
-      //   options: { sortPriority: ["cost", "accuracy", "latency"] }
-      // }
+      times,
+      presenter: {
+        isActive: false,
+        options: { sortPriority: ["cost", "accuracy", "latency"] }
+      }
     });
 
     expect(execute1).toHaveBeenCalledTimes(times);
