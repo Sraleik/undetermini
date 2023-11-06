@@ -143,7 +143,7 @@ export class Undetermini {
     useCaseInput: any;
     implementations: UsecaseImplementation[];
     expectedUseCaseOutput: Record<string, any>;
-    usePresenter?: boolean; //TODO this should be presenter options and the presenter should be instanciated here
+    presenter?: { isActive: boolean; options?: Record<string, any> };
   }) {
     const {
       implementations,
@@ -151,7 +151,7 @@ export class Undetermini {
       expectedUseCaseOutput,
       times = 1,
       useCache = false,
-      usePresenter = false
+      presenter = { isActive: false }
     } = payload;
 
     const promiseRuns = implementations.map((implementation) => {
@@ -166,10 +166,10 @@ export class Undetermini {
 
     const results = await Promise.all(promiseRuns);
 
-    if (usePresenter) {
-      const presenter = new ResultPresenter();
-      presenter.addResults(results);
-      presenter.displayResults();
+    if (presenter.isActive) {
+      const currentPresenter = new ResultPresenter(presenter.options);
+      currentPresenter.addResults(results);
+      currentPresenter.displayResults();
     }
 
     return results;

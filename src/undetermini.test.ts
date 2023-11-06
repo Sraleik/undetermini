@@ -341,7 +341,10 @@ it.each([{ times: 10 }])(
       expectedUseCaseOutput,
       implementations: [implementation1, implementation2, implementation3],
       times
-      // usePresenter: true
+      // presenter: {
+      //   isActive: false,
+      //   options: { sortPriority: ["cost", "accuracy", "latency"] }
+      // }
     });
 
     expect(execute1).toHaveBeenCalledTimes(times);
