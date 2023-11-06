@@ -65,15 +65,15 @@ Feel free to start/join a discussion, issues or Pull requests.
 
 ### Feature
 
-- [ ] calculate average Error 
 - [ ] give accuracy fonction as a parameter 
 - [ ] turn llm-info into a service-info
 - [ ] better handling of rate limit
-- [ ] allow to choose how to sort on Presenter 
+- [ ] retrieve all type and put them in their proper places 
 - [ ] display who si cheapest and by how much 
 - [ ] display who is most accurate and by how much 
 - [ ] display who is fastest and by how much 
-- [ ] retrieve all type and put them in their proper places 
+- [X] calculate average Error 
+- [X] allow to choose how to sort on Presenter 
 - [X] use https://www.npmjs.com/package/console-table-printer for display 
 - [X] improve price calculation (do not use float) 
 - [X] add cache on implementation 

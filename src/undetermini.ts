@@ -51,7 +51,7 @@ export class Undetermini {
     };
   }
 
-  private computeAccuracyDefault(expectedOutput: any, output: any) {
+  private evaluateAccuracyDefault(expectedOutput: any, output: any) {
     const expectedOutputType = typeof expectedOutput;
     const outputType = typeof output;
 
@@ -112,14 +112,14 @@ export class Undetermini {
   private async runImplementationMultipleTime(payload: {
     implementation: UsecaseImplementation;
     useCaseInput: unknown;
-    expectedUseCaseOutput: Record<string, any>;
+    evaluateAccuracy: (output: any) => number;
     times?: number;
     useCache: boolean;
   }) {
     const {
       implementation,
       useCaseInput,
-      expectedUseCaseOutput,
+      evaluateAccuracy,
       times = 1,
       useCache
     } = payload;
@@ -158,9 +158,7 @@ export class Undetermini {
     const resultWithAccuracy = neededResults.map((runResult) => {
       return {
         ...runResult,
-        accuracy: runResult.result
-          ? this.computeAccuracyDefault(expectedUseCaseOutput, runResult.result)
-          : 100, // Accuracy is not impacted by errors
+        accuracy: runResult.result ? evaluateAccuracy(runResult.result) : 100, // Accuracy is not impacted by errors
         error: runResult.error
       };
     });
@@ -176,27 +174,42 @@ export class Undetermini {
   }
 
   async run(payload: {
-    times?: number;
-    useCache?: boolean;
     useCaseInput: any;
     implementations: UsecaseImplementation[];
-    expectedUseCaseOutput: Record<string, any>;
+    times?: number;
+    useCache?: boolean;
+    expectedUseCaseOutput?: Record<string, any>;
+    evaluateAccuracy?: (output: any) => number;
     presenter?: { isActive: boolean; options?: Record<string, any> };
   }) {
     const {
       implementations,
       useCaseInput,
       expectedUseCaseOutput,
+      evaluateAccuracy,
       times = 1,
       useCache = false,
       presenter = { isActive: false }
     } = payload;
 
+    if (!expectedUseCaseOutput && !evaluateAccuracy)
+      throw new Error(
+        "Undetermini need either expectedOutput or an evaluateAccuracy Function"
+      );
+
     const promiseRuns = implementations.map((implementation) => {
       return this.runImplementationMultipleTime({
         useCaseInput,
         implementation,
-        expectedUseCaseOutput,
+        evaluateAccuracy: evaluateAccuracy
+          ? evaluateAccuracy
+          : (output: any) => {
+              return this.evaluateAccuracyDefault(
+                expectedUseCaseOutput,
+                output
+              );
+            },
+
         times,
         useCache
       });

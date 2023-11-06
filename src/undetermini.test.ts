@@ -9,6 +9,29 @@ beforeEach(async () => {
   undetermini = await Undetermini.create();
 });
 
+it("should throw if no expectedOutput and no evaluateAccuracy is given", async () => {
+  // Given a value given to our use case
+  const useCaseInput = { value: "COCO L'ASTICOT" };
+
+  // Given an expected output (here we expect the string to be lowercase)
+  const execute = vi.fn().mockResolvedValue({ result: "coco l'asticot" });
+
+  // Given the UseCase
+  const implementation = UsecaseImplementation.create({
+    name: "mocked-use-case",
+    execute
+  });
+
+  await expect(() =>
+    undetermini.run({
+      useCaseInput,
+      implementations: [implementation]
+    })
+  ).rejects.toThrow(
+    "Undetermini need either expectedOutput or an evaluateAccuracy Function"
+  );
+});
+
 it("should execute an Implementation with the right input", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
@@ -309,6 +332,54 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
     expect(execute).toHaveBeenCalledTimes(times);
   }
 );
+
+it("should have accuracy of 100 with a custom accuracy function", async () => {
+  // Given a value given to our use case
+  const useCaseInput = "give me a simple person, with age above 21";
+
+  const execute1 = vi.fn().mockImplementation(() => {
+    return Promise.resolve({
+      firstname: "Charle Emilie Henry",
+      lastname: "De la grande cour blanche",
+      age: 33
+    });
+  });
+
+  // Given 3 Implementation
+  const implementation1 = UsecaseImplementation.create({
+    name: "mocked-implementation-1",
+    execute: execute1
+  });
+
+  const res = await undetermini.run({
+    useCaseInput,
+    evaluateAccuracy: function (output: {
+      firstname: string;
+      lastname: string;
+      age: number;
+    }) {
+      let accuracy = 0;
+
+      if (!output) return 0;
+
+      if (typeof output.firstname === "string") accuracy += 10;
+      if (typeof output.lastname === "string") accuracy += 10;
+      if (typeof output.age === "number") accuracy += 10;
+
+      const { firstname, lastname, age } = output;
+
+      if (firstname.includes("Charle")) accuracy += 20;
+      if (lastname.includes("De la")) accuracy += 20;
+      if (age >= 21) accuracy += 30;
+
+      return accuracy;
+    },
+    implementations: [implementation1],
+    times: 100
+  });
+
+  expect(res[0].averageAccuracy).toBe(100);
+});
 
 it.each([{ times: 1000 }])(
   "should have accuracy of 100 and averageError of 30",
