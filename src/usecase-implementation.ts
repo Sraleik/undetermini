@@ -10,7 +10,7 @@ export class UsecaseImplementation {
 
   static create(payload: {
     name: string;
-    execute: (...args: any) => Promise<unknown>;
+    execute: (...args: any) => unknown;
     usingServices?: string[];
   }) {
     const { name, execute } = payload;
@@ -21,7 +21,7 @@ export class UsecaseImplementation {
 
   constructor(
     readonly name: string,
-    private execute: (...args: any) => Promise<unknown>
+    private execute: (...args: any) => unknown
   ) {}
 
   addMethod(method: Prettify<Method>) {
@@ -121,15 +121,13 @@ export class UsecaseImplementation {
     this.resetCurrentRunCost();
 
     const startTime = Date.now();
-    const { result, error } = await this.execute(input)
-      .then((result) => ({
-        result,
-        error: undefined
-      }))
-      .catch((error) => ({
-        error,
-        result: undefined
-      }));
+    let result: unknown = undefined;
+    let error: Error | undefined = undefined;
+    try {
+      result = await this.execute(input);
+    } catch (e: unknown) {
+      error = e as Error;
+    }
     const endTime = Date.now();
 
     // Cost has to be return here, addCost is only accessible here at run time

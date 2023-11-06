@@ -275,10 +275,6 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
               inputPrompt,
               rawGPT3Result
             );
-            console.log(
-              "🚀 ~ file: implementation-factory.test.ts:279 ~ cost:",
-              cost
-            );
             this.addCost(cost.value);
             return x / y;
           },

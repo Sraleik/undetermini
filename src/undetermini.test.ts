@@ -5,8 +5,8 @@ import { UsecaseImplementation } from "./usecase-implementation";
 
 let undetermini: Undetermini;
 
-beforeEach(() => {
-  undetermini = new Undetermini(false);
+beforeEach(async () => {
+  undetermini = await Undetermini.create();
 });
 
 it("should execute an Implementation with the right input", async () => {

@@ -12,13 +12,15 @@ export type MultipleRunResult = {
 };
 
 export class Undetermini {
-  private runResultRepository: RunResultRepository;
-
-  constructor(private persistResultOnDisk = false) {
-    this.runResultRepository = this.persistResultOnDisk
-      ? new RunResultRepository(true)
-      : new RunResultRepository(false);
+  static async create(options?: { persistOnDisk: boolean }) {
+    const persistOnDisk = options?.persistOnDisk || false;
+    const runResultRepository = await RunResultRepository.create({
+      persistOnDisk
+    });
+    return new Undetermini(runResultRepository);
   }
+
+  private constructor(private runResultRepository: RunResultRepository) {}
 
   private computeAverages(resResults: RunResult[]): {
     averageCost: number;

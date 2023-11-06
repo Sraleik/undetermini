@@ -16,9 +16,16 @@ export type RunResult = {
 
 export class RunResultRepository {
   private db: loki;
-  private executionResult: loki.Collection;
+  private executionResult = new loki.Collection("execution-results");
 
-  constructor(private persistOnDisk = false) {
+  static async create(options?: { persistOnDisk?: boolean }) {
+    const { persistOnDisk } = options || {};
+    const repo = new RunResultRepository(persistOnDisk);
+    await repo.databaseInitialize();
+    return repo;
+  }
+
+  private constructor(private persistOnDisk = false) {
     const option = this.persistOnDisk
       ? {
           autosave: false,
@@ -26,18 +33,20 @@ export class RunResultRepository {
         }
       : undefined;
     this.db = new loki("undetermini-db.json", option);
-
-    this.executionResult = this.db.getCollection("execution-results");
-    this.databaseInitialize();
   }
 
   private databaseInitialize() {
-    if (this.executionResult === null) {
+    return new Promise((resolve, reject) => {
       this.executionResult = this.db.addCollection("execution-results");
       if (this.persistOnDisk) {
-        this.db.saveDatabase();
+        this.db.saveDatabase((error: Error) => {
+          if (error) reject(error);
+          resolve(undefined);
+        });
+      } else {
+        resolve(undefined);
       }
-    }
+    });
   }
 
   addRunResult(payload: Prettify<RunResult>) {

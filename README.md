@@ -65,16 +65,17 @@ Feel free to start/join a discussion, issues or Pull requests.
 
 ### Feature
 
-- [X] use https://www.npmjs.com/package/console-table-printer for display 
-- [ ] allow to choose how to sort on Presenter 
 - [ ] calculate average Error 
-- [X] improve price calculation (do not use float) 
+- [ ] give accuracy fonction as a parameter 
+- [ ] turn llm-info into a service-info
+- [ ] better handling of rate limit
+- [ ] allow to choose how to sort on Presenter 
 - [ ] display who si cheapest and by how much 
 - [ ] display who is most accurate and by how much 
 - [ ] display who is fastest and by how much 
-- [ ] give accuracy fonction as a parameter 
-- [ ] add the price of the complete undetermini.run  
 - [ ] retrieve all type and put them in their proper places 
+- [X] use https://www.npmjs.com/package/console-table-printer for display 
+- [X] improve price calculation (do not use float) 
 - [X] add cache on implementation 
 - [X] add possibility to deactivate methodImplementation 
 - [X] allow to add LLM Model Info 
