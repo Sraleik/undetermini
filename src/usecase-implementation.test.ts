@@ -145,19 +145,23 @@ it("should return proper cost with usecaseTemplate", async () => {
 
   usecaseImplementation.addMethod({
     name: "multiply",
-    implementationName: "multiply x * y",
-    implementation: function (x: number, y: number) {
-      return x * y;
+    implementation: {
+      name: "multiply x * y",
+      value: function (x: number, y: number) {
+        return x * y;
+      }
     },
     isActive: true
   });
 
   usecaseImplementation.addMethod({
     name: "divide",
-    implementationName: "divide x / y",
-    implementation: function (x: number, y: number) {
-      this.addCost(0.12);
-      return x / y;
+    implementation: {
+      name: "divide x / y",
+      value: function (x: number, y: number) {
+        this.addCost(0.12);
+        return x / y;
+      }
     },
     isActive: true
   });

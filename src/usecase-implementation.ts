@@ -25,7 +25,7 @@ export class UsecaseImplementation {
   ) {}
 
   addMethod(method: Prettify<Method>) {
-    this[method.name] = method.implementation.bind(this);
+    this[method.name] = method.implementation.value.bind(this);
   }
 
   addCost(value: number) {

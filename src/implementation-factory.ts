@@ -2,18 +2,13 @@ import { cartesianProduct } from "./common/math";
 import { UsecaseImplementation } from "./usecase-implementation";
 
 export type Method = {
-  //MAYBE: call it id
   name: string;
   isActive: boolean;
-  // TODO change this to implementation: {name: string, value: () => any}
-  implementationName: string;
-  implementation: any;
-  //TODO replace llmModelNamesUsed by servicesUsed
-  llmModelNamesUsed?: string[];
-  servicesUsed?: {
-    name: string[];
-    addCost: (...args: unknown[]) => Promise<unknown>;
-  }[];
+  implementation: {
+    name: string;
+    value: (...args: any[]) => unknown;
+  };
+  servicesUsed?: string[];
 };
 
 export type AddMethodPayload = Omit<Method, "isActive"> & {
@@ -32,7 +27,7 @@ export class ImplementationFactory {
 
   addMethod(payload: AddMethodPayload) {
     const isImplementationExisting = !!this.methods.find(
-      (method) => method.implementationName === payload.implementationName
+      (method) => method.implementation.name === payload.implementation.name
     );
     if (isImplementationExisting)
       throw new Error("Implementation Name already exist");
@@ -72,7 +67,7 @@ export class ImplementationFactory {
       const useCaseInstance = new this.UseCase(constructorPayload);
       const useCase = UsecaseImplementation.create({
         name: implementationPayload
-          .map((method) => method.implementationName)
+          .map((method) => method.implementation.name)
           .join(", "),
         execute: useCaseInstance.execute
       });

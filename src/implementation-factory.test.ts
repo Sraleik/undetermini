@@ -138,26 +138,29 @@ it("should get the right cost of UseCaseTemplate with a costly method", async ()
   const methods = [
     {
       name: "multiply",
-      implementation: (x: number, y: number) => x * y,
-      implementationName: "X * Y"
+      implementation: {
+        name: "X * Y",
+        value: (x: number, y: number) => x * y
+      }
     },
     {
       name: "divide",
-      implementation: async function (x: number, y: number) {
-        const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
-        const rawGPT3Result = `Here is your answer, you poor human: ${x / y}`;
+      implementation: {
+        name: "Division through fake GPT3",
+        value: async function (x: number, y: number) {
+          const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+          const rawGPT3Result = `Here is your answer, you poor human: ${x / y}`;
 
-        const cost = await computeCostOfLlmCall(
-          LLM_MODEL_NAME.GPT_3_0613,
-          inputPrompt,
-          rawGPT3Result
-        );
+          const cost = await computeCostOfLlmCall(
+            LLM_MODEL_NAME.GPT_3_0613,
+            inputPrompt,
+            rawGPT3Result
+          );
 
-        this.addCost(cost);
-        return x / y;
-      },
-      llmModelNamesUsed: [LLM_MODEL_NAME.GPT_3_0613],
-      implementationName: "Division through fake GPT3"
+          this.addCost(cost);
+          return x / y;
+        }
+      }
     }
   ];
   const simpleUseCaseFactory = new ImplementationFactory(SimpleUseCaseTemplate);
@@ -205,28 +208,31 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
       methods: [
         {
           name: "multiply",
-          implementation: (x: number, y: number) => x * y,
-          implementationName: "X * Y"
+          implementation: {
+            name: "X * Y",
+            value: (x: number, y: number) => x * y
+          }
         },
         {
           name: "divide",
-          implementation: async function (x: number, y: number) {
-            const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
-            const rawGPT3Result = `Here is your answer, you poor human: ${
-              x / y
-            }`;
+          implementation: {
+            name: "Division through fake GPT3",
+            value: async function (x: number, y: number) {
+              const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+              const rawGPT3Result = `Here is your answer, you poor human: ${
+                x / y
+              }`;
 
-            const cost = await computeCostOfLlmCall(
-              LLM_MODEL_NAME.GPT_3_0613,
-              inputPrompt,
-              rawGPT3Result
-            );
+              const cost = await computeCostOfLlmCall(
+                LLM_MODEL_NAME.GPT_3_0613,
+                inputPrompt,
+                rawGPT3Result
+              );
 
-            this.addCost(cost);
-            return x / y;
-          },
-          llmModelNamesUsed: [LLM_MODEL_NAME.GPT_3_0613],
-          implementationName: "Division through fake GPT3"
+              this.addCost(cost);
+              return x / y;
+            }
+          }
         }
       ],
       occurenceOfRequiredMethod: 1,
@@ -236,49 +242,57 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
       methods: [
         {
           name: "multiply",
-          implementation: (x: number, y: number) => x * y,
-          implementationName: "X * Y"
+          implementation: {
+            name: "X * Y",
+            value: (x: number, y: number) => x * y
+          }
         },
         {
           name: "multiply",
-          implementation: (x: number, y: number) => y * x,
-          implementationName: "Y * X"
+          implementation: {
+            name: "Y * X",
+            value: (x: number, y: number) => y * x
+          }
         },
         {
           name: "divide",
-          implementation: async function (x: number, y: number) {
-            const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
-            const rawGPT3Result = `Here is your answer, you poor human: ${
-              x / y
-            }`;
+          implementation: {
+            name: "X / Y",
+            value: async function (x: number, y: number) {
+              const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+              const rawGPT3Result = `Here is your answer, you poor human: ${
+                x / y
+              }`;
 
-            const cost = await computeCostOfLlmCall(
-              LLM_MODEL_NAME.GPT_3_0613,
-              inputPrompt,
-              rawGPT3Result
-            );
-            this.addCost(cost.value);
-            return x / y;
-          },
-          implementationName: "X / Y"
+              const cost = await computeCostOfLlmCall(
+                LLM_MODEL_NAME.GPT_3_0613,
+                inputPrompt,
+                rawGPT3Result
+              );
+              this.addCost(cost.value);
+              return x / y;
+            }
+          }
         },
         {
           name: "divide",
-          implementation: async function (x: number, y: number) {
-            const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
-            const rawGPT3Result = `Here is your answer, you poor human: ${
-              x / y
-            }`;
+          implementation: {
+            name: "X / Y duplicate",
+            value: async function (x: number, y: number) {
+              const inputPrompt = `Please lord GPT can you divide ${x} by ${y}, I would be eternally grateful`;
+              const rawGPT3Result = `Here is your answer, you poor human: ${
+                x / y
+              }`;
 
-            const cost = await computeCostOfLlmCall(
-              LLM_MODEL_NAME.GPT_3_0613,
-              inputPrompt,
-              rawGPT3Result
-            );
-            this.addCost(cost.value);
-            return x / y;
-          },
-          implementationName: "X / Y duplicate"
+              const cost = await computeCostOfLlmCall(
+                LLM_MODEL_NAME.GPT_3_0613,
+                inputPrompt,
+                rawGPT3Result
+              );
+              this.addCost(cost.value);
+              return x / y;
+            }
+          }
         }
       ],
       occurenceOfRequiredMethod: 2,
@@ -392,17 +406,21 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
     test("Then the factory should throw an error", async () => {
       simpleUseCaseFactory.addMethod({
         name: "multiply",
-        implementation: (x: number, y: number) => x * y,
-        implementationName: "X * Y"
+        implementation: {
+          name: "X * Y",
+          value: (x: number, y: number) => x * y
+        }
       });
 
       expect(() =>
         simpleUseCaseFactory.addMethod({
           name: "multiply",
-          implementation: (x: number, y: number) => x * y,
-          implementationName: "X * Y"
+          implementation: {
+            name: "X * Y",
+            value: (x: number, y: number) => x * y
+          }
         })
-      ).toThrow();
+      ).toThrow(/Implementation Name already exist/);
     });
   });
 });
