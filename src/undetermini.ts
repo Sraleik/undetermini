@@ -23,13 +23,17 @@ export class Undetermini {
     return new Undetermini(runResultRepository);
   }
 
-  private constructor(private runResultRepository: RunResultRepository) {}
+  constructor(private runResultRepository: RunResultRepository) {}
 
-  private computeAverages(resResults: (RunResult & { accuracy: number })[]): {
+  private computeMetrics(
+    resResults: (RunResult & { accuracy: number; retrieveFromCache: boolean })[]
+  ): {
     averageCost: number;
     averageLatency: number;
     averageAccuracy: number;
     averageError: number;
+    realCallCount: number;
+    callFromCacheCount: number;
   } {
     const total = resResults.reduce(
       (acc, result) => {
@@ -37,10 +41,23 @@ export class Undetermini {
           cost: currency(acc.cost, { precision: 10 }).add(result.cost).value,
           latency: acc.latency + result.latency,
           accuracy: acc.accuracy + result.accuracy,
-          error: result.error ? acc.error + 1 : acc.error
+          error: result.error ? acc.error + 1 : acc.error,
+          realCallCount: result.retrieveFromCache
+            ? acc.realCallCount
+            : acc.realCallCount + 1,
+          callFromCacheCount: result.retrieveFromCache
+            ? acc.callFromCacheCount + 1
+            : acc.callFromCacheCount
         };
       },
-      { cost: 0, latency: 0, accuracy: 0, error: 0 }
+      {
+        cost: 0,
+        latency: 0,
+        accuracy: 0,
+        error: 0,
+        realCallCount: 0,
+        callFromCacheCount: 0
+      }
     );
 
     return {
@@ -49,7 +66,9 @@ export class Undetermini {
       ).value,
       averageLatency: total.latency / resResults.length,
       averageAccuracy: total.accuracy / resResults.length,
-      averageError: (total.error * 100) / resResults.length
+      averageError: (total.error * 100) / resResults.length,
+      realCallCount: total.realCallCount,
+      callFromCacheCount: total.callFromCacheCount
     };
   }
 
@@ -80,12 +99,13 @@ export class Undetermini {
     return expectedOutput === output ? 100 : 0;
   }
 
-  private async singleImplementationOnce(payload: {
+  private async runImplementation(payload: {
     implementation: UsecaseImplementation;
     useCaseInput: unknown;
   }) {
     const { implementation, useCaseInput } = payload;
 
+    const runnedAt = new Date();
     const {
       runId,
       implementationId,
@@ -105,26 +125,20 @@ export class Undetermini {
       inputId,
       input,
       result,
-      latency,
       cost,
-      error
+      latency,
+      error,
+      runnedAt
     });
   }
 
-  private async runImplementationMultipleTime(payload: {
+  private async getEnoughImplementationResults(payload: {
     implementation: UsecaseImplementation;
     useCaseInput: unknown;
-    evaluateAccuracy: (output: any) => number;
     times?: number;
     useCache: boolean;
   }) {
-    const {
-      implementation,
-      useCaseInput,
-      evaluateAccuracy,
-      times = 1,
-      useCache
-    } = payload;
+    const { implementation, useCaseInput, times = 1, useCache } = payload;
 
     let runResultExistingCount = 0;
     const runId = await implementation.getRunHash(useCaseInput);
@@ -143,7 +157,7 @@ export class Undetermini {
 
     for (let i = 0; i < realCallNeeded; i++) {
       runResultPromises.push(
-        this.singleImplementationOnce({
+        this.runImplementation({
           useCaseInput,
           implementation
         })
@@ -158,22 +172,32 @@ export class Undetermini {
       limit: times
     });
 
-    const resultWithAccuracy = neededResults.map((runResult) => {
-      return {
-        ...runResult,
-        accuracy: runResult.result ? evaluateAccuracy(runResult.result) : 100, // Accuracy is not impacted by errors
-        error: runResult.error
-      };
-    });
-
-    const averages = this.computeAverages(resultWithAccuracy);
-
-    const res = {
-      ...averages,
-      name: implementation.name
+    const resultWithAccuracy = {
+      [implementation.name]: neededResults.map((runResult, index) => {
+        return {
+          ...runResult,
+          retrieveFromCache: index >= realCallNeeded
+        };
+      })
     };
+    return resultWithAccuracy;
 
-    return res as MultipleRunResult;
+    // const resultWithAccuracy = neededResults.map((runResult, index) => {
+    //   return {
+    //     ...runResult,
+    //     accuracy: runResult.result ? evaluateAccuracy(runResult.result) : 100, // Accuracy is not impacted by errors
+    //     retrieveFromCache: index < times - realCallNeeded
+    //   };
+    // });
+
+    // const averages = this.computeMetrics(resultWithAccuracy);
+
+    // const res = {
+    //   ...averages,
+    //   name: implementation.name
+    // };
+
+    // return res as MultipleRunResult;
   }
 
   async run(payload: {
@@ -183,50 +207,65 @@ export class Undetermini {
     useCache?: boolean;
     expectedUseCaseOutput?: Record<string, any>;
     evaluateAccuracy?: (output: any) => number;
-    //TODO make the presenter a real presenter : 2 mode JSON or Table
     presenter?: { isActive: boolean; options?: { sortPriority?: string[] } };
   }) {
     const {
       implementations,
       useCaseInput,
       expectedUseCaseOutput,
-      evaluateAccuracy,
+      evaluateAccuracy: customAccuracyEvaluation,
       times = 1,
       useCache = false,
       presenter = { isActive: false }
     } = payload;
 
-    if (!expectedUseCaseOutput && !evaluateAccuracy)
+    if (!expectedUseCaseOutput && !customAccuracyEvaluation)
       throw new Error(
         "Undetermini need either expectedOutput or an evaluateAccuracy Function"
       );
 
+    const evaluateAccuracy = customAccuracyEvaluation
+      ? customAccuracyEvaluation
+      : (output: any) => {
+          return this.evaluateAccuracyDefault(expectedUseCaseOutput, output);
+        };
+
     const promiseRuns = implementations.map((implementation) => {
-      return this.runImplementationMultipleTime({
+      return this.getEnoughImplementationResults({
         useCaseInput,
         implementation,
-        evaluateAccuracy: evaluateAccuracy
-          ? evaluateAccuracy
-          : (output: any) => {
-              return this.evaluateAccuracyDefault(
-                expectedUseCaseOutput,
-                output
-              );
-            },
-
         times,
         useCache
       });
     });
 
-    const results = await Promise.all(promiseRuns);
+    const implementationsResults = await Promise.all(promiseRuns);
+
+    const implementationsMetrics = implementationsResults.map(
+      (implementationResults) => {
+        const name = Object.keys(implementationResults)[0];
+        const res1WithAccuracy = implementationResults[name].map(
+          (runResult: RunResult & { retrieveFromCache: boolean }) => {
+            return {
+              ...runResult,
+              accuracy: runResult.result
+                ? evaluateAccuracy(runResult.result)
+                : 100 // Accuracy is not impacted by errors
+            };
+          }
+        );
+
+        const metrics = this.computeMetrics(res1WithAccuracy);
+        return { name, ...metrics };
+      }
+    );
 
     if (presenter.isActive) {
       const currentPresenter = new ResultPresenter(presenter.options);
-      currentPresenter.addResults(results);
+      currentPresenter.addResults(implementationsMetrics);
       currentPresenter.displayResults(times);
     }
 
-    return results;
+    return implementationsMetrics;
   }
 }

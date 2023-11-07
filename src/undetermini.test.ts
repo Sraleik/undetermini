@@ -2,10 +2,15 @@ import { vi } from "vitest";
 import { Undetermini } from "./undetermini";
 import { LLM_MODEL_NAME, computeCostOfLlmCall } from "./llm-utils";
 import { UsecaseImplementation } from "./usecase-implementation";
+import { RunResultRepository } from "./run-result.repository";
+import fs from "node:fs";
 
 let undetermini: Undetermini;
 
 beforeEach(async () => {
+  if (fs.existsSync(`${__dirname}/../undetermini-db.json`)) {
+    fs.unlinkSync(`${__dirname}/../undetermini-db.json`);
+  }
   undetermini = await Undetermini.create();
 });
 
@@ -32,13 +37,54 @@ it("should throw if no expectedOutput and no evaluateAccuracy is given", async (
   );
 });
 
-it("should execute an Implementation with the right input", async () => {
+it("should tag the result with retrieveFromCache properly", async () => {
+  const runResultRepository = await RunResultRepository.create({
+    persistOnDisk: true
+  });
+
+  await runResultRepository.addRunResult({
+    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    implementationId:
+      "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
+    inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    input: { value: "COCO L'ASTICOT" },
+    result: { result: "coco l'asticot" },
+    latency: 0,
+    cost: 0,
+    runnedAt: new Date("2023-11-07T11:00:00.703Z")
+  });
+
+  await runResultRepository.addRunResult({
+    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    implementationId:
+      "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
+    inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    input: { value: "COCO L'ASTICOT" },
+    result: { result: "coco l'asticot" },
+    latency: 0,
+    cost: 0,
+    runnedAt: new Date("2023-11-07T11:01:00.703Z")
+  });
+
+  await runResultRepository.addRunResult({
+    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    implementationId:
+      "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
+    inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    input: { value: "COCO L'ASTICOT" },
+    result: { result: "coco l'asticot" },
+    latency: 0,
+    cost: 0,
+    runnedAt: new Date("2023-11-07T11:02:00.703Z")
+  });
+
+  undetermini = new Undetermini(runResultRepository);
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
-  const execute = vi.fn().mockResolvedValue({ result: "coco l'asticot" });
+  const execute = vi.fn().mockResolvedValue({ value: "coco l'asticot" });
 
   // Given the UseCase
   const implementation = UsecaseImplementation.create({
@@ -46,13 +92,16 @@ it("should execute an Implementation with the right input", async () => {
     execute
   });
 
-  await undetermini.run({
+  const res = await undetermini.run({
     useCaseInput,
     expectedUseCaseOutput,
+    times: 6,
+    useCache: true,
     implementations: [implementation]
   });
 
-  expect(execute.mock.calls[0][0]).toEqual(useCaseInput);
+  expect(res[0].realCallCount).toBe(3);
+  expect(res[0].callFromCacheCount).toBe(3);
 });
 
 it("should have the proper Implementation Name", async () => {
@@ -326,7 +375,9 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
       name: "mocked-use-case",
       averageLatency: expect.any(Number),
       averageCost: expect.any(Number),
-      averageError: 0
+      averageError: 0,
+      realCallCount: times,
+      callFromCacheCount: 0
     });
 
     expect(execute).toHaveBeenCalledTimes(times);
