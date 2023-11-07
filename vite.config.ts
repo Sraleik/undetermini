@@ -2,6 +2,7 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 // https://vitejs.dev/guide/build.html#library-mode
 export default defineConfig({
@@ -45,5 +46,13 @@ export default defineConfig({
       }
     }
   },
-  plugins: [dts()]
+  plugins: [
+    dts(),
+    nodePolyfills({
+      include: ["crypto", "stream"],
+      globals: {
+        Buffer: true
+      }
+    })
+  ]
 });
