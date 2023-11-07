@@ -37,7 +37,7 @@ it("should throw if no expectedOutput and no evaluateAccuracy is given", async (
   );
 });
 
-it("should tag the result with retrieveFromCache properly", async () => {
+it.only("should tag the result with retrieveFromCache properly and return price per ImplementationResults", async () => {
   const runResultRepository = await RunResultRepository.create({
     persistOnDisk: true
   });
@@ -50,7 +50,7 @@ it("should tag the result with retrieveFromCache properly", async () => {
     input: { value: "COCO L'ASTICOT" },
     result: { result: "coco l'asticot" },
     latency: 0,
-    cost: 0,
+    cost: 3,
     runnedAt: new Date("2023-11-07T11:00:00.703Z")
   });
 
@@ -62,7 +62,7 @@ it("should tag the result with retrieveFromCache properly", async () => {
     input: { value: "COCO L'ASTICOT" },
     result: { result: "coco l'asticot" },
     latency: 0,
-    cost: 0,
+    cost: 1,
     runnedAt: new Date("2023-11-07T11:01:00.703Z")
   });
 
@@ -74,7 +74,7 @@ it("should tag the result with retrieveFromCache properly", async () => {
     input: { value: "COCO L'ASTICOT" },
     result: { result: "coco l'asticot" },
     latency: 0,
-    cost: 0,
+    cost: 2,
     runnedAt: new Date("2023-11-07T11:02:00.703Z")
   });
 
@@ -84,7 +84,10 @@ it("should tag the result with retrieveFromCache properly", async () => {
 
   // Given an expected output (here we expect the string to be lowercase)
   const expectedUseCaseOutput = { value: "coco l'asticot" };
-  const execute = vi.fn().mockResolvedValue({ value: "coco l'asticot" });
+  const execute = vi.fn().mockImplementation(function () {
+    this.addCost(2);
+    Promise.resolve({ value: "coco l'asticot" });
+  });
 
   // Given the UseCase
   const implementation = UsecaseImplementation.create({
@@ -102,6 +105,8 @@ it("should tag the result with retrieveFromCache properly", async () => {
 
   expect(res[0].realCallCount).toBe(3);
   expect(res[0].callFromCacheCount).toBe(3);
+  expect(res[0].resultsFullPrice).toBe(12);
+  expect(res[0].resultsCurrentPrice).toBe(6);
 });
 
 it("should have the proper Implementation Name", async () => {

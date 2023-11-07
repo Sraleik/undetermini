@@ -34,11 +34,17 @@ export class Undetermini {
     averageError: number;
     realCallCount: number;
     callFromCacheCount: number;
+    resultsFullPrice: number;
+    resultsCurrentPrice: number;
   } {
     const total = resResults.reduce(
       (acc, result) => {
+        const cost = currency(acc.cost, { precision: 10 }).add(
+          result.cost
+        ).value;
+
         return {
-          cost: currency(acc.cost, { precision: 10 }).add(result.cost).value,
+          cost,
           latency: acc.latency + result.latency,
           accuracy: acc.accuracy + result.accuracy,
           error: result.error ? acc.error + 1 : acc.error,
@@ -47,7 +53,13 @@ export class Undetermini {
             : acc.realCallCount + 1,
           callFromCacheCount: result.retrieveFromCache
             ? acc.callFromCacheCount + 1
-            : acc.callFromCacheCount
+            : acc.callFromCacheCount,
+          resultsFullPrice: cost,
+          resultsCurrentPrice: result.retrieveFromCache
+            ? acc.resultsCurrentPrice
+            : currency(acc.resultsCurrentPrice, { precision: 10 }).add(
+                result.cost
+              ).value
         };
       },
       {
@@ -56,7 +68,9 @@ export class Undetermini {
         accuracy: 0,
         error: 0,
         realCallCount: 0,
-        callFromCacheCount: 0
+        callFromCacheCount: 0,
+        resultsFullPrice: 0,
+        resultsCurrentPrice: 0
       }
     );
 
@@ -68,7 +82,9 @@ export class Undetermini {
       averageAccuracy: total.accuracy / resResults.length,
       averageError: (total.error * 100) / resResults.length,
       realCallCount: total.realCallCount,
-      callFromCacheCount: total.callFromCacheCount
+      callFromCacheCount: total.callFromCacheCount,
+      resultsFullPrice: total.resultsFullPrice,
+      resultsCurrentPrice: total.resultsCurrentPrice
     };
   }
 
@@ -181,23 +197,6 @@ export class Undetermini {
       })
     };
     return resultWithAccuracy;
-
-    // const resultWithAccuracy = neededResults.map((runResult, index) => {
-    //   return {
-    //     ...runResult,
-    //     accuracy: runResult.result ? evaluateAccuracy(runResult.result) : 100, // Accuracy is not impacted by errors
-    //     retrieveFromCache: index < times - realCallNeeded
-    //   };
-    // });
-
-    // const averages = this.computeMetrics(resultWithAccuracy);
-
-    // const res = {
-    //   ...averages,
-    //   name: implementation.name
-    // };
-
-    // return res as MultipleRunResult;
   }
 
   async run(payload: {
