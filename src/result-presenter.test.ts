@@ -5,18 +5,21 @@ it("should display a sexy table with the default column order & sort (Accuracy >
   const table = resultPresenter.addResults([
     {
       name: "Get Candidate, Accurate",
+      averageError: 0,
       averageCost: 0.001,
       averageLatency: 500,
       averageAccuracy: 100
     },
     {
       name: "Get Candidate, Accurate & Fast",
+      averageError: 0,
       averageCost: 0.001,
       averageLatency: 250,
       averageAccuracy: 100
     },
     {
       name: "Get Candidate, GPT-4",
+      averageError: 0,
       averageCost: 0.02,
       averageLatency: 50,
       averageAccuracy: 50
@@ -24,17 +27,20 @@ it("should display a sexy table with the default column order & sort (Accuracy >
     {
       name: "Get Candidate, Accurate & Fast & Cheap",
       averageCost: 0.00001,
+      averageError: 0,
       averageLatency: 250,
       averageAccuracy: 100
     },
     {
       name: "Get Candidate, Coherere",
+      averageError: 0,
       averageCost: 0.02,
       averageLatency: 50,
       averageAccuracy: 33
     },
     {
       name: "Get Candidate, GPT3.5 fine tune (dataset 332)",
+      averageError: 0,
       averageCost: 0.02,
       averageLatency: 50,
       averageAccuracy: 95

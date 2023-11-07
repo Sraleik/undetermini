@@ -15,7 +15,7 @@ export type RunResult = {
 
 export class RunResultRepository {
   private db: loki;
-  private executionResult = new loki.Collection("execution-results");
+  private executionResult: loki.Collection;
 
   static async create(options?: { persistOnDisk?: boolean }) {
     const { persistOnDisk } = options || {};
@@ -32,19 +32,29 @@ export class RunResultRepository {
         }
       : undefined;
     this.db = new loki("undetermini-db.json", option);
+    this.executionResult = this.db.getCollection("execution-results");
   }
 
   private databaseInitialize() {
     return new Promise((resolve, reject) => {
-      this.executionResult = this.db.addCollection("execution-results");
-      if (this.persistOnDisk) {
-        this.db.saveDatabase((error: Error) => {
-          if (error) reject(error);
+      this.db.loadDatabase({}, (error: Error) => {
+        if (error) reject(error);
+        this.executionResult = this.db.getCollection("execution-results");
+
+        if (!this.executionResult) {
+          this.executionResult = this.db.addCollection("execution-results");
+          if (this.persistOnDisk) {
+            this.db.saveDatabase((error: Error) => {
+              if (error) reject(error);
+              resolve(undefined);
+            });
+          } else {
+            resolve(undefined);
+          }
+        } else {
           resolve(undefined);
-        });
-      } else {
-        resolve(undefined);
-      }
+        }
+      });
     });
   }
 
@@ -107,7 +117,6 @@ export class RunResultRepository {
           inputId: lokiResult.inputId,
           input: lokiResult.input,
           result: lokiResult.result,
-          accuracy: lokiResult.accuracy,
           latency: lokiResult.latency,
           cost: lokiResult.cost,
           error: lokiResult.error ? new Error(lokiResult.error) : undefined,
@@ -129,7 +138,6 @@ export class RunResultRepository {
           inputId: lokiResult.inputId,
           input: lokiResult.input,
           result: lokiResult.result,
-          accuracy: lokiResult.accuracy,
           latency: lokiResult.latency,
           cost: lokiResult.cost,
           error: lokiResult.error ? new Error(lokiResult.error) : undefined,

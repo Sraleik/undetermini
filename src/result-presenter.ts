@@ -40,7 +40,7 @@ export class ResultPresenter {
     ];
     this.table = new Table({
       columns: [
-        { name: "name", alignment: "left" },
+        { name: "name", title: "Implementation Name", alignment: "left" },
         { name: "averageAccuracy" },
         { name: "averageLatency" },
         { name: "averageCost" }
@@ -87,7 +87,8 @@ export class ResultPresenter {
     return this.table;
   }
 
-  displayResults() {
+  displayResults(times: number) {
+    this.table.table.title = `Results on ${times} calls for each Implementation`;
     this.table.printTable();
   }
 

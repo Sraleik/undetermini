@@ -25,7 +25,11 @@ export class UsecaseImplementation {
   ) {}
 
   addMethod(method: Prettify<Method>) {
-    this[method.name] = method.implementation.value.bind(this);
+    if (typeof method.implementation.value === "function") {
+      this[method.name] = method.implementation.value.bind(this);
+    } else {
+      this[method.name] = method.implementation.value;
+    }
   }
 
   addCost(value: number) {

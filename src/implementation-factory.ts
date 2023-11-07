@@ -6,7 +6,7 @@ export type Method = {
   isActive: boolean;
   implementation: {
     name: string;
-    value: (...args: any[]) => unknown;
+    value: unknown;
   };
   servicesUsed?: string[];
 };
@@ -34,6 +34,8 @@ export class ImplementationFactory {
     const isActive = payload.isActive ?? true;
     this.methods.push({ ...payload, isActive });
     const { name: methodName } = payload;
+
+    //TODO: make sure this is necessary, a simple object of method might be enough
     if (!this[methodName]) {
       Object.defineProperty(this, methodName, {
         get: function () {
@@ -60,7 +62,7 @@ export class ImplementationFactory {
   get implementations() {
     return this.implementationsPayloadsAsArray.map((implementationPayload) => {
       const constructorPayload = implementationPayload.reduce((acc, method) => {
-        acc[method.name] = method.implementation;
+        acc[method.name] = method.implementation.value;
         return acc;
       }, {});
 

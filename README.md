@@ -65,8 +65,12 @@ Feel free to start/join a discussion, issues or Pull requests.
 
 ### Feature
 
-- [ ] give accuracy fonction as a parameter 
+- [X] give accuracy fonction as a parameter 
+- [X] show number of real call to UseCase
 - [ ] turn llm-info into a service-info
+- [ ] display cost of run
+  - [ ] with cache
+  - [ ] without cache
 - [ ] better handling of rate limit
 - [ ] retrieve all type and put them in their proper places 
 - [ ] display who si cheapest and by how much 

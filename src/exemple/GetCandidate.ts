@@ -25,20 +25,13 @@ export class GetCandidate {
     this.parser = payload.parser;
   }
 
-  async execute(
-    payload: { pdfAsText: string },
-    handleCost?: (prompt: string, rawResult: string) => Promise<unknown>
-  ) {
+  async execute(payload: { pdfAsText: string }) {
     const prompt = await this.promptTemplate.format({
       formatInstruction: this.formatInstruction,
       candidatePdfAsString: payload.pdfAsText
     });
 
     const rawResult = await this.extractCandidateFromPrompt(prompt);
-
-    if (handleCost) {
-      await handleCost(prompt, rawResult);
-    }
 
     const res = await this.parser(rawResult);
     return res;

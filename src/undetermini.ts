@@ -2,6 +2,8 @@ import currency from "currency.js";
 import { RunResult, RunResultRepository } from "./run-result.repository";
 import { UsecaseImplementation } from "./usecase-implementation";
 import { ResultPresenter } from "./result-presenter";
+import dotenv from "dotenv";
+dotenv.config();
 
 export type MultipleRunResult = {
   name: string;
@@ -150,6 +152,7 @@ export class Undetermini {
 
     await Promise.all(runResultPromises);
 
+    //MAYBE: this function could return 'runId' instead of MultipleRunResult
     const neededResults = await this.runResultRepository.getLastRunResults({
       runId,
       limit: times
@@ -180,7 +183,8 @@ export class Undetermini {
     useCache?: boolean;
     expectedUseCaseOutput?: Record<string, any>;
     evaluateAccuracy?: (output: any) => number;
-    presenter?: { isActive: boolean; options?: Record<string, any> };
+    //TODO make the presenter a real presenter : 2 mode JSON or Table
+    presenter?: { isActive: boolean; options?: { sortPriority?: string[] } };
   }) {
     const {
       implementations,
@@ -220,7 +224,7 @@ export class Undetermini {
     if (presenter.isActive) {
       const currentPresenter = new ResultPresenter(presenter.options);
       currentPresenter.addResults(results);
-      currentPresenter.displayResults();
+      currentPresenter.displayResults(times);
     }
 
     return results;

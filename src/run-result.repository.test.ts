@@ -5,6 +5,12 @@ describe.each([
   { repositoryType: "In Memory", persistOnDisk: false },
   { repositoryType: "Persisted on Disk", persistOnDisk: true }
 ])("Repo $repositoryType", ({ persistOnDisk }) => {
+  beforeAll(() => {
+    if (fs.existsSync(`${__dirname}/../undetermini-db.json`)) {
+      fs.unlinkSync(`${__dirname}/../undetermini-db.json`);
+    }
+  });
+
   afterEach(() => {
     if (fs.existsSync(`${__dirname}/../undetermini-db.json`)) {
       fs.unlinkSync(`${__dirname}/../undetermini-db.json`);
@@ -12,12 +18,38 @@ describe.each([
   });
 
   if (persistOnDisk) {
-    it('should create "undetermini-db"', async () => {
+    it("should retrieve data already persisted", async () => {
       await RunResultRepository.create({
         persistOnDisk
       });
       const dbFileExists = fs.existsSync(`${__dirname}/../undetermini-db.json`);
       expect(dbFileExists).toBe(true);
+    });
+
+    it('should create "undetermini-db"', async () => {
+      const repo1 = await RunResultRepository.create({
+        persistOnDisk
+      });
+
+      await repo1.addRunResult({
+        runId: "8fe94294-3365-480f-b0a5-16a9ce72b545",
+        implementationId: "c14b0873-673e-4849-9530-861b0d7331c3",
+        inputId: "34631d9d-b338-47da-b66c-a066191d08c7",
+        input: { fake: "input" },
+        result: { fake: "result" },
+        cost: 1,
+        latency: 1
+      });
+
+      const repo2 = await RunResultRepository.create({
+        persistOnDisk
+      });
+
+      const existingDataCount = await repo2.getRunResultsCount({
+        runId: "8fe94294-3365-480f-b0a5-16a9ce72b545"
+      });
+
+      expect(existingDataCount).toBe(1);
     });
   }
   if (!persistOnDisk) {

@@ -170,8 +170,7 @@ it("should get the right cost of UseCaseTemplate with a costly method", async ()
   const implementation = simpleUseCaseFactory.implementations;
 
   const { cost } = await implementation[0].run({
-    input: { x: 5, y: 10 },
-    expectedOutput: 10
+    input: { x: 5, y: 10 }
   });
   expect(cost).toBe(0.0052);
 });
