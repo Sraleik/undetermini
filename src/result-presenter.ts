@@ -163,8 +163,8 @@ export class ResultPresenter {
       );
       const coloredAccuracy = chalk[accuracyColor](rawRow.averageAccuracy);
       const coloredCost = rawRow.averageCost;
-      const coloredLatency = rawRow.averageLatency;
-      const coloredError = chalk[errorColor](rawRow.averageError);
+      const coloredLatency = Math.round(rawRow.averageLatency);
+      const coloredError = chalk[errorColor](Math.round(rawRow.averageError));
 
       const row = {
         ...rawRow,

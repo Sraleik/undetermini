@@ -22,10 +22,14 @@ export type MultipleRunResult = {
 };
 
 export class Undetermini {
-  static async create(options?: { persistOnDisk: boolean }) {
+  static async create(options?: {
+    persistOnDisk?: boolean;
+    filename?: string;
+  }) {
     const persistOnDisk = options?.persistOnDisk || false;
     const runResultRepository = await RunResultRepository.create({
-      persistOnDisk
+      persistOnDisk,
+      filename: options?.filename
     });
     return new Undetermini(runResultRepository);
   }
@@ -146,6 +150,7 @@ export class Undetermini {
       runId,
       implementationId,
       inputId,
+      name: implementation.name,
       input,
       result,
       cost,
@@ -217,7 +222,7 @@ export class Undetermini {
       isActive: boolean;
       options?: {
         sortPriority?: SortableColumn[];
-        hideColumns: HideableColumn[];
+        hideColumns?: HideableColumn[];
       };
     };
   }) {

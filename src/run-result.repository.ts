@@ -17,21 +17,27 @@ export class RunResultRepository {
   private db: loki;
   private executionResult: loki.Collection;
 
-  static async create(options?: { persistOnDisk?: boolean }) {
-    const { persistOnDisk } = options || {};
-    const repo = new RunResultRepository(persistOnDisk);
+  static async create(options?: {
+    filename?: string;
+    persistOnDisk?: boolean;
+  }) {
+    const { persistOnDisk, filename } = options || {};
+    const repo = new RunResultRepository(persistOnDisk, filename);
     await repo.databaseInitialize();
     return repo;
   }
 
-  private constructor(private persistOnDisk = false) {
+  private constructor(
+    private persistOnDisk = false,
+    filename = "undetermini-db.json"
+  ) {
     const option = this.persistOnDisk
       ? {
           autosave: false,
           throttledSaves: true
         }
       : undefined;
-    this.db = new loki("undetermini-db.json", option);
+    this.db = new loki(filename, option);
     this.executionResult = this.db.getCollection("execution-results");
   }
 
@@ -58,12 +64,13 @@ export class RunResultRepository {
     });
   }
 
-  addRunResult(payload: Prettify<RunResult>) {
+  addRunResult(payload: Prettify<RunResult & { name: string }>) {
     return new Promise((resolve, reject) => {
       const {
         runId,
         implementationId,
         inputId,
+        name,
         input,
         result,
         latency,
@@ -76,6 +83,7 @@ export class RunResultRepository {
         runId,
         implementationId,
         inputId,
+        name,
         input,
         result,
         latency,
@@ -86,8 +94,11 @@ export class RunResultRepository {
 
       if (this.persistOnDisk) {
         this.db.saveDatabase((error: Error) => {
-          if (error) reject(error);
-          resolve(undefined);
+          if (error) {
+            reject(error);
+          } else {
+            resolve(undefined);
+          }
         });
       } else {
         resolve(undefined);
@@ -111,6 +122,14 @@ export class RunResultRepository {
       .limit(payload.limit)
       .data()
       .map((lokiResult: any) => {
+        let error: Error | undefined;
+        if (lokiResult.error) {
+          if (Object.keys(lokiResult.error).length === 0) {
+            error = new Error("Unknown reason");
+          } else {
+            error = new Error(lokiResult.error);
+          }
+        }
         return {
           runId: lokiResult.runId,
           implementationId: lokiResult.implementationId,
@@ -119,7 +138,7 @@ export class RunResultRepository {
           result: lokiResult.result,
           latency: lokiResult.latency,
           cost: lokiResult.cost,
-          error: lokiResult.error ? new Error(lokiResult.error) : undefined,
+          error,
           runnedAt: new Date(lokiResult.runnedAt)
         };
       });
