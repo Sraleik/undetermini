@@ -37,7 +37,7 @@ it("should throw if no expectedOutput and no evaluateAccuracy is given", async (
   );
 });
 
-it.only("should tag the result with retrieveFromCache properly and return price per ImplementationResults", async () => {
+it("should tag the result with retrieveFromCache properly and return price per ImplementationResults", async () => {
   const runResultRepository = await RunResultRepository.create({
     persistOnDisk: true
   });
@@ -382,7 +382,9 @@ it.each([{ times: 1 }, { times: 10 }, { times: 100 }, { times: 1000 }])(
       averageCost: expect.any(Number),
       averageError: 0,
       realCallCount: times,
-      callFromCacheCount: 0
+      callFromCacheCount: 0,
+      resultsCurrentPrice: 0,
+      resultsFullPrice: 0
     });
 
     expect(execute).toHaveBeenCalledTimes(times);
@@ -472,7 +474,7 @@ it.each([{ times: 1000 }])(
   }
 );
 
-it.skip.each([{ times: 10 }])(
+it.each([{ times: 10 }])(
   "should execute 3 implementation $times times and display table",
   async ({ times }) => {
     // Given a value given to our use case
@@ -506,7 +508,7 @@ it.skip.each([{ times: 10 }])(
       times,
       presenter: {
         isActive: false,
-        options: { sortPriority: ["cost", "accuracy", "latency"] }
+        options: { sortPriority: ["cost", "accuracy", "latency", "error"] }
       }
     });
 

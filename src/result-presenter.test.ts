@@ -1,161 +1,85 @@
+import {
+  generateAllPossibleOrders,
+  generatePartialPossibilities
+} from "./common/math";
 import { ResultPresenter } from "./result-presenter";
-it("should display a sexy table with the default column order & sort (Accuracy > Latency > Cost)", () => {
-  const resultPresenter = new ResultPresenter();
 
-  const table = resultPresenter.addResults([
-    {
-      name: "Get Candidate, Accurate",
-      averageError: 0,
-      averageCost: 0.001,
-      averageLatency: 500,
-      averageAccuracy: 100
-    },
-    {
-      name: "Get Candidate, Accurate & Fast",
-      averageError: 0,
-      averageCost: 0.001,
-      averageLatency: 250,
-      averageAccuracy: 100
-    },
-    {
-      name: "Get Candidate, GPT-4",
-      averageError: 0,
-      averageCost: 0.02,
-      averageLatency: 50,
-      averageAccuracy: 50
-    },
-    {
-      name: "Get Candidate, Accurate & Fast & Cheap",
-      averageCost: 0.00001,
-      averageError: 0,
-      averageLatency: 250,
-      averageAccuracy: 100
-    },
-    {
-      name: "Get Candidate, Coherere",
-      averageError: 0,
-      averageCost: 0.02,
-      averageLatency: 50,
-      averageAccuracy: 33
-    },
-    {
-      name: "Get Candidate, GPT3.5 fine tune (dataset 332)",
-      averageError: 0,
-      averageCost: 0.02,
-      averageLatency: 50,
-      averageAccuracy: 95
-    }
-  ]);
+const possibleColumns = [
+  { name: "accuracy", title: "Accuracy" },
+  { name: "latency", title: "Latency" },
+  { name: "cost", title: "Cost" },
+  { name: "error", title: "Error" }
+];
 
-  const accuracyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredAccuracy"
-  );
-  const latencyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredLatency"
-  );
-  const costIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredCost"
-  );
-  expect(accuracyIndex < latencyIndex).toBe(true);
-  expect(latencyIndex < costIndex).toBe(true);
+describe("Column order (complete order given)", () => {
+  const possibleOrders = generateAllPossibleOrders(possibleColumns);
+
+  possibleOrders.forEach((columnOrder) => {
+    const priorityOrder = columnOrder.map((column) => column.title).join(" > ");
+    it(`should display a sexy table with the column order & sort => (${priorityOrder})`, () => {
+      const priorityOrderName = columnOrder.map(
+        (column) => column.name
+      ) as string[];
+
+      const resultPresenter = new ResultPresenter({
+        sortPriority: priorityOrderName
+      });
+
+      const table = resultPresenter.addResults([]);
+
+      const columnIndexes = columnOrder.map((columnInfo) => {
+        return table.table.columns.findIndex(
+          (column) => column.name === `colored${columnInfo.title}`
+        );
+      });
+
+      // Check if the array is sorted in ascending order
+      const isSorted = columnIndexes.every(
+        (val, i, arr) => !i || val >= arr[i - 1]
+      );
+      expect(isSorted).toBe(true);
+    });
+  });
 });
 
-it("should display a sexy table with the default column order & sort (Accuracy > Cost > Latency)", () => {
-  const resultPresenter = new ResultPresenter({
-    sortPriority: ["accuracy", "cost", "latency"]
+describe("Column order (partial order given)", () => {
+  const partialOrders = generatePartialPossibilities(possibleColumns);
+
+  partialOrders.forEach((partialOrder) => {
+    const defaultSortPriority = [...ResultPresenter.defaultSortPriority];
+
+    partialOrder.forEach((column) => {
+      const index = defaultSortPriority.indexOf(column.name);
+      if (index > -1) {
+        defaultSortPriority.splice(index, 1);
+      }
+    });
+    const partialOrderName = partialOrder.map((value) => value.name);
+    const priorityOrderName = [...partialOrderName, ...defaultSortPriority];
+    const priorityOrder = priorityOrderName.join(" > ");
+
+    it(`should display the right order & sort with partial order (${partialOrderName.join(
+      ", "
+    )}) => (${priorityOrder})`, () => {
+      const resultPresenter = new ResultPresenter({
+        sortPriority: partialOrderName
+      });
+
+      const table = resultPresenter.addResults([]);
+
+      const columnIndexes = priorityOrderName.map((columnName) => {
+        return table.table.columns.findIndex(
+          (column) =>
+            column.name ===
+            `colored${columnName.charAt(0).toUpperCase() + columnName.slice(1)}`
+        );
+      });
+
+      // Check if the array is sorted in ascending order
+      const isSorted = columnIndexes.every(
+        (val, i, arr) => !i || val >= arr[i - 1]
+      );
+      expect(isSorted).toBe(true);
+    });
   });
-
-  const table = resultPresenter.addResults([]);
-
-  const accuracyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredAccuracy"
-  );
-  const latencyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredLatency"
-  );
-  const costIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredCost"
-  );
-
-  expect(accuracyIndex < costIndex).toBe(true);
-  expect(costIndex < latencyIndex).toBe(true);
-});
-
-it("should display a sexy table with the following column order & sort (Cost > Latency > Accuracy)", () => {
-  const resultPresenter = new ResultPresenter({
-    sortPriority: ["cost", "latency", "accuracy"]
-  });
-  const table = resultPresenter.addResults([]);
-
-  const accuracyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredAccuracy"
-  );
-  const latencyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredLatency"
-  );
-  const costIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredCost"
-  );
-  expect(costIndex < latencyIndex).toBe(true);
-  expect(latencyIndex < accuracyIndex).toBe(true);
-});
-
-it("should display a sexy table with the following column order & sort (Cost > Accuracy > Latency)", () => {
-  const resultPresenter = new ResultPresenter({
-    sortPriority: ["cost", "accuracy", "latency"]
-  });
-  const table = resultPresenter.addResults([]);
-
-  const accuracyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredAccuracy"
-  );
-  const latencyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredLatency"
-  );
-  const costIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredCost"
-  );
-
-  expect(costIndex < accuracyIndex).toBe(true);
-  expect(accuracyIndex < latencyIndex).toBe(true);
-});
-
-it("should display a sexy table with the following column order & sort (Latency > Cost > Accuracy)", () => {
-  const resultPresenter = new ResultPresenter({
-    sortPriority: ["latency", "cost", "accuracy"]
-  });
-  const table = resultPresenter.addResults([]);
-
-  const accuracyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredAccuracy"
-  );
-  const latencyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredLatency"
-  );
-  const costIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredCost"
-  );
-
-  expect(latencyIndex < costIndex).toBe(true);
-  expect(costIndex < accuracyIndex).toBe(true);
-});
-
-it("should display a sexy table with the following column order & sort (Latency > Accuracy > Cost)", () => {
-  const resultPresenter = new ResultPresenter({
-    sortPriority: ["latency", "accuracy", "cost"]
-  });
-  const table = resultPresenter.addResults([]);
-
-  const accuracyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredAccuracy"
-  );
-  const latencyIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredLatency"
-  );
-  const costIndex = table.table.columns.findIndex(
-    (column) => column.name === "coloredCost"
-  );
-
-  expect(latencyIndex < accuracyIndex).toBe(true);
-  expect(accuracyIndex < costIndex).toBe(true);
 });

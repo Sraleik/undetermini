@@ -27,3 +27,29 @@ export function cartesianProduct(arrays: any[][]): any[][] {
 
   return cartesianHelper(arrays, 0);
 }
+
+export function generateAllPossibleOrders(arr: any[]): any[][] {
+  if (arr.length === 1) return [arr];
+  const result: string[][] = [];
+  for (let i = 0; i < arr.length; i++) {
+    const first = arr[i];
+    const leftovers = arr.slice(0, i).concat(arr.slice(i + 1));
+    const innerPermutations = generateAllPossibleOrders(leftovers);
+    for (let j = 0; j < innerPermutations.length; j++) {
+      result.push([first].concat(innerPermutations[j]));
+    }
+  }
+  return result;
+}
+
+export function generatePartialPossibilities(arr: any[]): any[][] {
+  const result: any[][] = [];
+  const f = (prefix, arr) => {
+    for (let i = 0; i < arr.length; i++) {
+      result.push([...prefix, arr[i]]);
+      f([...prefix, arr[i]], arr.slice(i + 1));
+    }
+  };
+  f([], arr);
+  return result.filter((possibility) => possibility.length < arr.length);
+}
