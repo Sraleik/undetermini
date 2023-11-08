@@ -140,11 +140,11 @@ it("should return the hash of the run", async () => {
   const useCaseInput = { value: "COCO L'ASTICOT" };
 
   // When the implementation is run
-  const result = await usecaseImplementation.getRunHash(useCaseInput);
+  const result = usecaseImplementation.getRunHash(useCaseInput);
 
   // Then it should return a latency close to 50ms
   expect(result).toEqual(
-    "afea24909122d0d14204596d95108d942171a986efaafffa45a0b4c75b4b5fa7"
+    "b66386abfec21a4958ff41d3d59103f65613e257f8e2551b1d86f0b6a37d70cf"
   );
 });
 
@@ -172,15 +172,15 @@ it("should return same hash when input is the same be not in the same order", as
   };
 
   // When the implementation is run
-  const runHash1 = await usecaseImplementation.getRunHash(useCaseInput1);
-  const runHash2 = await usecaseImplementation.getRunHash(useCaseInput2);
+  const runHash1 = usecaseImplementation.getRunHash(useCaseInput1);
+  const runHash2 = usecaseImplementation.getRunHash(useCaseInput2);
 
   // Then it should return the same hash
   expect(runHash1).toEqual(
-    "ea8bd6c1a217ecdac6dd5c1f1648e334beb3d68452a1b6768e478b9125408b7b"
+    "b008146c1eed7dcd1c42d3a0654de06e4db9b34a8faebbaf2b66980171638bef"
   );
   expect(runHash2).toEqual(
-    "ea8bd6c1a217ecdac6dd5c1f1648e334beb3d68452a1b6768e478b9125408b7b"
+    "b008146c1eed7dcd1c42d3a0654de06e4db9b34a8faebbaf2b66980171638bef"
   );
 });
 
@@ -232,9 +232,9 @@ it("should return right cost, latency, accuracy, runId, implementationId, inputI
   expect(execute).toBeCalledWith(useCaseInput);
   expect(result.latency).toBeCloseTo(33, -1);
   expect(result).toContain({
-    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",
     implementationId:
-      "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
+      "89b50bf7ab7dd035db6e25b1a7f6977f7f9842a41a7b9b17cce4062c4d7859bf",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
     cost: 0.25,
     error: undefined

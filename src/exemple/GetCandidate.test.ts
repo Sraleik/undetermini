@@ -63,7 +63,7 @@ async function extractCandidateWithGpt3(prompt: string) {
     prompt,
     result
   );
-  this.addCost(cost);
+  this.addCost(cost.value);
   return result;
 }
 
@@ -89,7 +89,6 @@ it.skip("should work splendidly", async () => {
   expect(implementations.length).toBe(1);
 
   const implementation1 = implementations[0];
-
   const undetermini = await Undetermini.create({ persistOnDisk: true });
 
   const res = await undetermini.run({
@@ -103,11 +102,11 @@ it.skip("should work splendidly", async () => {
       age: 32,
       profession: "Software Engineer"
     },
-    times: 3,
+    times: 11,
     presenter: {
       isActive: true
     },
     useCache: true
   });
   expect(res).toBeTruthy();
-}, 15000);
+}, 60000);

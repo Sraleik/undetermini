@@ -3,6 +3,17 @@ import chalk from "chalk";
 import currency from "currency.js";
 import { MultipleRunResult } from "./undetermini";
 
+export type HideableColumn =
+  | "Error"
+  | "Accuracy"
+  | "Latency"
+  | "Cost"
+  | "Real Call"
+  | "Cached Call"
+  | "Full Cost"
+  | "Cached Cost";
+
+export type SortableColumn = "error" | "accuracy" | "latency" | "cost";
 export class ResultPresenter {
   private table: Table;
   static readonly defaultSortPriority = [
@@ -12,17 +23,33 @@ export class ResultPresenter {
     "error"
   ];
 
+  static getColumnsToHide(columns?: HideableColumn[]) {
+    if (!columns) return undefined;
+    const mapper = {
+      Accuracy: "coloradAccuracy",
+      Error: "coloredError",
+      Latency: "coloredLatency",
+      Cost: "coloredCost",
+      "Real Call": "realCallCount",
+      "Cached Call": "callFromCacheCount",
+      "Full Cost": "resultsFullPrice",
+      "Cached Cost": "resultsCurrentPrice"
+    };
+
+    return columns.map((column) => mapper[column]) as string[];
+  }
+
   private columnSorting = {
-    cost: (row1: MultipleRunResult, row2: MultipleRunResult) => {
-      return currency(row1.averageCost, { precision: 10 }).subtract(
-        row2.averageCost
-      ).value;
+    accuracy: (row1: MultipleRunResult, row2: MultipleRunResult) => {
+      return row2.averageAccuracy - row1.averageAccuracy;
     },
     latency: (row1: MultipleRunResult, row2: MultipleRunResult) => {
       return row1.averageLatency - row2.averageLatency;
     },
-    accuracy: (row1: MultipleRunResult, row2: MultipleRunResult) => {
-      return row2.averageLatency - row1.averageLatency;
+    cost: (row1: MultipleRunResult, row2: MultipleRunResult) => {
+      return currency(row1.averageCost, { precision: 10 }).subtract(
+        row2.averageCost
+      ).value;
     },
     error: (row1: MultipleRunResult, row2: MultipleRunResult) => {
       return row1.averageError - row2.averageError;
@@ -38,11 +65,18 @@ export class ResultPresenter {
       return "greenBright";
     },
     cost: {},
-    latency: {}
-    //TODO: do error default threshold
+    latency: {},
+    getErrorColor: (value: number) => {
+      if (value === 0) return "green";
+      if (value <= 10) return "yellowBright";
+      return "red";
+    }
   };
 
-  constructor(options?: { sortPriority?: string[] }) {
+  constructor(options?: {
+    sortPriority?: SortableColumn[];
+    hideColumns?: HideableColumn[];
+  }) {
     const defaultSortPriority = [...ResultPresenter.defaultSortPriority];
 
     let sortPriority: string[] = [];
@@ -57,6 +91,9 @@ export class ResultPresenter {
     }
     sortPriority = [...sortPriority, ...defaultSortPriority];
 
+    const columnToHide =
+      ResultPresenter.getColumnsToHide(options?.hideColumns) || [];
+
     this.table = new Table({
       columns: [
         { name: "name", title: "Implementation Name", alignment: "left" },
@@ -69,7 +106,8 @@ export class ResultPresenter {
         "averageAccuracy",
         "averageLatency",
         "averageCost",
-        "averageError"
+        "averageError",
+        ...columnToHide
       ],
       sort: (row1, row2) => {
         const sort1Res = this.columnSorting[sortPriority[0]](row1, row2);
@@ -81,14 +119,14 @@ export class ResultPresenter {
         const sort3Res = this.columnSorting[sortPriority[2]](row1, row2);
         if (sort3Res !== 0) return sort3Res;
 
-        return this.columnSorting[sortPriority[2]](row1, row2);
+        return this.columnSorting[sortPriority[3]](row1, row2);
       }
     });
 
     const possibleColumns = {
-      cost: { name: "coloredCost", title: "Average cost ($)" },
-      latency: { name: "coloredLatency", title: "Average Latency (ms)" },
-      accuracy: { name: "coloredAccuracy", title: "Average Accuracy (%)" },
+      cost: { name: "coloredCost", title: "Cost ($ cents)" },
+      latency: { name: "coloredLatency", title: "Latency (ms)" },
+      accuracy: { name: "coloredAccuracy", title: "Accuracy (%)" },
       error: { name: "coloredError", title: "Error (%)" }
     };
 
@@ -97,28 +135,36 @@ export class ResultPresenter {
     });
 
     //@ts-expect-error it works fine
-    this.table.addColumn({ name: "realCallCount", title: "Real usecase call" });
+    this.table.addColumn({ name: "realCallCount", title: "Real Call" });
     //@ts-expect-error it works fine
     this.table.addColumn({
       name: "callFromCacheCount",
-      title: "Cached usecase call"
+      title: "Cached Call"
     });
     //@ts-expect-error it works fine
-    this.table.addColumn({ name: "resultsFullPrice", title: "Full Cost" });
+    this.table.addColumn({
+      name: "resultsFullPrice",
+      title: "Full Cost ($ cents)"
+    });
     //@ts-expect-error it works fine
     this.table.addColumn({
       name: "resultsCurrentPrice",
-      title: "Cost with cache"
+      title: "Cost With Cache ($ cents)"
     });
   }
 
   addResults(data: MultipleRunResult[]) {
     data.forEach((rawRow) => {
-      const accuracyColor = this.getAccuracyColor(rawRow.averageAccuracy);
+      const accuracyColor = this.defaultThreshold.getAccuracyColor(
+        rawRow.averageAccuracy
+      );
+      const errorColor = this.defaultThreshold.getErrorColor(
+        rawRow.averageError
+      );
       const coloredAccuracy = chalk[accuracyColor](rawRow.averageAccuracy);
       const coloredCost = rawRow.averageCost;
       const coloredLatency = rawRow.averageLatency;
-      const coloredError = rawRow.averageError;
+      const coloredError = chalk[errorColor](rawRow.averageError);
 
       const row = {
         ...rawRow,
@@ -137,9 +183,5 @@ export class ResultPresenter {
   displayResults(times: number) {
     this.table.table.title = `Results on ${times} calls for each Implementation`;
     this.table.printTable();
-  }
-
-  get getAccuracyColor() {
-    return this.defaultThreshold.getAccuracyColor;
   }
 }

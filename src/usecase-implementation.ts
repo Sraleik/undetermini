@@ -7,6 +7,8 @@ import { Prettify } from "./common/utils";
 // returning: cost, latency, accuracy, error & hashes
 export class UsecaseImplementation {
   private _currentRunCost = currency(0, { precision: 10 });
+  //TODO: like "addMethod" find a better name. 'itemHashes' maybe
+  private methodHashes: Record<string, string> = {};
 
   static create(payload: {
     name: string;
@@ -24,12 +26,16 @@ export class UsecaseImplementation {
     private execute: (...args: any) => unknown
   ) {}
 
+  //TODO find a better name because it can add other things than method
+  //MAYBE I should store method in an array of Methods and add the hash at this time
   addMethod(method: Prettify<Method>) {
     if (typeof method.implementation.value === "function") {
       this[method.name] = method.implementation.value.bind(this);
     } else {
       this[method.name] = method.implementation.value;
     }
+
+    this.methodHashes[method.name] = this.getHash(method.implementation.value);
   }
 
   addCost(value: number) {
@@ -67,27 +73,29 @@ export class UsecaseImplementation {
     return encoder.encode(inputStringified);
   }
 
-  async getInputHash(input: unknown) {
+  getHash(input: unknown) {
     const inputData = this.dataToUint8Array(input);
 
     const hash = crypto.createHash("sha256");
     hash.update(inputData);
     return hash.digest("hex");
   }
-  async getImplementationHash() {
-    const functionData = this.dataToUint8Array(this.execute);
+  getImplementationHash() {
+    const methodsHash = this.getHash(this.methodHashes);
+    const executeHash = this.getHash(this.execute);
 
     const hash = crypto.createHash("sha256");
-    hash.update(functionData);
+    hash.update(methodsHash);
+    hash.update(executeHash);
     return hash.digest("hex");
   }
-  async getRunHash(input: any) {
-    const functionData = this.dataToUint8Array(this.execute);
-    const inputData = this.dataToUint8Array(input);
+  getRunHash(input: any) {
+    const implementationHash = this.getImplementationHash();
+    const inputHash = this.getHash(input);
 
     const hash = crypto.createHash("sha256");
-    hash.update(functionData);
-    hash.update(inputData);
+    hash.update(implementationHash);
+    hash.update(inputHash);
 
     return hash.digest("hex");
   }
@@ -112,9 +120,9 @@ export class UsecaseImplementation {
     const latency = endTime - startTime;
 
     return {
-      runId: await this.getRunHash(input),
-      implementationId: await this.getImplementationHash(),
-      inputId: await this.getInputHash(input),
+      runId: this.getRunHash(input),
+      implementationId: this.getImplementationHash(),
+      inputId: this.getHash(input),
       input,
       result,
       latency,

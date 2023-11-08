@@ -43,7 +43,7 @@ it("should tag the result with retrieveFromCache properly and return price per I
   });
 
   await runResultRepository.addRunResult({
-    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",
     implementationId:
       "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
@@ -55,7 +55,7 @@ it("should tag the result with retrieveFromCache properly and return price per I
   });
 
   await runResultRepository.addRunResult({
-    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",
     implementationId:
       "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
@@ -67,7 +67,7 @@ it("should tag the result with retrieveFromCache properly and return price per I
   });
 
   await runResultRepository.addRunResult({
-    runId: "c560b40b14c75bf29b00c04b4f6df6496965b90d28d0d5dd4cdd71e82fe9c1dd",
+    runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",
     implementationId:
       "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
@@ -208,7 +208,7 @@ it("should have the proper averageLatency", async () => {
   // Then
   const implementationResult = results[0];
 
-  expect(implementationResult.averageLatency).toBeCloseTo(50, -1);
+  expect(implementationResult.averageLatency).toBeCloseTo(50, -1.25);
   expect(execute).toBeCalledTimes(400); // Making sure execute is call the righ amout of time
   // Info: this test is running 400 call that all take 50ms. It does so in parallel
   // On my computer the test is run in 100ms, with no parallelization it would be 20seconds

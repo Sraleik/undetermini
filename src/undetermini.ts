@@ -1,7 +1,11 @@
 import currency from "currency.js";
 import { RunResult, RunResultRepository } from "./run-result.repository";
 import { UsecaseImplementation } from "./usecase-implementation";
-import { ResultPresenter } from "./result-presenter";
+import {
+  HideableColumn,
+  ResultPresenter,
+  SortableColumn
+} from "./result-presenter";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -11,7 +15,10 @@ export type MultipleRunResult = {
   averageLatency: number;
   averageAccuracy: number;
   averageError: number;
-  numberOfRun?: number;
+  realCallCount: number;
+  callFromCacheCount: number;
+  resultsFullPrice: number;
+  resultsCurrentPrice: number;
 };
 
 export class Undetermini {
@@ -157,7 +164,7 @@ export class Undetermini {
     const { implementation, useCaseInput, times = 1, useCache } = payload;
 
     let runResultExistingCount = 0;
-    const runId = await implementation.getRunHash(useCaseInput);
+    const runId = implementation.getRunHash(useCaseInput);
 
     if (useCache) {
       runResultExistingCount =
@@ -206,7 +213,13 @@ export class Undetermini {
     useCache?: boolean;
     expectedUseCaseOutput?: Record<string, any>;
     evaluateAccuracy?: (output: any) => number;
-    presenter?: { isActive: boolean; options?: { sortPriority?: string[] } };
+    presenter?: {
+      isActive: boolean;
+      options?: {
+        sortPriority?: SortableColumn[];
+        hideColumns: HideableColumn[];
+      };
+    };
   }) {
     const {
       implementations,
