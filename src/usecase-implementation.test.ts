@@ -1,5 +1,7 @@
 import { vi } from "vitest";
 import { UsecaseImplementation } from "./usecase-implementation";
+import currency from "currency.js";
+import { sleep } from "./common/utils";
 
 it("should return a run result without error", async () => {
   // Given a UsecaseImplementation
@@ -64,6 +66,74 @@ it("should return proper cost", async () => {
 
   // Then it should return the right cost
   expect(result.cost).toEqual(0.12);
+});
+
+it.skip("multiple run in parallel should not duplicate cost", async () => {
+  // Given a UsecaseImplementation
+  const usecaseImplementation = UsecaseImplementation.create({
+    name: "Always return true and handle cost",
+    execute: async function () {
+      await sleep(2000);
+
+      return { result: true, cost: 0.12 };
+    }
+  });
+
+  // When the implementation is run in parralel
+  const resultPromises = [
+    usecaseImplementation.run(),
+    usecaseImplementation.run(),
+    usecaseImplementation.run(),
+    usecaseImplementation.run(),
+    usecaseImplementation.run(),
+    usecaseImplementation.run(),
+    usecaseImplementation.run()
+  ];
+
+  const results = await Promise.all(resultPromises);
+  const averageCost = results
+    .reduce(
+      (total, result) => currency(total, { precision: 10 }).add(result.cost),
+      currency(0, { precision: 10 })
+    )
+    .divide(results.length).value;
+
+  // Then it should return the right cost
+  expect(averageCost).toEqual(0.12);
+});
+
+it("should return right cost, latency, accuracy, runId, implementationId, inputId", async () => {
+  // Given a UsecaseImplementation
+  const execute = vi.fn(async function (input) {
+    this.addCost(0.25); // 25 cents the function
+    await new Promise((resolve) => setTimeout(resolve, 33));
+    return { value: input.value.toLowerCase() };
+  });
+
+  const usecaseImplementation = UsecaseImplementation.create({
+    name: "return lower case of value",
+    execute
+  });
+
+  // Given an Input
+  const useCaseInput = { value: "COCO L'ASTICOT" };
+
+  // When the implementation is run
+  const result = await usecaseImplementation.run({
+    input: useCaseInput
+  });
+
+  // Then it should return a latency close to 50ms
+  expect(execute).toBeCalledWith(useCaseInput);
+  expect(result.latency).toBeCloseTo(33, -1);
+  expect(result).toContain({
+    runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",
+    implementationId:
+      "89b50bf7ab7dd035db6e25b1a7f6977f7f9842a41a7b9b17cce4062c4d7859bf",
+    inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    cost: 0.25,
+    error: undefined
+  });
 });
 
 it("should return proper cost with usecaseTemplate", async () => {

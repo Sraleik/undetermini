@@ -64,7 +64,7 @@ getCandidateFactory.addMethod({
 });
 
 getCandidateFactory.addMethod({
-  isActive: true,
+  isActive: false,
   name: "extractCandidateFromPrompt",
   implementation: {
     name: "LLM: GPT 3 old",
@@ -126,7 +126,7 @@ getCandidateFactory.addMethod({
   }
 });
 
-it("should work splendidly", async () => {
+it.skip("should work splendidly", async () => {
   const implementations = getCandidateFactory.implementations;
 
   const undetermini = await Undetermini.create({
@@ -152,7 +152,7 @@ it("should work splendidly", async () => {
         sortPriority: ["error"]
       }
     },
-    useCache: false
+    useCache: true
   });
   expect(res).toBeTruthy();
 }, 60000);

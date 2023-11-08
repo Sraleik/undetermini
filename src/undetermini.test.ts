@@ -47,6 +47,7 @@ it("should tag the result with retrieveFromCache properly and return price per I
     implementationId:
       "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    name: "Implem 1",
     input: { value: "COCO L'ASTICOT" },
     result: { result: "coco l'asticot" },
     latency: 0,
@@ -59,6 +60,7 @@ it("should tag the result with retrieveFromCache properly and return price per I
     implementationId:
       "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    name: "Implem 1",
     input: { value: "COCO L'ASTICOT" },
     result: { result: "coco l'asticot" },
     latency: 0,
@@ -71,6 +73,7 @@ it("should tag the result with retrieveFromCache properly and return price per I
     implementationId:
       "25be3adaad14736fcc65592e69fe7253d8b1286a3b975f983a809fb5ca1856b4",
     inputId: "77984510fe93ed72d9d25056ede9d86478dacebab5f53daf4288de5a77490642",
+    name: "Implem 1",
     input: { value: "COCO L'ASTICOT" },
     result: { result: "coco l'asticot" },
     latency: 0,
