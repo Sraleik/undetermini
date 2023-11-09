@@ -65,17 +65,19 @@ Feel free to start/join a discussion, issues or Pull requests.
 
 ### Feature
 
-- [X] give accuracy fonction as a parameter 
-- [X] show number of real call to UseCase
+- [ ] Add a progress bar in presenter
+- [ ] Handle persistence in usecase-implementation (will fix the cost issue)
 - [ ] turn llm-info into a service-info
-- [ ] display cost of run
-  - [ ] with cache
-  - [ ] without cache
 - [ ] better handling of rate limit
 - [ ] retrieve all type and put them in their proper places 
 - [ ] display who si cheapest and by how much 
 - [ ] display who is most accurate and by how much 
 - [ ] display who is fastest and by how much 
+- [X] give accuracy fonction as a parameter 
+- [X] show number of real call to UseCase
+- [X] display cost of run
+  - [X] with cache
+  - [X] without cache
 - [X] calculate average Error 
 - [X] allow to choose how to sort on Presenter 
 - [X] use https://www.npmjs.com/package/console-table-printer for display 

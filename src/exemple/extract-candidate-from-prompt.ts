@@ -6,7 +6,10 @@ import {
   computeCostOfLlmCall
 } from "../llm-utils";
 
-export async function extractCandidateWithCohere(prompt: string) {
+export async function extractCandidateWithCohere(
+  prompt: string,
+  callId: string
+) {
   cohere.init(process.env.COHERE_API_KEY!);
 
   const cohereResult = await cohere.generate({
@@ -32,11 +35,11 @@ export async function extractCandidateWithCohere(prompt: string) {
   );
 
   //@ts-expect-error this works thanks to undetermini magic ;)
-  this.addCost(cost.value);
+  this.addCost(cost.value, callId);
   return rawResult;
 }
 
-export async function extractCandidateWithGpt3(prompt: string) {
+export async function extractCandidateWithGpt3(prompt: string, callId: string) {
   const llmModel = new OpenAI(
     {
       modelName: "gpt-3.5-turbo-0613",
@@ -56,7 +59,7 @@ export async function extractCandidateWithGpt3(prompt: string) {
 
   const cost = computeCostOfLlmCall(LLM_MODEL_NAME.GPT_3_0613, prompt, result);
   //@ts-expect-error this works thanks to undetermini magic ;)
-  this.addCost(cost.value);
+  this.addCost(cost.value, callId);
   return result;
 }
 
@@ -92,7 +95,7 @@ export async function extractCandidateWithGpt3Recent(
   return result;
 }
 
-export async function extractCandidateWithGpt4(prompt: string) {
+export async function extractCandidateWithGpt4(prompt: string, callId: string) {
   const llmModel = new OpenAI(
     {
       modelName: "gpt-4-0613",
@@ -113,11 +116,14 @@ export async function extractCandidateWithGpt4(prompt: string) {
   const cost = computeCostOfLlmCall(LLM_MODEL_NAME.GPT_4_0613, prompt, result);
 
   //@ts-expect-error this works thanks to undetermini magic ;)
-  this.addCost(cost.value);
+  this.addCost(cost.value, callId);
   return result;
 }
 
-export async function extractCandidateWithGpt4recent(prompt: string) {
+export async function extractCandidateWithGpt4recent(
+  prompt: string,
+  callId: string
+) {
   const llmModel = new OpenAI(
     {
       modelName: "gpt-4-1106-preview",
@@ -142,6 +148,6 @@ export async function extractCandidateWithGpt4recent(prompt: string) {
   );
 
   //@ts-expect-error this works thanks to undetermini magic ;)
-  this.addCost(cost.value);
+  this.addCost(cost.value, callId);
   return result;
 }

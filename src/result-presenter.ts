@@ -124,7 +124,7 @@ export class ResultPresenter {
     });
 
     const possibleColumns = {
-      cost: { name: "coloredCost", title: "Cost ($ cents)" },
+      cost: { name: "coloredCost", title: "Cost ($ cents)", alignment: "left" },
       latency: { name: "coloredLatency", title: "Latency (ms)" },
       accuracy: { name: "coloredAccuracy", title: "Accuracy (%)" },
       error: { name: "coloredError", title: "Error (%)" }
@@ -144,7 +144,8 @@ export class ResultPresenter {
     //@ts-expect-error it works fine
     this.table.addColumn({
       name: "resultsFullPrice",
-      title: "Full Cost ($ cents)"
+      title: "Full Cost ($ cents)",
+      alignment: "left"
     });
     //@ts-expect-error it works fine
     this.table.addColumn({
