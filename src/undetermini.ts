@@ -6,8 +6,6 @@ import {
   ResultPresenter,
   SortableColumn
 } from "./result-presenter";
-import dotenv from "dotenv";
-dotenv.config();
 
 export type MultipleRunResult = {
   name: string;

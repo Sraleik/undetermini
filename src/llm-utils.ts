@@ -1,4 +1,4 @@
-import { encoding_for_model, Tiktoken } from "tiktoken";
+import { encodingForModel, Tiktoken } from "js-tiktoken";
 import currency from "currency.js";
 
 import { ValueOf } from "./common/utils";
@@ -126,18 +126,17 @@ function tokenCountForLlmModel(modelName: LLM_MODEL_NAME, text: string) {
   let enc: Tiktoken;
   if (modelName === LLM_MODEL_NAME.COHERE_GENERATE) {
     // For now this count token as if it was GPT3
-    enc = encoding_for_model("gpt-3.5-turbo-0613");
+    enc = encodingForModel("gpt-3.5-turbo-0613");
     // Because this is doing an http call and require an api key
     // return (await cohere.tokenize({ text })).body.tokens.length;
   } else {
     const currentModelInfo = llmModelInfo.modelsInfo[modelName];
     const modelForTiktoken =
       currentModelInfo.tiktokenName || currentModelInfo.name;
-    enc = encoding_for_model(modelForTiktoken);
+    enc = encodingForModel(modelForTiktoken);
   }
 
   const res = enc.encode(text).length;
-  enc.free();
   return res;
 }
 
