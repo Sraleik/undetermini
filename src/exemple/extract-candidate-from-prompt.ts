@@ -60,7 +60,10 @@ export async function extractCandidateWithGpt3(prompt: string) {
   return result;
 }
 
-export async function extractCandidateWithGpt3Recent(prompt: string) {
+export async function extractCandidateWithGpt3Recent(
+  prompt: string,
+  callId: string
+) {
   const llmModel = new OpenAI(
     {
       modelName: "gpt-3.5-turbo-1106",
@@ -85,7 +88,7 @@ export async function extractCandidateWithGpt3Recent(prompt: string) {
   );
 
   //@ts-expect-error this works thanks to undetermini magic ;)
-  this.addCost(cost.value);
+  this.addCost(cost.value, callId);
   return result;
 }
 

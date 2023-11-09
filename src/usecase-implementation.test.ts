@@ -68,14 +68,15 @@ it("should return proper cost", async () => {
   expect(result.cost).toEqual(0.12);
 });
 
-it.skip("multiple run in parallel should not duplicate cost", async () => {
+it("multiple run in parallel should not duplicate cost", async () => {
   // Given a UsecaseImplementation
   const usecaseImplementation = UsecaseImplementation.create({
     name: "Always return true and handle cost",
-    execute: async function () {
+    execute: async function (_input: unknown, callId: string) {
       await sleep(2000);
 
-      return { result: true, cost: 0.12 };
+      this.addCost(0.12, callId);
+      return true;
     }
   });
 
@@ -124,7 +125,7 @@ it("should return right cost, latency, accuracy, runId, implementationId, inputI
   });
 
   // Then it should return a latency close to 50ms
-  expect(execute).toBeCalledWith(useCaseInput);
+  expect(execute.mock.calls[0][0]).toEqual(useCaseInput);
   expect(result.latency).toBeCloseTo(33, -1);
   expect(result).toContain({
     runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",
@@ -274,7 +275,7 @@ it("should call the execute function with the useCaseInput", async () => {
   });
 
   // Then it should return a latency close to 50ms
-  expect(execute).toBeCalledWith(useCaseInput);
+  expect(execute.mock.calls[0][0]).toEqual(useCaseInput);
 });
 
 it("should return right cost, latency, accuracy, runId, implementationId, inputId", async () => {
@@ -299,7 +300,7 @@ it("should return right cost, latency, accuracy, runId, implementationId, inputI
   });
 
   // Then it should return a latency close to 50ms
-  expect(execute).toBeCalledWith(useCaseInput);
+  expect(execute.mock.calls[0][0]).toEqual(useCaseInput);
   expect(result.latency).toBeCloseTo(33, -1);
   expect(result).toContain({
     runId: "244df888e8ced36d14a8ccbbbedc50e12749e3b36070b7146a8ac571edd34b86",

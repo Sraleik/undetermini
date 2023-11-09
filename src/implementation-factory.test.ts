@@ -262,7 +262,9 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
             implementationCount > 1 ? "s" : ""
           } implementation should have the cost`, async () => {
             implementations.forEach((implementation) => {
-              expect(implementation.currentRunCost).toEqual(0.00555);
+              expect(implementation.getCurrentRunCost("default")).toEqual(
+                0.00555
+              );
             });
           });
 
@@ -280,7 +282,9 @@ describe("Given a Factory with a simple TemplateUseCase", () => {
             });
             test("Then the usecase implementation cost should have been reset to 0", async () => {
               implementations.forEach((implementation) => {
-                expect(implementation.currentRunCost).toEqual(0.00555);
+                expect(implementation.getCurrentRunCost("default")).toEqual(
+                  0.00555
+                );
               });
             });
           });

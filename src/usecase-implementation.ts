@@ -1,20 +1,17 @@
 import currency from "currency.js";
 import crypto from "crypto";
+import { createId } from "./common/utils";
 import { Method } from "./implementation-factory";
 import { Prettify } from "./common/utils";
 
 // Responsability: do everything related to this run
 // returning: cost, latency, accuracy, error & hashes
 export class UsecaseImplementation {
-  private _currentRunCost = currency(0, { precision: 10 });
+  private _currentRunCost = new Map<string, currency>();
   //TODO: like "addMethod" find a better name. 'itemHashes' maybe
   private methodHashes: Record<string, string> = {};
 
-  static create(payload: {
-    name: string;
-    execute: (...args: any) => unknown;
-    usingServices?: string[];
-  }) {
+  static create(payload: { name: string; execute: (...args: any) => unknown }) {
     const { name, execute } = payload;
     const useCase = new UsecaseImplementation(name, execute);
     execute.bind(this);
@@ -24,7 +21,9 @@ export class UsecaseImplementation {
   constructor(
     readonly name: string,
     private execute: (...args: any) => unknown
-  ) {}
+  ) {
+    this._currentRunCost.set("default", currency(0, { precision: 10 }));
+  }
 
   //TODO find a better name because it can add other things than method
   //MAYBE I should store method in an array of Methods and add the hash at this time
@@ -38,18 +37,37 @@ export class UsecaseImplementation {
     this.methodHashes[method.name] = this.getHash(method.implementation.value);
   }
 
-  addCost(value: number) {
-    this._currentRunCost = this._currentRunCost.add(
-      currency(value, { precision: 10 })
-    );
+  //TODO remove the default
+  addCost(value: number, callId: string) {
+    if (!callId) {
+      const currentCost = this._currentRunCost.get("default")!.value;
+      if (typeof currentCost === "number") {
+        this._currentRunCost.set(
+          "default",
+          currency(currentCost, { precision: 10 }).add(value)
+        );
+      }
+    } else {
+      const currentCost = this._currentRunCost.get(callId);
+      if (typeof currentCost === "number") {
+        this._currentRunCost.set(
+          callId,
+          currency(currentCost, { precision: 10 }).add(value)
+        );
+      } else {
+        this._currentRunCost.set(callId, currency(value, { precision: 10 }));
+      }
+    }
   }
 
-  get currentRunCost() {
-    return this._currentRunCost.value;
+  getCurrentRunCost(callId: string) {
+    const callHasCost = this._currentRunCost.has(callId);
+    if (callHasCost) return this._currentRunCost.get(callId)!.value;
+    return this._currentRunCost.get("default")!.value;
   }
 
   private resetCurrentRunCost() {
-    this._currentRunCost = currency(0, { precision: 10 });
+    this._currentRunCost.set("default", currency(0, { precision: 10 }));
   }
 
   private sortAndStringify(value: any) {
@@ -101,22 +119,23 @@ export class UsecaseImplementation {
   }
 
   async run(payload?: { input?: unknown }) {
-    const input = payload?.input;
+    //TODO: do better than a callID, this is a hacky way to fix addCost in parrallel on same instance
     this.resetCurrentRunCost();
+    const callId = createId();
+    const input = payload?.input;
 
     const startTime = Date.now();
     let result: unknown = undefined;
     let error: Error | undefined = undefined;
     try {
-      result = await this.execute(input);
+      result = await this.execute(input, callId);
     } catch (e: unknown) {
       error = e as Error;
     }
     const endTime = Date.now();
 
     // Cost has to be return here, addCost is only accessible here at run time
-    const cost = this._currentRunCost.value;
-
+    const cost = this.getCurrentRunCost(callId);
     const latency = endTime - startTime;
 
     return {
