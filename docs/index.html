@@ -23,7 +23,7 @@
 given use case.</p>
 <div align="center">
   <br/>
-  <img src="./image/time-improvement.jpg" />
+  <img src="./image/res-example.jpg" />
   <br/>
   <br/>
 </div>
@@ -60,8 +60,42 @@ given use case.</p>
 <a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
   <h2>Usage</h2>
 </a>
-<p>TODO</p>
-<pre><code class="language-typescript"><span class="hl-4">TODO</span>
+
+<a href="#simplest-use-" id="simplest-use-" style="color: inherit; text-decoration: none;">
+  <h3>Simplest use :</h3>
+</a>
+<pre><code class="language-typescript"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">Undetermini</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;./undetermini&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">UsecaseImplementation</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;./usecase-implementation&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">undetermini</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">Undetermini</span><span class="hl-1">.</span><span class="hl-0">create</span><span class="hl-1">({ </span><span class="hl-5">persistOnDisk:</span><span class="hl-1"> </span><span class="hl-3">true</span><span class="hl-1"> });</span><br/><span class="hl-7">// Create an undetermini instance, persistOnDisk is false by default</span><br/><span class="hl-7">// When enable it will create a undetermini-db.json where result are store </span><br/><span class="hl-7">// Enable it if you want cache</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">useCaseInput</span><span class="hl-1"> = { </span><span class="hl-5">x:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1">, </span><span class="hl-5">y:</span><span class="hl-1"> </span><span class="hl-8">10</span><span class="hl-1"> };</span><br/><br/><span class="hl-7">// &quot;UsecaseImplementation&quot; is a wrapper that allow undetermini to do some magik</span><br/><span class="hl-7">// &quot;execute&quot; is the function you want to compare to another one</span><br/><span class="hl-7">// do not use an arrow function or you wont be able to calculate cost</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">implementation1</span><span class="hl-1"> = </span><span class="hl-5">UsecaseImplementation</span><span class="hl-1">.</span><span class="hl-0">create</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;xTimeY&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">execute</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-3">function</span><span class="hl-1"> (</span><span class="hl-5">payload</span><span class="hl-1">: { </span><span class="hl-5">x</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1">; </span><span class="hl-5">y</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1"> }) {</span><br/><span class="hl-1">    </span><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-6">x</span><span class="hl-1">, </span><span class="hl-6">y</span><span class="hl-1"> } = </span><span class="hl-5">payload</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-4">return</span><span class="hl-1"> </span><span class="hl-5">x</span><span class="hl-1"> * </span><span class="hl-5">y</span><span class="hl-1">;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-7">// let&#39;s assume this implementation cost money</span><br/><span class="hl-7">// add callId as the 2nd parameter</span><br/><span class="hl-7">// and use this.addCost(value, callId) to add the cost of this call</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">implementation2</span><span class="hl-1"> = </span><span class="hl-5">UsecaseImplementation</span><span class="hl-1">.</span><span class="hl-0">create</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">name:</span><span class="hl-1"> </span><span class="hl-2">&quot;yTimeX&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">execute</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-3">function</span><span class="hl-1"> (</span><span class="hl-5">payload</span><span class="hl-1">: { </span><span class="hl-5">x</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1">; </span><span class="hl-5">y</span><span class="hl-1">: </span><span class="hl-9">number</span><span class="hl-1"> }, </span><span class="hl-5">callId</span><span class="hl-1">: </span><span class="hl-9">string</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-3">const</span><span class="hl-1"> { </span><span class="hl-6">x</span><span class="hl-1">, </span><span class="hl-6">y</span><span class="hl-1"> } = </span><span class="hl-5">payload</span><span class="hl-1">;</span><br/><br/><span class="hl-1">    </span><span class="hl-7">//Cost are in cents </span><br/><span class="hl-1">    </span><span class="hl-3">this</span><span class="hl-1">.</span><span class="hl-0">addCost</span><span class="hl-1">(</span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-5">callId</span><span class="hl-1">)</span><br/><span class="hl-1">    </span><span class="hl-4">return</span><span class="hl-1"> </span><span class="hl-5">y</span><span class="hl-1"> * </span><span class="hl-5">x</span><span class="hl-1">;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">res</span><span class="hl-1"> = </span><span class="hl-5">undetermini</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">useCaseInput</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">implementations:</span><span class="hl-1"> [</span><span class="hl-5">implementation1</span><span class="hl-1">, </span><span class="hl-5">implementation2</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-5">expectedUseCaseOutput:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1"> </span><span class="hl-7">// this is to calculate accuracy </span><br/><span class="hl-1">  </span><span class="hl-7">// if &#39;expectedUseCaseOutput&#39; is a primitive its either 100% or 0%</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-7">/* res </span><br/><span class="hl-7">[</span><br/><span class="hl-7">  {</span><br/><span class="hl-7">    name: &#39;xTimeY&#39;,</span><br/><span class="hl-7">    averageCost: 0,</span><br/><span class="hl-7">    averageLatency: 0,</span><br/><span class="hl-7">    averageAccuracy: 100,</span><br/><span class="hl-7">    averageError: 0,</span><br/><span class="hl-7">    realCallCount: 1,</span><br/><span class="hl-7">    callFromCacheCount: 0,</span><br/><span class="hl-7">    resultsFullPrice: 0,</span><br/><span class="hl-7">    resultsCurrentPrice: 0</span><br/><span class="hl-7">  },</span><br/><span class="hl-7">  {</span><br/><span class="hl-7">    name: &#39;yTimeX&#39;,</span><br/><span class="hl-7">    averageCost: 1,</span><br/><span class="hl-7">    averageLatency: 0,</span><br/><span class="hl-7">    averageAccuracy: 100,</span><br/><span class="hl-7">    averageError: 0,</span><br/><span class="hl-7">    realCallCount: 1,</span><br/><span class="hl-7">    callFromCacheCount: 0,</span><br/><span class="hl-7">    resultsFullPrice: 0,</span><br/><span class="hl-7">    resultsCurrentPrice: 0</span><br/><span class="hl-7">  }</span><br/><span class="hl-7">]</span><br/><span class="hl-7">*/</span>
+</code></pre>
+
+<a href="#expected-output-is-an-object" id="expected-output-is-an-object" style="color: inherit; text-decoration: none;">
+  <h3>Expected output is an object</h3>
+</a>
+<pre><code class="language-typescript"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">res</span><span class="hl-1"> = </span><span class="hl-5">undetermini</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">useCaseInput</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">implementations:</span><span class="hl-1"> [</span><span class="hl-5">getCandidate1</span><span class="hl-1">, </span><span class="hl-5">getCandidate2</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-5">expectedUseCaseOutput:</span><span class="hl-1"> { </span><span class="hl-5">firstname:</span><span class="hl-1"> </span><span class="hl-2">&#39;john&#39;</span><span class="hl-1">, </span><span class="hl-5">lastname:</span><span class="hl-1"> </span><span class="hl-2">&#39;wick&#39;</span><span class="hl-1"> },</span><br/><span class="hl-1">  </span><span class="hl-7">// if &#39;expectedUseCaseOutput&#39; is an object undetermini check each key and </span><br/><span class="hl-1">  </span><span class="hl-7">// determine a percentage of accuracy </span><br/><span class="hl-1">});</span>
+</code></pre>
+
+<a href="#run-multiple-time" id="run-multiple-time" style="color: inherit; text-decoration: none;">
+  <h3>Run multiple time</h3>
+</a>
+<pre><code class="language-typescript"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">res</span><span class="hl-1"> = </span><span class="hl-5">undetermini</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">useCaseInput</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">implementations:</span><span class="hl-1"> [</span><span class="hl-5">implementation1</span><span class="hl-1">, </span><span class="hl-5">implementation2</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-5">expectedUseCaseOutput:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">times:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1"> </span><span class="hl-7">// this will run implementation1 &amp; implementation2 20 time each</span><br/><span class="hl-1">});</span>
+</code></pre>
+
+<a href="#use-cache" id="use-cache" style="color: inherit; text-decoration: none;">
+  <h3>Use cache</h3>
+</a>
+<pre><code class="language-typescript"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">res</span><span class="hl-1"> = </span><span class="hl-5">undetermini</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">useCaseInput</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">implementations:</span><span class="hl-1"> [</span><span class="hl-5">implementation1</span><span class="hl-1">, </span><span class="hl-5">implementation2</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-5">expectedUseCaseOutput:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">times:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1">, </span><br/><span class="hl-1">  </span><span class="hl-5">useCache:</span><span class="hl-1"> </span><span class="hl-3">true</span><span class="hl-1"> </span><span class="hl-7">// false by default</span><br/><span class="hl-1">  </span><span class="hl-7">// Usefull only if persistedOnDisk is true</span><br/><span class="hl-1">  </span><span class="hl-7">// When enable it will for each implementation try to use previous run</span><br/><span class="hl-1">  </span><span class="hl-7">// If the implementation has change it will rerun the function for real</span><br/><span class="hl-1">});</span>
+</code></pre>
+
+<a href="#custom-accuracy-calculation" id="custom-accuracy-calculation" style="color: inherit; text-decoration: none;">
+  <h3>Custom Accuracy Calculation</h3>
+</a>
+<pre><code class="language-typescript"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">res</span><span class="hl-1"> = </span><span class="hl-5">undetermini</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">useCaseInput</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">implementations:</span><span class="hl-1"> [</span><span class="hl-5">implementation1</span><span class="hl-1">, </span><span class="hl-5">implementation2</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-5">times:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1">, </span><br/><span class="hl-1">  </span><span class="hl-7">// if you don&#39;t want an exact match you can give you own way of computing accuracy </span><br/><span class="hl-1">    </span><span class="hl-0">evaluateAccuracy</span><span class="hl-1">(</span><span class="hl-5">output</span><span class="hl-1">) {</span><br/><span class="hl-1">        </span><span class="hl-4">return</span><span class="hl-1"> </span><span class="hl-5">output</span><span class="hl-1"> &gt; </span><span class="hl-8">20</span><span class="hl-1"> ? </span><span class="hl-8">100</span><span class="hl-1"> : </span><span class="hl-8">0</span><span class="hl-1">	</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">});</span>
+</code></pre>
+
+<a href="#presenter" id="presenter" style="color: inherit; text-decoration: none;">
+  <h3>Presenter</h3>
+</a>
+<p>Will display a table with results</p>
+<pre><code class="language-typescript"><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">res</span><span class="hl-1"> = </span><span class="hl-5">undetermini</span><span class="hl-1">.</span><span class="hl-0">run</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-5">useCaseInput</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">implementations:</span><span class="hl-1"> [</span><span class="hl-5">implementation1</span><span class="hl-1">, </span><span class="hl-5">implementation2</span><span class="hl-1">],</span><br/><span class="hl-1">  </span><span class="hl-5">times:</span><span class="hl-1"> </span><span class="hl-8">20</span><span class="hl-1">, </span><br/><span class="hl-1">  </span><span class="hl-7">// if you don&#39;t want an exact match you can give you own way of computing accuracy </span><br/><span class="hl-1">    </span><span class="hl-0">evaluateAccuracy</span><span class="hl-1">(</span><span class="hl-5">output</span><span class="hl-1">) {</span><br/><span class="hl-1">        </span><span class="hl-4">return</span><span class="hl-1"> </span><span class="hl-5">output</span><span class="hl-1"> &gt; </span><span class="hl-8">20</span><span class="hl-1"> ? </span><span class="hl-8">100</span><span class="hl-1"> : </span><span class="hl-8">0</span><span class="hl-1">	</span><br/><span class="hl-1">    },</span><br/><span class="hl-1">  </span><span class="hl-5">presenter:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-5">isActive:</span><span class="hl-1"> </span><span class="hl-3">true</span><span class="hl-1">, </span><span class="hl-7">// Enable the presenter, (default: false)</span><br/><span class="hl-1">    </span><span class="hl-5">options:</span><span class="hl-1"> {</span><br/><span class="hl-1">      </span><span class="hl-5">sortPriority:</span><span class="hl-1"> [</span><span class="hl-2">&quot;latency&quot;</span><span class="hl-1">] </span><span class="hl-7">// (default: [&quot;accuracy&quot;,&quot;latency&quot;,&quot;cost&quot;,&quot;error&quot;])</span><br/><span class="hl-1">      </span><span class="hl-5">hideColumns</span><span class="hl-1">: [</span><span class="hl-2">&quot;Cost&quot;</span><span class="hl-1">] </span><span class="hl-7">// (default: none)</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
 </code></pre>
 
 <a href="#api" id="api" style="color: inherit; text-decoration: none;">
@@ -72,12 +106,10 @@ given use case.</p>
 <a href="#tutorial" id="tutorial" style="color: inherit; text-decoration: none;">
   <h2>Tutorial</h2>
 </a>
+<p>TODO</p>
 <!-- [Create a Command](https://sraleik.github.io/undetermini/pages/tutorial/create-a-command.html) -->
 
 
-<a href="#testing" id="testing" style="color: inherit; text-decoration: none;">
-  <h2>Testing</h2>
-</a>
 
 <a href="#contributions" id="contributions" style="color: inherit; text-decoration: none;">
   <h2>Contributions</h2>
@@ -86,10 +118,6 @@ given use case.</p>
 
 <a href="#todo" id="todo" style="color: inherit; text-decoration: none;">
   <h2>TODO</h2>
-</a>
-
-<a href="#feature" id="feature" style="color: inherit; text-decoration: none;">
-  <h3>Feature</h3>
 </a>
 <ul>
 <li><input disabled="" type="checkbox"> Add a progress bar in presenter</li>
@@ -116,14 +144,6 @@ given use case.</p>
 <li><input checked="" disabled="" type="checkbox"> allow to add LLM Model Info </li>
 <li><input checked="" disabled="" type="checkbox"> remove price calculation from Undetermini class</li>
 </ul>
-
-<a href="#documentation" id="documentation" style="color: inherit; text-decoration: none;">
-  <h3>Documentation</h3>
-</a>
-
-<a href="#technical" id="technical" style="color: inherit; text-decoration: none;">
-  <h3>Technical</h3>
-</a>
 </div></div>
 <div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 <div class="tsd-navigation settings">
