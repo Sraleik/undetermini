@@ -112,6 +112,35 @@ it("should tag the result with retrieveFromCache properly and return price per I
   expect(res[0].resultsCurrentPrice).toBe(6);
 });
 
+it("should accept a simple number as expected output", async () => {
+  const useCaseInput = { x: 2, y: 10 };
+
+  const implementation1 = UsecaseImplementation.create({
+    name: "xTimeY",
+    execute: function (payload: { x: number; y: number }) {
+      const { x, y } = payload;
+      return x * y;
+    }
+  });
+
+  const implementation2 = UsecaseImplementation.create({
+    name: "yTimeX",
+    execute: function (payload: { x: number; y: number }) {
+      const { x, y } = payload;
+      return y * x;
+    }
+  });
+
+  const res = await undetermini.run({
+    useCaseInput,
+    implementations: [implementation1, implementation2],
+    expectedUseCaseOutput: 20
+  });
+
+  expect(res[0].averageAccuracy).toBe(100);
+  expect(res[1].averageAccuracy).toBe(100);
+});
+
 it("should have the proper Implementation Name", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };

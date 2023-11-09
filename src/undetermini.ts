@@ -216,7 +216,7 @@ export class Undetermini {
     implementations: UsecaseImplementation[];
     times?: number;
     useCache?: boolean;
-    expectedUseCaseOutput?: Record<string, any>;
+    expectedUseCaseOutput?: unknown;
     evaluateAccuracy?: (output: any) => number;
     presenter?: {
       isActive: boolean;
