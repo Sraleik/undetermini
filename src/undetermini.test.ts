@@ -14,6 +14,12 @@ beforeEach(async () => {
   undetermini = await Undetermini.create();
 });
 
+afterAll(() => {
+  if (fs.existsSync(`${__dirname}/../undetermini-db.json`)) {
+    fs.unlinkSync(`${__dirname}/../undetermini-db.json`);
+  }
+});
+
 it("should throw if no expectedOutput and no evaluateAccuracy is given", async () => {
   // Given a value given to our use case
   const useCaseInput = { value: "COCO L'ASTICOT" };
