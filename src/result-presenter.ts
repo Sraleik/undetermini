@@ -169,7 +169,7 @@ export class ResultPresenter {
 
       const row = {
         ...rawRow,
-        coloredAccuracy,
+        coloredAccuracy: rawRow.averageError === 100 ? "N/A" : coloredAccuracy,
         coloredCost,
         coloredLatency,
         coloredError
