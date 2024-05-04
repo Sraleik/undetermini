@@ -1,6 +1,6 @@
 {
   "name": "undetermini",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Library to be able to test LLM base UseCase",
   "author": "Sraleik",
   "license": "MIT",
