@@ -43,8 +43,7 @@ yarn add undetermini
 ### Simplest use : 
 
 ```typescript
-import { Undetermini } from "./undetermini";
-import { UsecaseImplementation } from "./usecase-implementation";
+import { Undetermini, UsecaseImplementation } from "undetermini";
 
 const undetermini = await Undetermini.create({ persistOnDisk: true });
 // Create an undetermini instance, persistOnDisk is false by default
