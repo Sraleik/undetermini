@@ -1,5 +1,5 @@
 import currency from "currency.js";
-import crypto from "crypto";
+import sha from "sha.js";
 import { createId } from "./common/utils";
 import { Method } from "./implementation-factory";
 import { Prettify } from "./common/utils";
@@ -94,7 +94,7 @@ export class UsecaseImplementation {
   getHash(input: unknown) {
     const inputData = this.dataToUint8Array(input);
 
-    const hash = crypto.createHash("sha256");
+    const hash = sha("sha256");
     hash.update(inputData);
     return hash.digest("hex");
   }
@@ -102,7 +102,7 @@ export class UsecaseImplementation {
     const methodsHash = this.getHash(this.methodHashes);
     const executeHash = this.getHash(this.execute);
 
-    const hash = crypto.createHash("sha256");
+    const hash = sha("sha256");
     hash.update(methodsHash);
     hash.update(executeHash);
     return hash.digest("hex");
@@ -111,7 +111,7 @@ export class UsecaseImplementation {
     const implementationHash = this.getImplementationHash();
     const inputHash = this.getHash(input);
 
-    const hash = crypto.createHash("sha256");
+    const hash = sha("sha256");
     hash.update(implementationHash);
     hash.update(inputHash);
 

@@ -43,7 +43,8 @@
     "console-table-printer": "^2.11.2",
     "currency.js": "^2.0.4",
     "js-tiktoken": "^1.0.7",
-    "lokijs": "^1.5.12"
+    "lokijs": "^1.5.12",
+    "sha.js": "^2.4.11"
   },
   "devDependencies": {
     "@faker-js/faker": "^8.0.1",
@@ -51,6 +52,7 @@
     "@types/jest": "^29.5.2",
     "@types/lokijs": "^1.5.11",
     "@types/node": "^20.3.1",
+    "@types/sha.js": "^2.4.4",
     "@types/uuid": "^9.0.2",
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",

@@ -21,7 +21,8 @@ export default defineConfig({
         "console-table-printer",
         "currency.js",
         "js-tiktoken",
-        "lokijs"
+        "lokijs",
+        "sha.js"
       ],
       output: {
         // Provide global variables to use in the UMD build
@@ -31,7 +32,8 @@ export default defineConfig({
           "console-table-printer": "console-table-printer",
           "currency.js": "currency-js",
           "js-tiktoken": "tiktoken",
-          lokijs: "lokijs"
+          lokijs: "lokijs",
+          "sha.js": "shajs"
         }
       }
     }
