@@ -1,228 +1,138 @@
-<div align="center">
+# undetermini
+
+An eval harness for **non-deterministic code** — the kind whose output you
+can't assert with `===` because it comes from an LLM (sampling, ranking,
+classification, extraction…).
+
+<p align="center">
+  <img src="./assets/tui-example.png" width="820" alt="undetermini TUI — variants compared across score, pass-rate, cost and latency" />
   <br/>
-  <img src="./image/logo.jpg" width="300" />
-  <br/>
-  <br/>
-</div>
+  <em>The <code>npm run eval:tui</code> results grid: variants (model × system-prompt × reasoning) ranked by score, with cost, latency and cache hits.</em>
+</p>
 
-This library is to be able to make decision on wich LLM implementation is the best suited for a 
-given use case.
+You define a **subject** (the code under test), declare **variants**
+(provider × model × reasoning), run them across **cases** for **N trials
+each**, and score every trial with **weighted assertions**. Results persist to
+SQLite so you can diff runs and catch statistical regressions when you swap a
+model or edit a prompt.
 
-<div align="center">
-  <br/>
-  <img src="./image/res-example.jpg" />
-  <br/>
-  <br/>
-</div>
+> This is generation 2. It grew inside a production codebase (a talent-search
+> NL filter) and was extracted here to stand on its own. The original library
+> (`Undetermini` / `UsecaseImplementation`) is preserved under [`legacy/`](./legacy).
 
+---
 
-## Table of Contents
+## Unit test vs eval
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [API](#api)
-- [Tutorial](#tutorial)
-- [Testing](#testing)
+|                          | **Unit test**        | **Eval**                                            |
+| ------------------------ | -------------------- | --------------------------------------------------- |
+| Input → output           | deterministic        | **non-deterministic** (LLM, sampling, ranking…)     |
+| Pass criterion           | binary (`=== expected`) | **distribution** (pass-rate over N trials, threshold) |
+| Catches                  | logic bugs           | **statistical regressions** (model swap, prompt drift) |
 
-## Installation
+A unit test asks *"does this function compute X correctly?"*. An eval asks
+*"does this LLM-driven feature behave correctly **most of the time**?"*.
 
-### Npm
+---
+
+## Requirements
+
+- **Node ≥ 22** (native `better-sqlite3`).
+- An `.env` with the provider keys you intend to run, e.g. `OPENAI_API_KEY`
+  (and `ANTHROPIC_API_KEY` for Anthropic variants). Only needed for real runs —
+  the test suite and typecheck need nothing.
 
 ```bash
-npm install undetermini --save
+npm install
 ```
 
-### Yarn
+## Commands
+
+| Command                | What it does                                                        |
+| ---------------------- | ------------------------------------------------------------------- |
+| `npm run eval`         | Run the CLI harness (default subject: `example`).                   |
+| `npm run eval:tui`     | Interactive Ink TUI — pick axes, watch trials, sort/aggregate live. |
+| `npm run rescore`      | Retroactively re-score stored trials against the current cases.     |
+| `npm test`             | `vitest` unit suite (129 tests, no network).                        |
+| `npm run typecheck`    | `tsc --noEmit`.                                                     |
+| `npm run build:docs`   | Generate API docs into `./docs` via typedoc.                        |
+
+Pick a subject and narrow cases:
 
 ```bash
-yarn add undetermini 
+npm run eval -- --subject=example --case-slugs=clearly-positive --trials=5
 ```
 
-## Usage
+## Layout
 
-### Simplest use : 
-
-```typescript
-import { Undetermini, UsecaseImplementation } from "undetermini";
-
-const undetermini = await Undetermini.create({ persistOnDisk: true });
-// Create an undetermini instance, persistOnDisk is false by default
-// When enable it will create a undetermini-db.json where result are store 
-// Enable it if you want cache
-
-const useCaseInput = { x: 2, y: 10 };
-
-// "UsecaseImplementation" is a wrapper that allow undetermini to do some magik
-// "execute" is the function you want to compare to another one
-// do not use an arrow function or you wont be able to calculate cost
-const implementation1 = UsecaseImplementation.create({
-  name: "xTimeY",
-  execute: function (payload: { x: number; y: number }) {
-    const { x, y } = payload;
-    return x * y;
-  }
-});
-
-// let's assume this implementation cost money
-// add callId as the 2nd parameter
-// and use this.addCost(value, callId) to add the cost of this call
-const implementation2 = UsecaseImplementation.create({
-  name: "yTimeX",
-  execute: function (payload: { x: number; y: number }, callId: string) {
-    const { x, y } = payload;
-
-    //Cost are in cents 
-    this.addCost(1, callId)
-    return y * x;
-  }
-});
-
-const res = undetermini.run({
-  useCaseInput,
-  implementations: [implementation1, implementation2],
-  expectedUseCaseOutput: 20 // this is to calculate accuracy 
-  // if 'expectedUseCaseOutput' is a primitive its either 100% or 0%
-});
-
-/* res 
-[
-  {
-    name: 'xTimeY',
-    averageCost: 0,
-    averageLatency: 0,
-    averageAccuracy: 100,
-    averageError: 0,
-    realCallCount: 1,
-    callFromCacheCount: 0,
-    resultsFullPrice: 0,
-    resultsCurrentPrice: 0
-  },
-  {
-    name: 'yTimeX',
-    averageCost: 1,
-    averageLatency: 0,
-    averageAccuracy: 100,
-    averageError: 0,
-    realCallCount: 1,
-    callFromCacheCount: 0,
-    resultsFullPrice: 0,
-    resultsCurrentPrice: 0
-  }
-]
-*/
+```
+src/
+├── index.ts                  ← public API barrel (typedoc entry point)
+├── engine/                   ← the generic harness — never imports a subject
+│   ├── api.ts                  EvalEngine (event-emitting run driver)
+│   ├── runner-loop.ts          cases × variants × trials (p-limit)
+│   ├── variant.ts              EvalVariant (provider × model × reasoning)
+│   ├── scorers.ts              weighted caseAssertionsScorer
+│   ├── axes/                   cartesian variant expansion + capability matrix
+│   ├── cache/                  trial-aware LLM cache (SQLite-backed)
+│   ├── storage/                schema, writers, fingerprint
+│   ├── rescore/                retroactive rescore
+│   ├── pricing.ts              $/1M-token table
+│   └── telemetry-middleware.ts token + latency capture
+├── clients/
+│   ├── cli/                   `npm run eval` entry, console printer
+│   └── tui/                   Ink TUI (pages, store, prefs)
+├── subjects/
+│   ├── registry.ts            composition root — the ONE place subjects live
+│   └── example-sentiment/     reference subject (inline cases, no I/O)
+└── shared/                    cross-cutting types
 ```
 
-### Expected output is an object 
+Design notes live at the repo root: [`VARIANT-AXES-DESIGN.md`](./VARIANT-AXES-DESIGN.md),
+[`INTERACTIVE-VARIANT-DESIGN.md`](./INTERACTIVE-VARIANT-DESIGN.md),
+[`LLM-CALL-OPTIMIZATION-DESIGN.md`](./LLM-CALL-OPTIMIZATION-DESIGN.md),
+[`SCORER-ASYMMETRY-DESIGN.md`](./SCORER-ASYMMETRY-DESIGN.md),
+[`PRICING.md`](./PRICING.md), [`ONBOARDING.md`](./ONBOARDING.md).
 
-```typescript
-const res = undetermini.run({
-  useCaseInput,
-  implementations: [getCandidate1, getCandidate2],
-  expectedUseCaseOutput: { firstname: 'john', lastname: 'wick' },
-  // if 'expectedUseCaseOutput' is an object undetermini check each key and 
-  // determine a percentage of accuracy 
-});
+---
+
+## Adding a subject
+
+A subject is anything implementing the `Subject` contract (`src/engine/runner-loop.ts`):
+`name`, `cases`, `variants`, `runOne`, `parse`. See
+[`src/subjects/example-sentiment`](./src/subjects/example-sentiment) for a
+complete, dependency-free reference.
+
+Then register it — one line, no runner edits:
+
+```ts
+// src/subjects/registry.ts
+export const SUBJECTS: Record<string, RegisteredSubject> = {
+  example: { subject: exampleSentimentSubject, evalFile, casesDir },
+  // myThing: { subject: myThingSubject, evalFile, casesDir },
+};
 ```
 
-### Run multiple time
+Every runner resolves subjects through `resolveSubject(name)`, so a new use
+case never touches the CLI, the TUI, or the engine.
 
-```typescript
-const res = undetermini.run({
-  useCaseInput,
-  implementations: [implementation1, implementation2],
-  expectedUseCaseOutput: 20,
-  times: 20 // this will run implementation1 & implementation2 20 time each
-});
-```
-### Use cache
+---
 
-```typescript
-const res = undetermini.run({
-  useCaseInput,
-  implementations: [implementation1, implementation2],
-  expectedUseCaseOutput: 20,
-  times: 20, 
-  useCache: true // false by default
-  // Usefull only if persistedOnDisk is true
-  // When enable it will for each implementation try to use previous run
-  // If the implementation has change it will rerun the function for real
-});
-```
+## Concepts
 
-### Custom Accuracy Calculation 
+- **Subject** — the code under test + its cases + its variants.
+- **Variant** (`EvalVariant`) — one LLM configuration: provider (`openai` /
+  `anthropic`), `modelId`, and the provider-specific reasoning knob
+  (`reasoningEffort` / `thinkingBudgetTokens`), plus an optional `systemPrompt`
+  override hashed into the variant's identity.
+- **Case** — one input plus its weighted `assertions` (the *contract*: what the
+  output must express, by category).
+- **Trial** — one (variant × case) execution. N trials per pair measure
+  stability, not one-shot luck.
+- **Score** — weighted pass-rate ∈ [0,1] per trial, aggregated per variant.
 
-```typescript
-const res = undetermini.run({
-  useCaseInput,
-  implementations: [implementation1, implementation2],
-  times: 20, 
-  // if you don't want an exact match you can give you own way of computing accuracy 
-	evaluateAccuracy(output) {
-		return output > 20 ? 100 : 0	
-	},
-});
-```
+---
 
-### Presenter 
+## License
 
-Will display a table with results
-
-```typescript
-const res = undetermini.run({
-  useCaseInput,
-  implementations: [implementation1, implementation2],
-  times: 20, 
-  // if you don't want an exact match you can give you own way of computing accuracy 
-	evaluateAccuracy(output) {
-		return output > 20 ? 100 : 0	
-	},
-  presenter: {
-    isActive: true, // Enable the presenter, (default: false)
-    options: {
-      sortPriority: ["latency"] // (default: ["accuracy","latency","cost","error"])
-      hideColumns: ["Cost"] // (default: none)
-    }
-  }
-});
-```
-
-
-## API
-
-Full References - [here](https://sraleik.github.io/undetermini/)
-
-## Tutorial
-
-TODO
-
-<!-- [Create a Command](https://sraleik.github.io/undetermini/pages/tutorial/create-a-command.html) -->
-
-
-## Contributions
-
-Feel free to start/join a discussion, issues or Pull requests.
-
-## TODO
-
-
-- [ ] Add a progress bar in presenter
-- [ ] Handle persistence in usecase-implementation (will fix the cost issue)
-- [ ] turn llm-info into a service-info
-- [ ] better handling of rate limit
-- [ ] retrieve all type and put them in their proper places 
-- [ ] display who si cheapest and by how much 
-- [ ] display who is most accurate and by how much 
-- [ ] display who is fastest and by how much 
-- [X] give accuracy fonction as a parameter 
-- [X] show number of real call to UseCase
-- [X] display cost of run
-  - [X] with cache
-  - [X] without cache
-- [X] calculate average Error 
-- [X] allow to choose how to sort on Presenter 
-- [X] use https://www.npmjs.com/package/console-table-printer for display 
-- [X] improve price calculation (do not use float) 
-- [X] add cache on implementation 
-- [X] add possibility to deactivate methodImplementation 
-- [X] allow to add LLM Model Info 
-- [X] remove price calculation from Undetermini class
+MIT — see [`LICENSE.txt`](./LICENSE.txt).

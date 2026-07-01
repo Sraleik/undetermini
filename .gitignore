@@ -1,9 +1,12 @@
 node_modules
 dist
-yarn-error.log
+docs
 coverage
+eval-results
+*.duckdb
 
 .env
 .vscode
 
-undetermini-db.json
+# legacy build artifact kept for reference, not its deps
+legacy/node_modules
