@@ -5,11 +5,19 @@
   "author": "Sraleik",
   "license": "MIT",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -20,7 +28,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:docs": "typedoc"
+    "build": "tsup",
+    "build:docs": "typedoc",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -51,6 +61,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^18.2.20",
     "ink-testing-library": "^4.0.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.7.0",
     "typedoc": "^0.26.11",
     "typescript": "^5.6.3",
