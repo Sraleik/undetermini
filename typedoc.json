@@ -1,27 +1,11 @@
 {
+  "$schema": "https://typedoc.org/schema.json",
   "out": "./docs",
   "entryPoints": ["./src/index.ts"],
+  "name": "undetermini",
+  "readme": "./README.md",
   "gitRevision": "main",
-  "name": "Undetermini",
-  "plugin": ["@knodes/typedoc-plugin-pages"],
-  "pluginPages": {
-    "pages": [
-      {
-        "name": "Undetermini",
-        "moduleRoot": true,
-        "children": [
-          {
-            "name": "Tutorial",
-            "childrenDir": "tutorial",
-            "children": [
-              {
-                "name": "Simple Command Testing",
-                "source": "simple-command.md"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "categorizeByGroup": true
 }
