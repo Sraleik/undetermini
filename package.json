@@ -34,10 +34,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sraleik/undetermini.git"
+    "url": "git+https://github.com/Sraleik/undetermini.git"
   },
   "bugs": {
-    "url": "https://github.com/sraleik/undetermini/issues"
+    "url": "https://github.com/Sraleik/undetermini/issues"
   },
   "keywords": [
     "llm",
