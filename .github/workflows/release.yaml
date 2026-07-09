@@ -76,8 +76,11 @@ jobs:
       - name: Push bump and tag
         run: git push --follow-tags
 
+      # No --provenance flag: OIDC publishing attaches provenance on its own,
+      # and the flag reaches for a `sigstore` module the current npm no longer
+      # bundles (MODULE_NOT_FOUND before auth even happens).
       - name: Publish to npm (OIDC + provenance)
-        run: npm publish --provenance --access public
+        run: npm publish --access public
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
