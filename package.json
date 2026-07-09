@@ -1,6 +1,6 @@
 {
   "name": "undetermini",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Eval harness for non-deterministic (LLM) code — subjects, variants (provider × model × reasoning), weighted-assertion scoring, trial cache, SQLite runs, CLI + TUI.",
   "author": "Sraleik",
   "license": "MIT",
