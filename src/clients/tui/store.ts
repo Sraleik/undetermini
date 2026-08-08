@@ -99,6 +99,7 @@ export const initialWizardState = (
       reasoningEfforts: args.cartesian?.reasoningEfforts ?? ['default'],
       thinkingBudgets: args.cartesian?.thinkingBudgets ?? ['default'],
       sysPrompts: ['default'],
+      schemas: ['default'],
     },
     selectedVariants: [],
     display: {
