@@ -226,6 +226,7 @@ export const AxesPage: React.FC<AxesPageProps> = ({
           .map((c) => c.entry),
         reasoningEfforts: efforts,
         thinkingBudgets: budgets,
+        schemas: [],
         sysPrompts: sysPrompts.length > 0 ? sysPrompts : ['default'],
       };
       dispatch({ type: 'setAxes', axes });

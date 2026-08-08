@@ -151,3 +151,6 @@ export { sha256 } from './engine/cache/hash';
 
 // Retroactive rescoring of stored trials
 export { syncRetroactive } from './engine/rescore/sync-all';
+
+// Event stream contract consumed by clients that render a live run
+export type { EventSubscribable } from './shared/types';

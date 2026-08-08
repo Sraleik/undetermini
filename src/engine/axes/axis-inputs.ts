@@ -37,7 +37,7 @@ export type AxisInputs = {
   reasoningEfforts: ReadonlyArray<ReasoningEffortValue | 'default'>;
   thinkingBudgets: ReadonlyArray<number | 'default'>;
   sysPrompts: ReadonlyArray<SysPromptAxisValue>;
-  /** Optional: a subject with a single extraction schema never declares this
-   *  axis, and `expandCartesian` then expands it to the single 'default' value. */
-  schemas?: ReadonlyArray<SchemaAxisValue>;
+  /** A subject with a single extraction schema declares this axis empty;
+   *  `expandCartesian` then expands it to the single 'default' value. */
+  schemas: ReadonlyArray<SchemaAxisValue>;
 };

@@ -38,6 +38,7 @@ const main = async (): Promise<void> => {
       reasoningEfforts: args.cartesian.reasoningEfforts,
       thinkingBudgets: args.cartesian.thinkingBudgets,
       sysPrompts,
+      schemas: [],
     });
     if (variants.length === 0) {
       throw new Error(
