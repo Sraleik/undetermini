@@ -154,3 +154,14 @@ export { syncRetroactive } from './engine/rescore/sync-all';
 
 // Event stream contract consumed by clients that render a live run
 export type { EventSubscribable } from './shared/types';
+
+// Subject-carried libraries: a subject declares its own prompts and schemas,
+// so no client ever reaches for a global registry.
+export { PROMPT_KIND, SCHEMA_KIND } from './subjects/registry';
+export type {
+  PromptKind,
+  SchemaKind,
+  RegisteredPrompt,
+  RegisteredSchema,
+} from './subjects/registry';
+export { resolveSchemaAxis } from './subjects/schema-axis';

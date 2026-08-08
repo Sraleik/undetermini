@@ -7,6 +7,7 @@ import { subscribeConsolePrinter } from './console-printer';
 import { readGitState } from '@eval/engine/git-state';
 import { writeRunToDb } from '@eval/engine/storage/write';
 import { resolveSubject, DEFAULT_SUBJECT } from '@eval/subjects/registry';
+import { resolveSchemaAxis } from '@eval/subjects/schema-axis';
 
 const main = async (): Promise<void> => {
   const args = parseEvalArgs();
@@ -15,6 +16,8 @@ const main = async (): Promise<void> => {
     subject: evalSubject,
     evalFile,
     casesDir,
+    promptsDir,
+    schemas,
   } = resolveSubject(args.subject ?? DEFAULT_SUBJECT);
 
   let subjectCases = evalSubject.cases;
@@ -32,13 +35,16 @@ const main = async (): Promise<void> => {
   }
 
   if (args.cartesian) {
-    const sysPrompts = resolveSysPrompts(args.cartesian.sysPromptTokens);
+    const sysPrompts = resolveSysPrompts(
+      args.cartesian.sysPromptTokens,
+      promptsDir,
+    );
     const variants = expandCartesian({
       models: args.cartesian.models,
       reasoningEfforts: args.cartesian.reasoningEfforts,
       thinkingBudgets: args.cartesian.thinkingBudgets,
       sysPrompts,
-      schemas: [],
+      schemas: resolveSchemaAxis(args.cartesian.schemaTokens, schemas),
     });
     if (variants.length === 0) {
       throw new Error(

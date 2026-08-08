@@ -1,22 +1,22 @@
-import React, { useEffect, useReducer, useState } from 'react';
-import { Box, Text } from 'ink';
 import type { EvalVariant } from '@eval/engine/variant';
 import type { EvalCliArgs } from '@eval/clients/cli/cli-args';
 import { EvalEngine } from '@eval/engine/api';
 import type { Subject } from '@eval/engine/runner-loop';
 import type { RegisteredSubject } from '@eval/subjects/registry';
+import { Box, Text } from 'ink';
+import React, { useEffect, useReducer, useState } from 'react';
+import { AxesPage } from './pages/AxesPage';
+import { CasesPage } from './pages/CasesPage';
+import { ConfirmPage } from './pages/ConfirmPage';
+import { RunningPage } from './pages/RunningPage';
+import { SubjectPage } from './pages/SubjectPage';
+import { VariantsPage } from './pages/VariantsPage';
 import {
   initialWizardState,
   wizardReducer,
   type DisplayOptions,
   type WizardState,
 } from './store';
-import { SubjectPage } from './pages/SubjectPage';
-import { CasesPage } from './pages/CasesPage';
-import { AxesPage } from './pages/AxesPage';
-import { VariantsPage } from './pages/VariantsPage';
-import { ConfirmPage } from './pages/ConfirmPage';
-import { RunningPage } from './pages/RunningPage';
 
 export type Page =
   | 'subject'
@@ -158,6 +158,9 @@ export const Router: React.FC<RouterProps> = ({
       return (
         <AxesPage
           subjectVariants={subject.variants}
+          promptsDir={registered.promptsDir}
+          prompts={registered.prompts ?? []}
+          schemas={registered.schemas ?? []}
           state={state}
           dispatch={dispatch}
           onNext={() => setPage('variants')}
@@ -214,4 +217,3 @@ export const Router: React.FC<RouterProps> = ({
       );
   }
 };
-
