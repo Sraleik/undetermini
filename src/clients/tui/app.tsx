@@ -14,6 +14,7 @@ import {
   sortVariantNamesByStats,
   type RunningStats,
 } from './aggregate';
+import { cycleListIndex } from './cycle-index';
 import { CATEGORY_DESCRIPTIONS_FR } from '@eval/engine/categories';
 import {
   buildAxisColumns,
@@ -408,11 +409,13 @@ export const App: React.FC<Props> = ({
 
     if (mode === 'columnsPicker') {
       if (key.upArrow) {
-        setPickerSelectedIdx(
-          (prev) => (prev - 1 + KNOWN_COL_KEYS.length) % KNOWN_COL_KEYS.length,
+        setPickerSelectedIdx((prev) =>
+          cycleListIndex(prev, -1, KNOWN_COL_KEYS.length),
         );
       } else if (key.downArrow) {
-        setPickerSelectedIdx((prev) => (prev + 1) % KNOWN_COL_KEYS.length);
+        setPickerSelectedIdx((prev) =>
+          cycleListIndex(prev, 1, KNOWN_COL_KEYS.length),
+        );
       } else if (input === ' ') {
         const target = KNOWN_COL_KEYS[pickerSelectedIdx];
         setVisibleCols((prev) => {
@@ -437,11 +440,13 @@ export const App: React.FC<Props> = ({
       }
       if (filterRows.length === 0) return;
       if (key.upArrow) {
-        setFilterPickerSelectedIdx(
-          (prev) => (prev - 1 + filterRows.length) % filterRows.length,
+        setFilterPickerSelectedIdx((prev) =>
+          cycleListIndex(prev, -1, filterRows.length),
         );
       } else if (key.downArrow) {
-        setFilterPickerSelectedIdx((prev) => (prev + 1) % filterRows.length);
+        setFilterPickerSelectedIdx((prev) =>
+          cycleListIndex(prev, 1, filterRows.length),
+        );
       } else if (input === ' ') {
         const row = filterRows[filterPickerSelectedIdx];
         if (!row) return;
@@ -465,10 +470,12 @@ export const App: React.FC<Props> = ({
       if (sortSpec.length === 0) return;
       const idx = sortPickerSelectedIdx;
       if (key.upArrow) {
-        setSortPickerSelectedIdx((prev) => Math.max(0, prev - 1));
+        setSortPickerSelectedIdx((prev) =>
+          cycleListIndex(prev, -1, sortSpec.length),
+        );
       } else if (key.downArrow) {
         setSortPickerSelectedIdx((prev) =>
-          Math.min(sortSpec.length - 1, prev + 1),
+          cycleListIndex(prev, 1, sortSpec.length),
         );
       } else if (input === 'K') {
         if (idx === 0) return;
@@ -512,9 +519,9 @@ export const App: React.FC<Props> = ({
       if (key.escape) {
         setLegendFocused(false);
       } else if (key.upArrow) {
-        setLegendSelIdx((i) => Math.max(0, i - 1));
+        setLegendSelIdx((i) => cycleListIndex(i, -1, legendRows.length));
       } else if (key.downArrow) {
-        setLegendSelIdx((i) => Math.min(legendRows.length - 1, i + 1));
+        setLegendSelIdx((i) => cycleListIndex(i, 1, legendRows.length));
       } else if (key.return) {
         const row = legendRows[clampedLegendSel];
         if (row) {
@@ -542,11 +549,15 @@ export const App: React.FC<Props> = ({
         return;
       }
       if (input === 'k') {
-        setRowCursor((c) => Math.max(0, c - 1));
+        setRowCursor((c) =>
+          cycleListIndex(c, -1, cursorRowOrder.length + 1),
+        );
         return;
       }
       if (input === 'j') {
-        setRowCursor((c) => Math.min(cursorRowOrder.length, c + 1));
+        setRowCursor((c) =>
+          cycleListIndex(c, 1, cursorRowOrder.length + 1),
+        );
         return;
       }
     }
@@ -557,11 +568,11 @@ export const App: React.FC<Props> = ({
     // (cursorRowOrder); in aggregate it's orderedVariantNames. Left/right
     // stay free for column focus.
     if (key.upArrow) {
-      setRowCursor((c) => Math.max(0, c - 1));
+      setRowCursor((c) => cycleListIndex(c, -1, cursorRowOrder.length + 1));
       return;
     }
     if (key.downArrow) {
-      setRowCursor((c) => Math.min(cursorRowOrder.length, c + 1));
+      setRowCursor((c) => cycleListIndex(c, 1, cursorRowOrder.length + 1));
       return;
     }
     if (key.return) {
@@ -805,6 +816,19 @@ export const App: React.FC<Props> = ({
         json = String(f.output);
       }
       for (const l of json.split('\n')) out.push(l);
+      // DEV-2808: an augmented-array output (filters + a surfaced `criteria`
+      // side-channel) loses its non-index own properties through JSON.stringify
+      // — arrays serialize their elements only. Append any extra own keys so the
+      // side-channel is visible in the trial detail. Subject-agnostic: it never
+      // names a key, it just surfaces whatever non-index own props the array has.
+      if (Array.isArray(f.output)) {
+        for (const key of Object.keys(f.output)) {
+          if (/^\d+$/.test(key)) continue;
+          const val = (f.output as unknown as Record<string, unknown>)[key];
+          out.push(`${key}:`);
+          for (const l of JSON.stringify(val, null, 2).split('\n')) out.push(l);
+        }
+      }
       out.push('');
     }
     return out;

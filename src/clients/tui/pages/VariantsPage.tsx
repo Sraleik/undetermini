@@ -1,8 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { EvalVariant } from '@eval/engine/variant';
-import { expandCartesian } from '@eval/engine/axes/expand-cartesian';
+import { cycleListIndex } from '../cycle-index';
+import { expandCartesianDetailed } from '@eval/engine/axes/expand-cartesian';
+import type { DroppedCombo } from '@eval/engine/axes/expand-cartesian';
 import type { WizardAction, WizardState } from '../store';
+
+/** Capability-matrix skips, rendered where the combos would have appeared —
+ *  a model can vanish entirely here (gpt-4.1 with only `minimal` checked,
+ *  2026-07-10), so the page must say WHY instead of staying silent. */
+const DroppedCombos: React.FC<{ dropped: DroppedCombo[] }> = ({ dropped }) =>
+  dropped.length === 0 ? null : (
+    <Box flexDirection="column">
+      {dropped.map((d) => (
+        <Text key={`${d.modelId}|${d.axis}|${d.value}`} color="yellow" dimColor>
+          {`  ⚠ dropped: ${d.modelId} × ${d.axis}-${d.value}  (${d.reason})`}
+        </Text>
+      ))}
+    </Box>
+  );
 
 export type VariantsPageProps = {
   state: WizardState;
@@ -17,8 +32,8 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
   onNext,
   onBack,
 }) => {
-  const allVariants = useMemo<EvalVariant[]>(
-    () => expandCartesian(state.axes),
+  const { variants: allVariants, dropped } = useMemo(
+    () => expandCartesianDetailed(state.axes),
     [state.axes],
   );
 
@@ -37,11 +52,11 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
       return;
     }
     if (key.upArrow) {
-      setFocusIdx((prev) => Math.max(0, prev - 1));
+      setFocusIdx((prev) => cycleListIndex(prev, -1, allVariants.length));
       return;
     }
     if (key.downArrow) {
-      setFocusIdx((prev) => Math.min(allVariants.length - 1, prev + 1));
+      setFocusIdx((prev) => cycleListIndex(prev, 1, allVariants.length));
       return;
     }
     if (input === ' ') {
@@ -76,6 +91,7 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
         <Text color="yellow">
           Cartesian expansion produced 0 variants. Esc to revisit axes.
         </Text>
+        <DroppedCombos dropped={dropped} />
       </Box>
     );
   }
@@ -87,6 +103,7 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
         selected)
       </Text>
       <Text dimColor>Cartesian expansion of axes — uncheck unwanted combos.</Text>
+      <DroppedCombos dropped={dropped} />
       <Box marginTop={1} flexDirection="column">
         {allVariants.map((v, idx) => {
           const checked = selectedNames.has(v.name);

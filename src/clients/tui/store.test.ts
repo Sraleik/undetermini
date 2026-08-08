@@ -50,6 +50,7 @@ describe('initialWizardState', () => {
         reasoningEfforts: ['default', 'low'],
         thinkingBudgets: ['default'],
         sysPromptTokens: [],
+        schemaTokens: [],
       },
     };
     const state = initialWizardState(baseSubject(), args);
