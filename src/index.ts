@@ -132,3 +132,13 @@ export { PRICING_VERIFIED_AT } from './engine/pricing';
 
 // Run provenance
 export { readGitState } from './engine/git-state';
+
+// Display formatting shared by clients
+export {
+  pct1,
+  usd,
+  ms,
+  formatCaseInputForDisplay,
+  formatEvalError,
+  logEvalTrialFailure,
+} from './shared/format';
