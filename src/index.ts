@@ -71,3 +71,64 @@ export {
   EXAMPLE_SENTIMENT_CASES_DIR,
 } from './subjects/example-sentiment';
 export type { Sentiment, SentimentVariant } from './subjects/example-sentiment';
+
+// ── Surface consumed by a host app that keeps its own subjects and clients ──
+// Kalent's `eval/` keeps its subject registry, its retrieval layer and its
+// CLI/TUI, and imports the whole engine from here. Everything below is what
+// those files reach for; it is public API, not an implementation leak.
+
+// Text comparison helpers used by case assertions
+export { normalizeText, tokensInclude } from './engine/text-utils';
+
+// Telemetry
+export { telemetryMiddleware } from './engine/telemetry-middleware';
+export type { TelemetrySink } from './engine/telemetry-middleware';
+
+// Model capabilities (the model axis)
+export {
+  MODEL_CAPABILITIES,
+  getProvider,
+  knownModelIds,
+  supportsReasoningEffort,
+  supportsThinkingBudget,
+  toOpenAiReasoningEffort,
+} from './engine/axes/model-capabilities';
+
+// Provider discriminant
+export type { Provider } from './engine/variant';
+
+// Axes: declaration and cartesian expansion
+export type {
+  AxisInputs,
+  AxisModelEntry,
+  ReasoningEffortValue,
+  SchemaAxisValue,
+  SysPromptAxisValue,
+} from './engine/axes/axis-inputs';
+export {
+  expandCartesian,
+  expandCartesianDetailed,
+} from './engine/axes/expand-cartesian';
+export type { DroppedCombo } from './engine/axes/expand-cartesian';
+
+// System-prompt axis
+export {
+  DEFAULT_PROMPTS_DIR,
+  resolveSysPrompts,
+} from './engine/axes/resolve-sys-prompts';
+
+// Storage
+export { openEvalDb, closeEvalDb } from './engine/storage/schema';
+export { writeRunToDb } from './engine/storage/write';
+
+// Cache key derivation
+export { buildKeyFromCallOptions } from './engine/cache/key-builder';
+
+// Assertion categories
+export { CATEGORY_DESCRIPTIONS_FR } from './engine/categories';
+
+// Pricing provenance
+export { PRICING_VERIFIED_AT } from './engine/pricing';
+
+// Run provenance
+export { readGitState } from './engine/git-state';
