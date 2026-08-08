@@ -4,10 +4,10 @@ import type { ReasoningEffortValue } from './axis-inputs';
  * Compute the deterministic display name for a variant from its axis values.
  *
  * Convention (spec §6):
- *   <modelId>[__eff-<value>][__think-<value>][__sys-<value>]
+ *   <modelId>[__eff-<value>][__think-<value>][__sys-<value>][__sch-<value>]
  *
  * - Segments appear only when non-default (i.e. the corresponding axis field is set).
- * - Order is fixed: model → provider-tuning → sys.
+ * - Order is fixed: model → provider-tuning → sys → sch.
  * - Separator is `__` (double underscore) to disambiguate from `-` already present in
  *   modelIds (`gpt-4.1-mini`, `claude-opus-4-6`).
  *
@@ -20,11 +20,13 @@ export const computeVariantName = (input: {
   reasoningEffort?: ReasoningEffortValue;
   thinkingBudgetTokens?: number;
   sysPromptName?: string;
+  schemaName?: string;
 }) => {
   const segments = [input.modelId];
   if (input.reasoningEffort !== undefined) segments.push(`eff-${input.reasoningEffort}`);
   if (input.thinkingBudgetTokens !== undefined)
     segments.push(`think-${input.thinkingBudgetTokens}`);
   if (input.sysPromptName !== undefined) segments.push(`sys-${input.sysPromptName}`);
+  if (input.schemaName !== undefined) segments.push(`sch-${input.schemaName}`);
   return segments.join('__');
 };

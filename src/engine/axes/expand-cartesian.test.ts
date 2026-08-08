@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { AxisInputs } from './axis-inputs';
-import { expandCartesian } from './expand-cartesian';
+import { expandCartesian, expandCartesianDetailed } from './expand-cartesian';
 
 const baseAxes: AxisInputs = {
   models: [],
   reasoningEfforts: ['default'],
   thinkingBudgets: ['default'],
   sysPrompts: ['default'],
+  schemas: ['default'],
 };
 
 describe('expandCartesian', () => {
@@ -138,10 +139,116 @@ describe('expandCartesian', () => {
         reasoningEfforts: [],
         thinkingBudgets: [],
         sysPrompts: [],
+        schemas: [],
       });
       expect(variants).toEqual([
         { name: 'gpt-4.1-mini', provider: 'openai', modelId: 'gpt-4.1-mini' },
       ]);
+    });
+  });
+
+  describe('given an OpenAI model with a schema override', () => {
+    it('injects extractionSchemaName and adds a sch- segment to the name', () => {
+      const variants = expandCartesian({
+        ...baseAxes,
+        models: [{ provider: 'openai', modelId: 'gpt-4.1-mini' }],
+        schemas: ['default', { name: 'no-criteria-v1' }],
+      });
+      expect(variants).toEqual([
+        { name: 'gpt-4.1-mini', provider: 'openai', modelId: 'gpt-4.1-mini' },
+        {
+          name: 'gpt-4.1-mini__sch-no-criteria-v1',
+          provider: 'openai',
+          modelId: 'gpt-4.1-mini',
+          extractionSchemaName: 'no-criteria-v1',
+        },
+      ]);
+    });
+  });
+
+  describe('given sysPrompt AND schema overrides', () => {
+    it('orders the segments sys → sch and crosses the two axes', () => {
+      const variants = expandCartesian({
+        ...baseAxes,
+        models: [{ provider: 'openai', modelId: 'gpt-4.1-mini' }],
+        sysPrompts: ['default', { name: 'v2', text: 'X' }],
+        schemas: ['default', { name: 'no-criteria-v1' }],
+      });
+      expect(variants.map((v) => v.name)).toEqual([
+        'gpt-4.1-mini',
+        'gpt-4.1-mini__sch-no-criteria-v1',
+        'gpt-4.1-mini__sys-v2',
+        'gpt-4.1-mini__sys-v2__sch-no-criteria-v1',
+      ]);
+    });
+  });
+
+  describe('dropped combos (expandCartesianDetailed)', () => {
+    it('reports the combo that erased gpt-4.1 (only an unsupported effort checked)', () => {
+      const { variants, dropped } = expandCartesianDetailed({
+        ...baseAxes,
+        models: [{ provider: 'openai', modelId: 'gpt-4.1-mini' }],
+        reasoningEfforts: ['low'],
+      });
+      expect(variants).toEqual([]);
+      expect(dropped).toEqual([
+        {
+          modelId: 'gpt-4.1-mini',
+          axis: 'eff',
+          value: 'low',
+          reason: 'model does not support reasoning_effort',
+        },
+      ]);
+    });
+
+    it('dedupes a drop across sysPrompt × schema turns', () => {
+      const { dropped } = expandCartesianDetailed({
+        ...baseAxes,
+        models: [{ provider: 'openai', modelId: 'gpt-4.1-mini' }],
+        reasoningEfforts: ['default', 'low'],
+        sysPrompts: ['default', { name: 'v2', text: 'X' }],
+        schemas: ['default', { name: 'no-criteria-v1' }],
+      });
+      expect(dropped).toHaveLength(1);
+    });
+
+    it('reports think drops for adaptive-only Anthropic models', () => {
+      const { dropped } = expandCartesianDetailed({
+        ...baseAxes,
+        models: [{ provider: 'anthropic', modelId: 'claude-opus-4-7' }],
+        thinkingBudgets: ['default', 4096],
+      });
+      expect(dropped).toEqual([
+        {
+          modelId: 'claude-opus-4-7',
+          axis: 'think',
+          value: '4096',
+          reason: 'model does not support thinking budget_tokens',
+        },
+      ]);
+    });
+
+    it('reports nothing when every combo is valid — cross-provider values included', () => {
+      const { dropped } = expandCartesianDetailed({
+        ...baseAxes,
+        models: [
+          { provider: 'openai', modelId: 'gpt-5-mini' },
+          { provider: 'anthropic', modelId: 'claude-opus-4-6' },
+          { provider: 'google', modelId: 'gemini-3.5-flash' },
+        ],
+        reasoningEfforts: ['default', 'low'],
+        thinkingBudgets: ['default', 4096],
+      });
+      expect(dropped).toEqual([]);
+    });
+
+    it('expandCartesian stays the detailed expansion minus the report', () => {
+      const axes: AxisInputs = {
+        ...baseAxes,
+        models: [{ provider: 'openai', modelId: 'gpt-5-mini' }],
+        reasoningEfforts: ['default', 'low'],
+      };
+      expect(expandCartesian(axes)).toEqual(expandCartesianDetailed(axes).variants);
     });
   });
 

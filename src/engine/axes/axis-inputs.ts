@@ -15,11 +15,11 @@
 
 /** Reasoning effort values accepted by `EvalVariant['openai'].reasoningEffort`.
  *  Keep in sync with the union in
- *  `core/search-engine/services/natural-language-filter.service.eval.ts:73`. */
+ *  `core/search-engine/services/extract-search-input.service.eval.ts:73`. */
 export type ReasoningEffortValue = 'minimal' | 'low' | 'medium' | 'high';
 
 export type AxisModelEntry = {
-  provider: 'openai' | 'anthropic';
+  provider: 'openai' | 'anthropic' | 'google';
   modelId: string;
 };
 
@@ -27,9 +27,15 @@ export type AxisModelEntry = {
  *  or an overridden prompt with a display name + the raw text injected into the variant. */
 export type SysPromptAxisValue = 'default' | { name: string; text: string };
 
+/** An extraction-schema axis value is either `'default'` (the live prod schema)
+ *  or a registered schema referenced BY NAME — the zod object stays subject-side
+ *  (resolved in `runOne` via `REGISTERED_SCHEMAS`), keeping the engine clean. */
+export type SchemaAxisValue = 'default' | { name: string };
+
 export type AxisInputs = {
   models: ReadonlyArray<AxisModelEntry>;
   reasoningEfforts: ReadonlyArray<ReasoningEffortValue | 'default'>;
   thinkingBudgets: ReadonlyArray<number | 'default'>;
   sysPrompts: ReadonlyArray<SysPromptAxisValue>;
+  schemas: ReadonlyArray<SchemaAxisValue>;
 };

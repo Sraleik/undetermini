@@ -36,6 +36,14 @@ describe('computeVariantName', () => {
     });
   });
 
+  describe('given a schemaName', () => {
+    it('appends a sch- segment', () => {
+      expect(
+        computeVariantName({ modelId: 'gpt-4.1', schemaName: 'no-criteria-v1' }),
+      ).toBe('gpt-4.1__sch-no-criteria-v1');
+    });
+  });
+
   describe('given multiple axes at once', () => {
     it('orders segments model → eff → sys for OpenAI', () => {
       expect(
@@ -55,6 +63,17 @@ describe('computeVariantName', () => {
           sysPromptName: 'no-bundles',
         }),
       ).toBe('claude-opus-4-6__think-4096__sys-no-bundles');
+    });
+
+    it('places sch- last (model → eff → sys → sch)', () => {
+      expect(
+        computeVariantName({
+          modelId: 'gpt-5-mini',
+          reasoningEffort: 'low',
+          sysPromptName: 'v2-strict',
+          schemaName: 'no-criteria-v1',
+        }),
+      ).toBe('gpt-5-mini__eff-low__sys-v2-strict__sch-no-criteria-v1');
     });
   });
 
