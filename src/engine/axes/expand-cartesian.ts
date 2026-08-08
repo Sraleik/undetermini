@@ -56,7 +56,9 @@ export const expandCartesianDetailed = (
   const sysPrompts: ReadonlyArray<SysPromptAxisValue> =
     axes.sysPrompts.length === 0 ? ['default'] : axes.sysPrompts;
   const schemas: ReadonlyArray<SchemaAxisValue> =
-    axes.schemas.length === 0 ? ['default'] : axes.schemas;
+    axes.schemas === undefined || axes.schemas.length === 0
+      ? ['default']
+      : axes.schemas;
 
   const variants: EvalVariant[] = [];
   const seenNames = new Set<string>();

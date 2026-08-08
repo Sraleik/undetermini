@@ -1,7 +1,7 @@
 import type { EvalVariant } from '@eval/engine/variant';
 import type { EvalEngine } from '@eval/engine/api';
 import type { CacheMode } from '@eval/engine/cache';
-import { formatCaseInputForDisplay } from '@eval/src/shared/format';
+import { formatCaseInputForDisplay } from '@eval/shared/format';
 import React from 'react';
 import { App } from '../app';
 import { parseSysPromptName } from '../components/VariantTable';
