@@ -16,8 +16,9 @@ import type { WizardState } from './store';
 /** Run the eval TUI against a host's subject registry. See `runEvalCli`. */
 export const runEvalTui = async (
   registry: SubjectRegistry = defaultRegistry,
+  argv: string[] = process.argv.slice(2),
 ): Promise<void> => {
-  const args = parseEvalArgs();
+  const args = parseEvalArgs(argv);
 
   // Validate `--subject` (throws on an unknown name) and use it as the launch
   // selection; the SubjectPage lets the user switch among SUBJECTS at runtime.
@@ -35,7 +36,7 @@ export const runEvalTui = async (
   }
 
   const savedDisplay = loadPrefs();
-  const sectionsFromCli = process.argv.some(
+  const sectionsFromCli = argv.some(
     (a) => a === '--sections' || a.startsWith('--sections='),
   );
 

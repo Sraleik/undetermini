@@ -171,3 +171,8 @@ export { runEvalCli } from './clients/cli/runner';
 export { runEvalTui } from './clients/tui/runner';
 export type { SubjectRegistry } from './subjects/registry';
 export { defaultRegistry, resolveIn } from './subjects/registry';
+
+// Config discovery: a host declares its subjects in undetermini.config.ts and
+// runs the shipped binaries, the way vitest resolves vitest.config.ts.
+export { defineConfig, loadRegistry, findConfigFile } from './config';
+export type { UndeterminiConfig } from './config';

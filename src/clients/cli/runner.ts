@@ -16,8 +16,9 @@ import { resolveSchemaAxis } from '@eval/subjects/schema-axis';
  *  host, not to the harness. */
 export const runEvalCli = async (
   registry: SubjectRegistry = defaultRegistry,
+  argv: string[] = process.argv.slice(2),
 ): Promise<void> => {
-  const args = parseEvalArgs();
+  const args = parseEvalArgs(argv);
 
   const {
     subject: evalSubject,
