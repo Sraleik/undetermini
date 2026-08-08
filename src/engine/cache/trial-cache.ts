@@ -93,6 +93,27 @@ export const lookupTrial = (
   };
 };
 
+// Flip a freshly-inserted `success` row to `fail` when the model generated a
+// payload but DOWNSTREAM validation (the prod service's `Output.object`)
+// rejected it — a trial the cache middleware could only see as a model-level
+// success. The raw is DELIBERATELY kept: the whole point is to debug the
+// payload that failed. `status='fail'` also removes it from cache replay
+// (LOOKUP_SQL filters `status='success'`), so a re-run re-calls instead of
+// serving invalid junk. Guarded to `status='success'` so it never rewrites a
+// model-level fail (raw already null) or a shared historical row.
+const MARK_FAILED_SQL = `
+  UPDATE trials SET status = 'fail', error = ?
+  WHERE id = ? AND status = 'success'
+`;
+
+export const markTrialFailed = (
+  trialId: string,
+  error: string,
+  db: Database.Database = openEvalDb(),
+): void => {
+  db.prepare(MARK_FAILED_SQL).run(error, trialId);
+};
+
 export const insertTrial = (
   args: WriteTrialArgs,
   db: Database.Database = openEvalDb(),

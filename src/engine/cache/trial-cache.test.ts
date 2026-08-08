@@ -1,7 +1,12 @@
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeEvalDb, openEvalDb } from '@eval/engine/storage/schema';
-import { insertTrial, lookupTrial, type WriteTrialArgs } from './trial-cache';
+import {
+  insertTrial,
+  lookupTrial,
+  markTrialFailed,
+  type WriteTrialArgs,
+} from './trial-cache';
 import type { CacheKey } from './types';
 
 const baseKey = (overrides: Partial<CacheKey> = {}): CacheKey => ({
@@ -127,6 +132,38 @@ describe('trial-cache (SQLite-backed)', () => {
       (got?.response.content[0] as { type: 'text'; text: string }).text,
     ).toBe('newer');
     expect(got?.metadata.latencyMs).toBe(99);
+  });
+
+  it('markTrialFailed flips a success to fail with reason, keeps the raw, and hides it from lookup', () => {
+    const key = baseKey();
+    const trialId = insertTrial(baseArgs(key), db);
+    expect(lookupTrial(key, db)?.trialId).toBe(trialId);
+
+    markTrialFailed(trialId, 'No object generated: response did not match schema', db);
+
+    const row = db
+      .prepare('SELECT status, error, output_raw FROM trials WHERE id = ?')
+      .get(trialId) as { status: string; error: string; output_raw: string | null };
+    expect(row.status).toBe('fail');
+    expect(row.error).toContain('No object generated');
+    expect(row.output_raw).not.toBeNull(); // raw preserved for debugging
+    expect(lookupTrial(key, db)).toBeNull(); // no longer replayable
+  });
+
+  it('markTrialFailed never touches an already-failed row', () => {
+    const key = baseKey();
+    insertTrial(
+      baseArgs(key, { status: 'fail', error: 'boom', response: {} as never }),
+      db,
+    );
+    const id = (
+      db.prepare('SELECT id FROM trials LIMIT 1').get() as { id: string }
+    ).id;
+    markTrialFailed(id, 'should-not-overwrite', db);
+    const row = db
+      .prepare('SELECT error FROM trials WHERE id = ?')
+      .get(id) as { error: string };
+    expect(row.error).toBe('boom'); // guard: only status='success' rows are flipped
   });
 
   it('different cache keys (trial_index) produce distinct rows', () => {

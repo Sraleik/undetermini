@@ -3,7 +3,7 @@ import type {
   LanguageModelV3CallOptions,
   LanguageModelV3GenerateResult,
 } from '@ai-sdk/provider';
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeEvalDb, openEvalDb } from '@eval/engine/storage/schema';
 import { trialCacheMiddleware } from './trial-cache-middleware';

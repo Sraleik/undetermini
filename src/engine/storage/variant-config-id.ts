@@ -16,20 +16,26 @@ export const canonicalizeProviderOptions = (
 export const computeSystemPromptId = (text: string): string => sha256(text);
 
 /** Content-addressed id for variant_configs. Hashes the canonicalised tuple
- *  (provider, model_id, system_prompt_id, provider_options_json). Two variants
- *  with byte-identical axes produce the same id and are deduplicated by the
- *  PK constraint on `variant_configs.id`. */
+ *  (provider, model_id, system_prompt_id, provider_options_json) plus — ONLY
+ *  when the schema axis is set — extraction_schema_name. Conditional inclusion
+ *  keeps every pre-schema-axis id byte-stable (default-schema variants hash
+ *  the exact tuple they always did). Two variants with byte-identical axes
+ *  produce the same id and are deduplicated by the PK on `variant_configs.id`. */
 export const computeVariantConfigId = (input: {
   provider: string;
   modelId: string;
   systemPromptId: string;
   providerOptionsJson: string | null;
+  extractionSchemaName?: string;
 }): string =>
   sha256({
     provider: input.provider,
     modelId: input.modelId,
     systemPromptId: input.systemPromptId,
     providerOptionsJson: input.providerOptionsJson,
+    ...(input.extractionSchemaName !== undefined
+      ? { extractionSchemaName: input.extractionSchemaName }
+      : {}),
   });
 
 type ConfigArgs<V> = {
@@ -43,6 +49,7 @@ export type ResolvedVariantConfig = {
   systemPromptId: string;
   effectivePrompt: string;
   providerOptionsJson: string | null;
+  extractionSchemaName: string | null;
 };
 
 /** Pure, side-effect-free resolution of each variant's content-addressed
@@ -56,6 +63,7 @@ export const resolveVariantConfigIds = <
     provider: string;
     modelId: string;
     systemPrompt?: string;
+    extractionSchemaName?: string;
   },
 >(
   args: ConfigArgs<V>,
@@ -72,12 +80,16 @@ export const resolveVariantConfigIds = <
       modelId: variant.modelId,
       systemPromptId,
       providerOptionsJson,
+      ...(variant.extractionSchemaName !== undefined
+        ? { extractionSchemaName: variant.extractionSchemaName }
+        : {}),
     });
     out.set(variant.name, {
       configId,
       systemPromptId,
       effectivePrompt,
       providerOptionsJson,
+      extractionSchemaName: variant.extractionSchemaName ?? null,
     });
   }
   return out;
@@ -94,6 +106,7 @@ export const prepareVariantConfigs = <
     provider: string;
     modelId: string;
     systemPrompt?: string;
+    extractionSchemaName?: string;
   },
 >(
   args: ConfigArgs<V>,
@@ -108,8 +121,8 @@ export const prepareVariantConfigs = <
   `);
   const insertConfig = db.prepare(`
     INSERT OR IGNORE INTO variant_configs (
-      id, provider, model_id, system_prompt_id, provider_options_json, first_seen_at
-    ) VALUES (?, ?, ?, ?, ?, ?)
+      id, provider, model_id, system_prompt_id, provider_options_json, first_seen_at, extraction_schema_name
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   const configIds = new Map<string, string>();
@@ -124,6 +137,7 @@ export const prepareVariantConfigs = <
         r.systemPromptId,
         r.providerOptionsJson,
         now,
+        r.extractionSchemaName,
       );
       configIds.set(variant.name, r.configId);
     }
