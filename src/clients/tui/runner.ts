@@ -4,22 +4,25 @@ import { render } from 'ink';
 import { parseEvalArgs } from '@eval/clients/cli/cli-args';
 import { writeRunToDb } from '@eval/engine/storage/write';
 import {
-  resolveSubject,
-  DEFAULT_SUBJECT,
-  SUBJECTS,
+  defaultRegistry,
+  resolveIn,
   type RegisteredSubject,
+  type SubjectRegistry,
 } from '@eval/subjects/registry';
 import { Router } from './Router';
 import { loadPrefs, savePrefs } from './prefs';
 import type { WizardState } from './store';
 
-const main = async (): Promise<void> => {
+/** Run the eval TUI against a host's subject registry. See `runEvalCli`. */
+export const runEvalTui = async (
+  registry: SubjectRegistry = defaultRegistry,
+): Promise<void> => {
   const args = parseEvalArgs();
 
   // Validate `--subject` (throws on an unknown name) and use it as the launch
   // selection; the SubjectPage lets the user switch among SUBJECTS at runtime.
-  const initialSubjectName = args.subject ?? DEFAULT_SUBJECT;
-  const { subject } = resolveSubject(initialSubjectName);
+  const initialSubjectName = args.subject ?? registry.defaultSubject;
+  const { subject } = resolveIn(registry, initialSubjectName);
 
   if (args.caseSlugs && subject.cases.length > 0) {
     const knownSlugs = new Set(subject.cases.map((c) => c.slug));
@@ -50,7 +53,7 @@ const main = async (): Promise<void> => {
         // The Router owns subject selection (SubjectPage); it casts each
         // registered subject to the talent `EvalVariant` shape at its own
         // boundary. The CLI runner is the fully generic path.
-        subjects: SUBJECTS,
+        subjects: registry.subjects,
         initialSubjectName,
         args,
         onRunFinished: (state: WizardState, registered: RegisteredSubject) => {
@@ -74,7 +77,4 @@ const main = async (): Promise<void> => {
   });
 };
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+

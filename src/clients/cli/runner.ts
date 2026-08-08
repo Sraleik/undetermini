@@ -6,10 +6,17 @@ import { parseEvalArgs } from './cli-args';
 import { subscribeConsolePrinter } from './console-printer';
 import { readGitState } from '@eval/engine/git-state';
 import { writeRunToDb } from '@eval/engine/storage/write';
-import { resolveSubject, DEFAULT_SUBJECT } from '@eval/subjects/registry';
+import type { SubjectRegistry } from '@eval/subjects/registry';
+import { defaultRegistry, resolveIn } from '@eval/subjects/registry';
 import { resolveSchemaAxis } from '@eval/subjects/schema-axis';
 
-const main = async (): Promise<void> => {
+/** Run the eval CLI against a host's subject registry. The published binary
+ *  calls this with the reference registry; a host with its own subjects calls
+ *  it with theirs — the registry is the composition root and belongs to the
+ *  host, not to the harness. */
+export const runEvalCli = async (
+  registry: SubjectRegistry = defaultRegistry,
+): Promise<void> => {
   const args = parseEvalArgs();
 
   const {
@@ -18,7 +25,7 @@ const main = async (): Promise<void> => {
     casesDir,
     promptsDir,
     schemas,
-  } = resolveSubject(args.subject ?? DEFAULT_SUBJECT);
+  } = resolveIn(registry, args.subject ?? registry.defaultSubject);
 
   let subjectCases = evalSubject.cases;
   let subjectVariants: typeof evalSubject.variants = evalSubject.variants;
@@ -105,7 +112,4 @@ const main = async (): Promise<void> => {
   console.log(`Run id: ${runId}`);
 };
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+

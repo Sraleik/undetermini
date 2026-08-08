@@ -110,3 +110,31 @@ export const resolveSubject = (name: string): RegisteredSubject => {
   }
   return entry;
 };
+
+/** A host's subject registry: the set of runnable subjects plus which one runs
+ *  when `--subject` is omitted. This is the composition root — it names concrete
+ *  subjects, so it belongs to the host application, never to the harness. */
+export type SubjectRegistry = {
+  subjects: Record<string, RegisteredSubject>;
+  defaultSubject: string;
+};
+
+/** The registry the published binaries fall back on: the reference subject that
+ *  ships with the harness, so `npx undetermini` runs out of the box. */
+export const defaultRegistry: SubjectRegistry = {
+  subjects: SUBJECTS,
+  defaultSubject: DEFAULT_SUBJECT,
+};
+
+export const resolveIn = (
+  registry: SubjectRegistry,
+  name: string,
+): RegisteredSubject => {
+  const entry = registry.subjects[name];
+  if (entry === undefined) {
+    throw new Error(
+      `Unknown --subject="${name}". Available: ${Object.keys(registry.subjects).join(', ')}.`,
+    );
+  }
+  return entry;
+};

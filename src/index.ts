@@ -165,3 +165,9 @@ export type {
   RegisteredSchema,
 } from './subjects/registry';
 export { resolveSchemaAxis } from './subjects/schema-axis';
+
+// The runners themselves: a host declares its registry and gets both clients.
+export { runEvalCli } from './clients/cli/runner';
+export { runEvalTui } from './clients/tui/runner';
+export type { SubjectRegistry } from './subjects/registry';
+export { defaultRegistry, resolveIn } from './subjects/registry';

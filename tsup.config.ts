@@ -22,7 +22,7 @@ export default defineConfig([
     treeshake: true,
   },
   {
-    entry: { cli: 'src/clients/cli/runner.ts', tui: 'src/clients/tui/runner.ts' },
+    entry: { cli: 'src/clients/cli/bin.ts', tui: 'src/clients/tui/bin.ts' },
     format: ['esm'],
     dts: false,
     clean: false,
