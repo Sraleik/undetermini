@@ -1,6 +1,6 @@
 import { CATEGORY_DESCRIPTIONS_FR } from '@eval/engine/categories';
 import type { EventSubscribable } from '../../shared/types';
-import { ms, pct1, usd } from '../../shared/format';
+import { formatCaseInputForDisplay, ms, pct1, usd } from '../../shared/format';
 import type { ColKey, SectionName, SortSpec } from './cli-args';
 import type { RunResult, VariantResult } from '@eval/engine/runner-loop';
 
@@ -400,7 +400,7 @@ const renderCasesHeader = (run: RunResult): void => {
   cases.forEach((c, i) => {
     const idx = `[${i + 1}]`;
     const slug = c.caseSlug;
-    const input = String(c.input).replace(/\s+/g, ' ').trim();
+    const input = formatCaseInputForDisplay(c.input).replace(/\s+/g, ' ').trim();
     console.log(`  ${idx} ${slug}`);
     console.log(`      "${input}"`);
   });
