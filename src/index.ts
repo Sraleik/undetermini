@@ -142,3 +142,12 @@ export {
   formatEvalError,
   logEvalTrialFailure,
 } from './shared/format';
+
+// Tokenisation used to build case assertions
+export { tokensOf } from './engine/text-utils';
+
+// Stable hashing — the same function that derives cache keys and fingerprints
+export { sha256 } from './engine/cache/hash';
+
+// Retroactive rescoring of stored trials
+export { syncRetroactive } from './engine/rescore/sync-all';
