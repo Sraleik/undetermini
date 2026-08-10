@@ -16,7 +16,7 @@ export default defineConfig([
     // each would inline its own copy of the storage module — and that module
     // caches the SQLite connection at module scope, so a host importing from
     // both entry points would end up with two handles on the same file.
-    entry: { index: 'src/index.ts', clients: 'src/clients/index.ts' },
+    entry: { index: 'src/index.ts', clients: 'src/clients.ts' },
     format: ['esm'],
     dts: true,
     clean: true,
@@ -41,7 +41,7 @@ export default defineConfig([
     treeshake: true,
   },
   {
-    entry: { cli: 'src/clients/cli/bin.ts', tui: 'src/clients/tui/bin.ts' },
+    entry: { cli: 'entrypoints/cli/src/bin.ts', tui: 'entrypoints/tui/src/bin.ts' },
     format: ['esm'],
     dts: false,
     clean: false,

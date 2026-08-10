@@ -16,9 +16,13 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@eval/*": ["./src/*"]
+      "@undetermini/core/*": ["./packages/core/src/*"],
+      "@undetermini/application/*": ["./packages/application/src/*"],
+      "@undetermini/cli/*": ["./entrypoints/cli/src/*"],
+      "@undetermini/tui/*": ["./entrypoints/tui/src/*"],
+      "@undetermini/examples/*": ["./examples/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "packages", "entrypoints", "examples"],
   "exclude": ["node_modules", "legacy", "dist", "docs", "scripts"]
 }

@@ -6,12 +6,12 @@
  * with weighted assertions, cache trials, and persist runs to SQLite.
  *
  * This barrel is the typedoc entry point and the library surface. The generic
- * engine is `@eval/engine/*`; concrete use cases live under `@eval/subjects/*`.
+ * engine lives in `packages/{core,application}`; the runners in `entrypoints/`.
  */
 
 // Core engine
-export { EvalEngine } from './engine/api';
-export { runEval } from './engine/runner-loop';
+export { EvalEngine } from '@undetermini/application/api';
+export { runEval } from '@undetermini/application/runner-loop';
 export type {
   Subject,
   SubjectVariant,
@@ -20,57 +20,57 @@ export type {
   CaseResult,
   VariantResult,
   RunResult,
-} from './engine/runner-loop';
+} from '@undetermini/application/runner-loop';
 
 // The variant descriptor (provider × model × reasoning knob)
-export type { EvalVariant } from './engine/variant';
+export type { EvalVariant } from '@undetermini/core/variant';
 
 // Cases, assertions, scoring
 export {
   defineCase,
-} from './engine/types';
+} from '@undetermini/core/types';
 export type {
   EvalCase,
   CaseAssertion,
   CaseDifficulty,
   AssertionCategory,
   KnownAssertionCategory,
-} from './engine/types';
+} from '@undetermini/core/types';
 export {
   SCORER_NAME,
   CASE_ASSERTIONS_SCORER_VERSION,
   caseAssertionsScorer,
   isPerfectTrial,
-} from './engine/scorers';
+} from '@undetermini/core/scorers';
 export type {
   AssertionResult,
   AssertionDetail,
   ScoreResult,
-} from './engine/scorers';
+} from '@undetermini/core/scorers';
 
 // Cache, telemetry, events
-export type { CacheMode } from './engine/cache/types';
-export type { CallTelemetry } from './engine/telemetry-middleware';
-export type { EvalEvent, TrialCompletedPayload } from './shared/types';
+export type { CacheMode } from '@undetermini/core/cache/types';
+export type { CallTelemetry } from '@undetermini/application/telemetry-middleware';
+export type { EvalEvent, TrialCompletedPayload } from '@undetermini/application/event';
 
 // Pricing
-export { computeCost } from './engine/pricing';
+export { computeCost } from '@undetermini/core/pricing';
 
 // Subject registry (composition root)
 export {
   SUBJECTS,
   DEFAULT_SUBJECT,
   resolveSubject,
-} from './subjects/registry';
-export type { RegisteredSubject } from './subjects/registry';
+} from '@undetermini/application/subjects/registry';
+export type { RegisteredSubject } from '@undetermini/application/subjects/registry';
 
 // Reference subject
 export {
   exampleSentimentSubject,
   EXAMPLE_SENTIMENT_EVAL_FILE,
   EXAMPLE_SENTIMENT_CASES_DIR,
-} from './subjects/example-sentiment';
-export type { Sentiment, SentimentVariant } from './subjects/example-sentiment';
+} from '@undetermini/examples/example-sentiment/index';
+export type { Sentiment, SentimentVariant } from '@undetermini/examples/example-sentiment/index';
 
 // ── Surface consumed by a host app that keeps its own subjects and clients ──
 // Kalent's `eval/` keeps its subject registry, its retrieval layer and its
@@ -78,11 +78,11 @@ export type { Sentiment, SentimentVariant } from './subjects/example-sentiment';
 // those files reach for; it is public API, not an implementation leak.
 
 // Text comparison helpers used by case assertions
-export { normalizeText, tokensInclude } from './engine/text-utils';
+export { normalizeText, tokensInclude } from '@undetermini/core/text-utils';
 
 // Telemetry
-export { telemetryMiddleware } from './engine/telemetry-middleware';
-export type { TelemetrySink } from './engine/telemetry-middleware';
+export { telemetryMiddleware } from '@undetermini/application/telemetry-middleware';
+export type { TelemetrySink } from '@undetermini/application/telemetry-middleware';
 
 // Model capabilities (the model axis)
 export {
@@ -92,10 +92,10 @@ export {
   supportsReasoningEffort,
   supportsThinkingBudget,
   toOpenAiReasoningEffort,
-} from './engine/axes/model-capabilities';
+} from '@undetermini/core/axes/model-capabilities';
 
 // Provider discriminant
-export type { Provider } from './engine/variant';
+export type { Provider } from '@undetermini/core/variant';
 
 // Axes: declaration and cartesian expansion
 export type {
@@ -104,34 +104,34 @@ export type {
   ReasoningEffortValue,
   SchemaAxisValue,
   SysPromptAxisValue,
-} from './engine/axes/axis-inputs';
+} from '@undetermini/core/axes/axis-inputs';
 export {
   expandCartesian,
   expandCartesianDetailed,
-} from './engine/axes/expand-cartesian';
-export type { DroppedCombo } from './engine/axes/expand-cartesian';
+} from '@undetermini/core/axes/expand-cartesian';
+export type { DroppedCombo } from '@undetermini/core/axes/expand-cartesian';
 
 // System-prompt axis
 export {
   DEFAULT_PROMPTS_DIR,
   resolveSysPrompts,
-} from './engine/axes/resolve-sys-prompts';
+} from '@undetermini/application/axes/resolve-sys-prompts';
 
 // Storage
-export { openEvalDb, closeEvalDb } from './engine/storage/schema';
-export { writeRunToDb } from './engine/storage/write';
+export { openEvalDb, closeEvalDb } from '@undetermini/application/storage/schema';
+export { writeRunToDb } from '@undetermini/application/storage/write';
 
 // Cache key derivation
-export { buildKeyFromCallOptions } from './engine/cache/key-builder';
+export { buildKeyFromCallOptions } from '@undetermini/core/cache/key-builder';
 
 // Assertion categories
-export { CATEGORY_DESCRIPTIONS_FR } from './engine/categories';
+export { CATEGORY_DESCRIPTIONS_FR } from '@undetermini/core/categories';
 
 // Pricing provenance
-export { PRICING_VERIFIED_AT } from './engine/pricing';
+export { PRICING_VERIFIED_AT } from '@undetermini/core/pricing';
 
 // Run provenance
-export { readGitState } from './engine/git-state';
+export { readGitState } from '@undetermini/application/git-state';
 
 // Display formatting shared by clients
 export {
@@ -141,37 +141,37 @@ export {
   formatCaseInputForDisplay,
   formatEvalError,
   logEvalTrialFailure,
-} from './shared/format';
+} from '@undetermini/core/format';
 
 // Tokenisation used to build case assertions
-export { tokensOf } from './engine/text-utils';
+export { tokensOf } from '@undetermini/core/text-utils';
 
 // Stable hashing — the same function that derives cache keys and fingerprints
-export { sha256 } from './engine/cache/hash';
+export { sha256 } from '@undetermini/core/cache/hash';
 
 // Retroactive rescoring of stored trials
-export { syncRetroactive } from './engine/rescore/sync-all';
+export { syncRetroactive } from '@undetermini/application/rescore/sync-all';
 
 // Event stream contract consumed by clients that render a live run
-export type { EventSubscribable } from './shared/types';
+export type { EventSubscribable } from '@undetermini/application/event';
 
 // Subject-carried libraries: a subject declares its own prompts and schemas,
 // so no client ever reaches for a global registry.
-export { PROMPT_KIND, SCHEMA_KIND } from './subjects/registry';
+export { PROMPT_KIND, SCHEMA_KIND } from '@undetermini/application/subjects/registry';
 export type {
   PromptKind,
   SchemaKind,
   RegisteredPrompt,
   RegisteredSchema,
-} from './subjects/registry';
-export { resolveSchemaAxis } from './subjects/schema-axis';
+} from '@undetermini/application/subjects/registry';
+export { resolveSchemaAxis } from '@undetermini/application/subjects/schema-axis';
 
 // The runners live at `undetermini/clients`, not here: the TUI reaches `ink`,
 // whose top-level await would make this barrel impossible to `require`.
-export type { SubjectRegistry } from './subjects/registry';
-export { defaultRegistry, resolveIn } from './subjects/registry';
+export type { SubjectRegistry } from '@undetermini/application/subjects/registry';
+export { defaultRegistry, resolveIn } from '@undetermini/application/subjects/registry';
 
 // Config discovery: a host declares its subjects in undetermini.config.ts and
 // runs the shipped binaries, the way vitest resolves vitest.config.ts.
-export { defineConfig, loadRegistry, findConfigFile } from './config';
-export type { UndeterminiConfig } from './config';
+export { defineConfig, loadRegistry, findConfigFile } from '@undetermini/application/config';
+export type { UndeterminiConfig } from '@undetermini/application/config';

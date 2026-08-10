@@ -11,11 +11,22 @@ import { describe, expect, it } from 'vitest';
 // the file that broke the rule, and no build step is needed to see it.
 const BANNED_FROM_THE_BARREL = ['ink', 'react'];
 
-const SRC = resolve(import.meta.dirname);
+const ROOT = resolve(import.meta.dirname, '..');
+
+// Les mêmes alias que tsconfig.json et vitest.config.ts. Le graphe se marche à
+// la main : rien d'autre ne dit ce que le barrel atteint AVANT le build.
+const ALIASES: [string, string][] = [
+  ['@undetermini/core/', 'packages/core/src'],
+  ['@undetermini/application/', 'packages/application/src'],
+  ['@undetermini/cli/', 'entrypoints/cli/src'],
+  ['@undetermini/tui/', 'entrypoints/tui/src'],
+  ['@undetermini/examples/', 'examples'],
+];
 
 const resolveImport = (spec: string, fromFile: string): string | null => {
-  const path = spec.startsWith('@eval/')
-    ? resolve(SRC, spec.slice('@eval/'.length))
+  const alias = ALIASES.find(([prefix]) => spec.startsWith(prefix));
+  const path = alias
+    ? resolve(ROOT, alias[1], spec.slice(alias[0].length))
     : spec.startsWith('.')
       ? resolve(dirname(fromFile), spec)
       : null;
@@ -57,7 +68,7 @@ const reachablePackages = (entry: string): Map<string, string> => {
         continue;
       }
       if (!spec.startsWith('node:') && !found.has(spec))
-        found.set(spec, file.slice(SRC.length + 1));
+        found.set(spec, file.slice(ROOT.length + 1));
     }
   }
   return found;
@@ -65,7 +76,7 @@ const reachablePackages = (entry: string): Map<string, string> => {
 
 describe('the public barrel stays loadable from CommonJS', () => {
   it('cannot reach ink or react', () => {
-    const packages = reachablePackages(resolve(SRC, 'index.ts'));
+    const packages = reachablePackages(resolve(ROOT, "src/index.ts"));
     const offenders = BANNED_FROM_THE_BARREL.filter((name) =>
       packages.has(name),
     ).map((name) => `${name} (via ${packages.get(name)})`);
@@ -73,7 +84,7 @@ describe('the public barrel stays loadable from CommonJS', () => {
   });
 
   it('walks a real graph — the barrel reaches the packages the engine needs', () => {
-    const packages = reachablePackages(resolve(SRC, 'index.ts'));
+    const packages = reachablePackages(resolve(ROOT, "src/index.ts"));
     expect(packages.has('better-sqlite3')).toBe(true);
   });
 });
