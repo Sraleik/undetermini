@@ -91,9 +91,12 @@ export const loadRegistry = async (
   // subject that builds its provider client at import time still finds its keys.
   // A static `import 'dotenv/config'` cannot do this — it is hoisted to module
   // evaluation, long before either.
+  const readEnv = async (): Promise<void> => {
+    if (opts.loadEnv === true) await import('dotenv/config');
+  };
   const enter = async (dir: string): Promise<void> => {
     if (opts.chdirToProject === true) process.chdir(dir);
-    if (opts.loadEnv === true) await import('dotenv/config');
+    await readEnv();
   };
   if (explicitPath !== undefined) {
     const path = isAbsolute(explicitPath)
@@ -109,7 +112,13 @@ export const loadRegistry = async (
     };
   }
   const found = findConfigFile(cwd);
-  if (found === null) return { registry: defaultRegistry, projectDir: null };
+  if (found === null) {
+    // No project to enter, but the caller still has an environment: the
+    // reference subject calls a real provider, and `undetermini --subject=example`
+    // has to find the key in the .env sitting right here.
+    await readEnv();
+    return { registry: defaultRegistry, projectDir: null };
+  }
   await enter(dirname(found));
   return {
     registry: readRegistry(await importConfig(found), found),
