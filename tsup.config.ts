@@ -22,6 +22,19 @@ export default defineConfig([
     treeshake: true,
   },
   {
+    // `undetermini/clients` — ESM only. The TUI reaches ink, whose top-level
+    // await cannot survive a `require`, so no CJS build is emitted here.
+    entry: { clients: 'src/clients/index.ts' },
+    format: ['esm'],
+    dts: true,
+    clean: false,
+    sourcemap: true,
+    target: 'node22',
+    platform: 'node',
+    splitting: false,
+    treeshake: true,
+  },
+  {
     entry: { cli: 'src/clients/cli/bin.ts', tui: 'src/clients/tui/bin.ts' },
     format: ['esm'],
     dts: false,

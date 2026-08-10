@@ -166,9 +166,8 @@ export type {
 } from './subjects/registry';
 export { resolveSchemaAxis } from './subjects/schema-axis';
 
-// The runners themselves: a host declares its registry and gets both clients.
-export { runEvalCli } from './clients/cli/runner';
-export { runEvalTui } from './clients/tui/runner';
+// The runners live at `undetermini/clients`, not here: the TUI reaches `ink`,
+// whose top-level await would make this barrel impossible to `require`.
 export type { SubjectRegistry } from './subjects/registry';
 export { defaultRegistry, resolveIn } from './subjects/registry';
 
