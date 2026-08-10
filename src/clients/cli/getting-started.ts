@@ -13,6 +13,12 @@ export const shouldShowGettingStarted = (
   projectDir === null &&
   !argv.some((arg) => arg === '--subject' || arg.startsWith('--subject='));
 
+/** A bare `undetermini` is someone looking around: nothing ran, and nothing went
+ *  wrong. Passing eval flags means a run was expected — a CI that gets a zero
+ *  there goes green having evaluated nothing, which is the worst kind of pass. */
+export const gettingStartedExitCode = (argv: readonly string[]): number =>
+  argv.length === 0 ? 0 : 2;
+
 export const GETTING_STARTED = `No undetermini.config.ts found in this directory or any parent.
 
 Declare the subjects you want to evaluate, at the root of your project:

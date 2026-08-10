@@ -1,5 +1,9 @@
 import { loadRegistry, takeConfigFlag } from '@eval/config';
-import { GETTING_STARTED, shouldShowGettingStarted } from './getting-started';
+import {
+  GETTING_STARTED,
+  gettingStartedExitCode,
+  shouldShowGettingStarted,
+} from './getting-started';
 import { runEvalCli } from './runner';
 
 const { configPath, rest } = takeConfigFlag(process.argv.slice(2));
@@ -13,6 +17,7 @@ loadRegistry(configPath, process.cwd(), {
   .then(({ registry, projectDir }) => {
     if (shouldShowGettingStarted(projectDir, rest)) {
       console.log(GETTING_STARTED);
+      process.exitCode = gettingStartedExitCode(rest);
       return;
     }
     return runEvalCli(registry, rest);
