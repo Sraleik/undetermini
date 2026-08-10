@@ -42,6 +42,74 @@ A unit test asks *"does this function compute X correctly?"*. An eval asks
   (and `ANTHROPIC_API_KEY` for Anthropic variants). Only needed for real runs —
   the test suite and typecheck need nothing.
 
+---
+
+## Use it in your project
+
+```bash
+npm install undetermini
+```
+
+Declare what you want to evaluate in an `undetermini.config.ts` at the root of
+your project. The binaries find it by walking up from wherever you run them, the
+way vitest finds `vitest.config.ts`:
+
+```ts
+// undetermini.config.ts
+import { defineConfig } from 'undetermini';
+import { mySubject } from './eval/my-subject';
+
+export default defineConfig({
+  subjects: {
+    'my-subject': {
+      subject: mySubject,
+      evalFile: 'eval/my-subject.ts',
+      casesDir: 'eval/cases',
+      promptsDir: 'eval/prompts',
+      prompts: [],
+      schemas: [],
+    },
+  },
+  defaultSubject: 'my-subject',
+});
+```
+
+That is all the wiring there is. Two commands ship with the package:
+
+| Command                    | What it does                                              |
+| -------------------------- | --------------------------------------------------------- |
+| `undetermini`              | Run the eval from the command line.                        |
+| `undetermini-tui`          | Same runs, interactive: pick axes, watch trials live.      |
+
+```bash
+npx undetermini --subject=my-subject --case-slugs=some-case --trial-count=5
+npx undetermini --config ./path/to/undetermini.config.ts   # bypass discovery
+```
+
+Run either one with no config in sight and it tells you how to write one — it
+will not start billed trials on its own. To watch the harness work on its
+built-in subject, ask for it: `npx undetermini --subject=example` (that one
+calls a real model).
+
+Both binaries read the `.env` sitting at your project root, after moving there.
+**Importing the library does not**: if you write your own entry point that calls
+the runners, loading the environment is yours to do.
+
+### Calling it from your own code
+
+```ts
+import { EvalEngine, openEvalDb } from 'undetermini';          // the engine
+import { runEvalCli, runEvalTui } from 'undetermini/clients';  // the two clients
+```
+
+The clients live at `undetermini/clients` and that subpath is ESM-only — the TUI
+depends on `ink`, whose top-level await cannot be `require`d. The main entry
+point works in both ESM and CommonJS.
+
+---
+
+## Working in this repo
+
 ```bash
 npm install
 ```
@@ -53,7 +121,7 @@ npm install
 | `npm run eval`         | Run the CLI harness (default subject: `example`).                   |
 | `npm run eval:tui`     | Interactive Ink TUI — pick axes, watch trials, sort/aggregate live. |
 | `npm run rescore`      | Retroactively re-score stored trials against the current cases.     |
-| `npm test`             | `vitest` unit suite (129 tests, no network).                        |
+| `npm test`             | `vitest` unit suite (157 tests, no network).                        |
 | `npm run typecheck`    | `tsc --noEmit`.                                                     |
 | `npm run build:docs`   | Generate API docs into `./docs` via typedoc.                        |
 
@@ -79,11 +147,13 @@ src/
 │   ├── rescore/                retroactive rescore
 │   ├── pricing.ts              $/1M-token table
 │   └── telemetry-middleware.ts token + latency capture
+├── config.ts                 ← undetermini.config.ts discovery + defineConfig
 ├── clients/
-│   ├── cli/                   `npm run eval` entry, console printer
-│   └── tui/                   Ink TUI (pages, store, prefs)
+│   ├── index.ts                `undetermini/clients` — the two runners
+│   ├── cli/                    `undetermini` binary, console printer
+│   └── tui/                    `undetermini-tui` binary (pages, store, prefs)
 ├── subjects/
-│   ├── registry.ts            composition root — the ONE place subjects live
+│   ├── registry.ts            the registry contract + the reference registry
 │   └── example-sentiment/     reference subject (inline cases, no I/O)
 └── shared/                    cross-cutting types
 ```
@@ -103,18 +173,21 @@ A subject is anything implementing the `Subject` contract (`src/engine/runner-lo
 [`src/subjects/example-sentiment`](./src/subjects/example-sentiment) for a
 complete, dependency-free reference.
 
-Then register it — one line, no runner edits:
+Then register it — one entry in your `undetermini.config.ts`, no runner edits:
 
 ```ts
-// src/subjects/registry.ts
-export const SUBJECTS: Record<string, RegisteredSubject> = {
-  example: { subject: exampleSentimentSubject, evalFile, casesDir },
-  // myThing: { subject: myThingSubject, evalFile, casesDir },
-};
+export default defineConfig({
+  subjects: {
+    'my-thing': { subject: myThingSubject, evalFile, casesDir, promptsDir },
+  },
+  defaultSubject: 'my-thing',
+});
 ```
 
-Every runner resolves subjects through `resolveSubject(name)`, so a new use
-case never touches the CLI, the TUI, or the engine.
+The registry is the composition root and it belongs to **your** project, not to
+the harness: naming concrete subjects is the one thing a generic eval library
+cannot do for you. Runners resolve through `resolveIn(registry, name)`, so a new
+use case never touches the CLI, the TUI, or the engine.
 
 ---
 
