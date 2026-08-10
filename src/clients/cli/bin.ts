@@ -1,4 +1,5 @@
 import { loadRegistry, takeConfigFlag } from '@eval/config';
+import { GETTING_STARTED, shouldShowGettingStarted } from './getting-started';
 import { runEvalCli } from './runner';
 
 const { configPath, rest } = takeConfigFlag(process.argv.slice(2));
@@ -9,7 +10,13 @@ loadRegistry(configPath, process.cwd(), {
   chdirToProject: true,
   loadEnv: true,
 })
-  .then(({ registry }) => runEvalCli(registry, rest))
+  .then(({ registry, projectDir }) => {
+    if (shouldShowGettingStarted(projectDir, rest)) {
+      console.log(GETTING_STARTED);
+      return;
+    }
+    return runEvalCli(registry, rest);
+  })
   .catch((err: unknown) => {
     console.error(err);
     process.exit(1);
