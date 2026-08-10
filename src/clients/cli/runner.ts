@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { expandCartesian } from '@eval/engine/axes/expand-cartesian';
 import { resolveSysPrompts } from '@eval/engine/axes/resolve-sys-prompts';
 import { EvalEngine } from '@eval/engine/api';
@@ -6,16 +5,27 @@ import { parseEvalArgs } from './cli-args';
 import { subscribeConsolePrinter } from './console-printer';
 import { readGitState } from '@eval/engine/git-state';
 import { writeRunToDb } from '@eval/engine/storage/write';
-import { resolveSubject, DEFAULT_SUBJECT } from '@eval/subjects/registry';
+import type { SubjectRegistry } from '@eval/subjects/registry';
+import { defaultRegistry, resolveIn } from '@eval/subjects/registry';
+import { resolveSchemaAxis } from '@eval/subjects/schema-axis';
 
-const main = async (): Promise<void> => {
-  const args = parseEvalArgs();
+/** Run the eval CLI against a host's subject registry. The published binary
+ *  calls this with the reference registry; a host with its own subjects calls
+ *  it with theirs — the registry is the composition root and belongs to the
+ *  host, not to the harness. */
+export const runEvalCli = async (
+  registry: SubjectRegistry = defaultRegistry,
+  argv: string[] = process.argv.slice(2),
+): Promise<void> => {
+  const args = parseEvalArgs(argv);
 
   const {
     subject: evalSubject,
     evalFile,
     casesDir,
-  } = resolveSubject(args.subject ?? DEFAULT_SUBJECT);
+    promptsDir,
+    schemas,
+  } = resolveIn(registry, args.subject ?? registry.defaultSubject);
 
   let subjectCases = evalSubject.cases;
   let subjectVariants: typeof evalSubject.variants = evalSubject.variants;
@@ -32,12 +42,16 @@ const main = async (): Promise<void> => {
   }
 
   if (args.cartesian) {
-    const sysPrompts = resolveSysPrompts(args.cartesian.sysPromptTokens);
+    const sysPrompts = resolveSysPrompts(
+      args.cartesian.sysPromptTokens,
+      promptsDir,
+    );
     const variants = expandCartesian({
       models: args.cartesian.models,
       reasoningEfforts: args.cartesian.reasoningEfforts,
       thinkingBudgets: args.cartesian.thinkingBudgets,
       sysPrompts,
+      schemas: resolveSchemaAxis(args.cartesian.schemaTokens, schemas),
     });
     if (variants.length === 0) {
       throw new Error(
@@ -98,7 +112,4 @@ const main = async (): Promise<void> => {
   console.log(`Run id: ${runId}`);
 };
 
-main().catch((err: unknown) => {
-  console.error(err);
-  process.exit(1);
-});
+

@@ -17,7 +17,57 @@ import {
   EXAMPLE_SENTIMENT_CASES_DIR,
 } from '@eval/subjects/example-sentiment';
 
-export type RegisteredSubject = {
+export const PROMPT_KIND = {
+  BASELINE: 'baseline',
+  ITERATION: 'iteration',
+} as const;
+
+export type PromptKind = (typeof PROMPT_KIND)[keyof typeof PROMPT_KIND];
+
+/** A declared system-prompt experiment. `name` is the `--sys-prompts` token and
+ *  the stem of a `*.md` file under the subject's `promptsDir`. Membership is
+ *  structural — a prompt belongs to the subject whose list holds it — so there
+ *  is no `subject` field to filter on and no way for one subject's lineage to
+ *  leak into another's selector. */
+export type RegisteredPrompt =
+  | { name: string; kind: typeof PROMPT_KIND.BASELINE; description?: string }
+  | {
+      name: string;
+      kind: typeof PROMPT_KIND.ITERATION;
+      /** The prompt this one diverges from — the lineage link the selector
+       *  walks transitively to decide what to show. */
+      iteratesOn: string;
+      description?: string;
+    };
+
+export const SCHEMA_KIND = {
+  BASELINE: 'baseline',
+  ABLATION: 'ablation',
+  ITERATION: 'iteration',
+} as const;
+
+export type SchemaKind = (typeof SCHEMA_KIND)[keyof typeof SCHEMA_KIND];
+
+type RegisteredSchemaBase<TSchema> = {
+  /** CLI token and `sch-` segment of the variant name. */
+  name: string;
+  /** One-line description shown in the selector. */
+  description: string;
+  /** The concrete schema the subject injects into its own `runOne`. The harness
+   *  never inspects it — it only ever displays the metadata above — which is why
+   *  this is a type parameter and not a validator type. A host using zod passes
+   *  `RegisteredSchema<z.ZodType>`; the harness takes no dependency on it. */
+  schema: TSchema;
+};
+
+export type RegisteredSchema<TSchema = unknown> =
+  | (RegisteredSchemaBase<TSchema> & { kind: typeof SCHEMA_KIND.BASELINE })
+  | (RegisteredSchemaBase<TSchema> & {
+      kind: typeof SCHEMA_KIND.ABLATION | typeof SCHEMA_KIND.ITERATION;
+      iteratesOn: string;
+    });
+
+export type RegisteredSubject<TSchema = unknown> = {
   /** The subject under test. Typed loosely at the registry boundary: each
    *  subject narrows `EvalCase` generics internally, but the runner only touches
    *  `name` / `cases` / `variants` / `runOne`, which are variant-shape-stable.
@@ -27,6 +77,15 @@ export type RegisteredSubject = {
   evalFile: string;
   /** Source path of the subject's cases. */
   casesDir: string;
+  /** Directory holding this subject's `*.md` system-prompt files. Omit when the
+   *  subject has no prompt library; the selector then offers only
+   *  `default (baseline)`. */
+  promptsDir?: string;
+  /** This subject's prompt library. */
+  prompts?: readonly RegisteredPrompt[];
+  /** This subject's schema library. A schema shared by three subjects is listed
+   *  in all three — the repetition is a reference, not a copy. */
+  schemas?: readonly RegisteredSchema<TSchema>[];
 };
 
 export const SUBJECTS: Record<string, RegisteredSubject> = {
@@ -47,6 +106,34 @@ export const resolveSubject = (name: string): RegisteredSubject => {
   if (entry === undefined) {
     throw new Error(
       `Unknown --subject="${name}". Available: ${Object.keys(SUBJECTS).join(', ')}.`,
+    );
+  }
+  return entry;
+};
+
+/** A host's subject registry: the set of runnable subjects plus which one runs
+ *  when `--subject` is omitted. This is the composition root — it names concrete
+ *  subjects, so it belongs to the host application, never to the harness. */
+export type SubjectRegistry = {
+  subjects: Record<string, RegisteredSubject>;
+  defaultSubject: string;
+};
+
+/** The registry the published binaries fall back on: the reference subject that
+ *  ships with the harness, so `npx undetermini` runs out of the box. */
+export const defaultRegistry: SubjectRegistry = {
+  subjects: SUBJECTS,
+  defaultSubject: DEFAULT_SUBJECT,
+};
+
+export const resolveIn = (
+  registry: SubjectRegistry,
+  name: string,
+): RegisteredSubject => {
+  const entry = registry.subjects[name];
+  if (entry === undefined) {
+    throw new Error(
+      `Unknown --subject="${name}". Available: ${Object.keys(registry.subjects).join(', ')}.`,
     );
   }
   return entry;

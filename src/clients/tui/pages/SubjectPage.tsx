@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import type { RegisteredSubject } from '@eval/subjects/registry';
+import { cycleListIndex } from '../cycle-index';
 
 export type SubjectPageProps = {
   /** The full registry — one row per registered subject. */
@@ -26,11 +27,11 @@ export const SubjectPage: React.FC<SubjectPageProps> = ({
 
   useInput((input, key) => {
     if (key.upArrow) {
-      setFocusedIdx((prev) => Math.max(0, prev - 1));
+      setFocusedIdx((prev) => cycleListIndex(prev, -1, names.length));
       return;
     }
     if (key.downArrow) {
-      setFocusedIdx((prev) => Math.min(names.length - 1, prev + 1));
+      setFocusedIdx((prev) => cycleListIndex(prev, 1, names.length));
       return;
     }
     if (key.return) {

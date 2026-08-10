@@ -9,7 +9,7 @@ let dir: string;
 const origXdg = process.env.XDG_CONFIG_HOME;
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'kalent-prefs-'));
+  dir = mkdtempSync(join(tmpdir(), 'undetermini-prefs-'));
   process.env.XDG_CONFIG_HOME = dir;
 });
 
@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe('prefsPath', () => {
   it('honors XDG_CONFIG_HOME', () => {
-    expect(prefsPath()).toBe(join(dir, 'kalent-eval', 'tui.json'));
+    expect(prefsPath()).toBe(join(dir, 'undetermini', 'tui.json'));
   });
 });
 

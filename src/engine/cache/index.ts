@@ -5,7 +5,12 @@ export type {
   CacheMode,
 } from './types';
 export { buildKeyFromCallOptions, type ExtractedKey } from './key-builder';
-export { insertTrial, lookupTrial, type TrialContext } from './trial-cache';
+export {
+  insertTrial,
+  lookupTrial,
+  markTrialFailed,
+  type TrialContext,
+} from './trial-cache';
 export {
   trialCacheMiddleware,
   type TrialCacheMiddlewareOptions,

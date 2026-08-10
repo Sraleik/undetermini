@@ -86,7 +86,9 @@ CREATE TABLE IF NOT EXISTS system_prompts (
 );
 
 -- Content-addressed index of variant configurations.
--- id = sha256({provider, model_id, system_prompt_id, provider_options_json}).
+-- id = sha256({provider, model_id, system_prompt_id, provider_options_json[, extraction_schema_name]}).
+-- The schema-axis key is only included in the hash when set, so pre-axis ids
+-- stay stable for default-schema variants.
 -- A config = a combination of axes. Shared across runs reusing the same config.
 CREATE TABLE IF NOT EXISTS variant_configs (
   id TEXT PRIMARY KEY,
@@ -94,7 +96,8 @@ CREATE TABLE IF NOT EXISTS variant_configs (
   model_id TEXT NOT NULL,
   system_prompt_id TEXT NOT NULL REFERENCES system_prompts(id),
   provider_options_json TEXT,
-  first_seen_at TEXT NOT NULL
+  first_seen_at TEXT NOT NULL,
+  extraction_schema_name TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_variant_configs_prompt ON variant_configs (system_prompt_id);
 CREATE INDEX IF NOT EXISTS idx_variant_configs_model ON variant_configs (model_id);
@@ -130,6 +133,17 @@ const ensureCachedInputTokensColumn = (db: Database.Database): void => {
   }
 };
 
+/** Idempotent migration for the schema-axis label on variant_configs. Same
+ *  PRAGMA-check pattern as above; NULL on historical rows = default schema. */
+const ensureExtractionSchemaNameColumn = (db: Database.Database): void => {
+  const cols = db
+    .prepare("PRAGMA table_info('variant_configs')")
+    .all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'extraction_schema_name')) {
+    db.exec('ALTER TABLE variant_configs ADD COLUMN extraction_schema_name TEXT;');
+  }
+};
+
 let cached: Database.Database | null = null;
 
 // Singleton handle. Cache middleware writes during the run, writeRunToDb writes
@@ -144,6 +158,7 @@ export const openEvalDb = (path: string = DEFAULT_DB_PATH): Database.Database =>
   db.exec(SCHEMA_SQL);
   ensureVariantConfigIdColumn(db);
   ensureCachedInputTokensColumn(db);
+  ensureExtractionSchemaNameColumn(db);
   cached = db;
   return db;
 };

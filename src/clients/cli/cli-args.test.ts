@@ -23,6 +23,7 @@ describe('parseEvalArgs — cartesian mode', () => {
         reasoningEfforts: ['default'],
         thinkingBudgets: ['default'],
         sysPromptTokens: ['default'],
+        schemaTokens: ['default'],
       });
     });
 
@@ -75,7 +76,26 @@ describe('parseEvalArgs — cartesian mode', () => {
     });
   });
 
+  describe('given --models with --schemas', () => {
+    it('passes the raw schema tokens through unresolved', () => {
+      const args = parseEvalArgs([
+        '--models=gpt-4.1-mini',
+        '--schemas=default,no-criteria-v1',
+      ]);
+      expect(args.cartesian?.schemaTokens).toEqual([
+        'default',
+        'no-criteria-v1',
+      ]);
+    });
+  });
+
   describe('given an axis flag without --models', () => {
+    it('throws for --schemas without --models', () => {
+      expect(() => parseEvalArgs(['--schemas=no-criteria-v1'])).toThrow(
+        /require --models/,
+      );
+    });
+
     it('throws explaining --models is required', () => {
       expect(() => parseEvalArgs(['--reasoning-efforts=low'])).toThrow(
         /require --models/,

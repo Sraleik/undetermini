@@ -10,6 +10,7 @@ import {
   type RunCostEstimate,
 } from '../cost-estimate';
 import type { CapturedKey } from '../key-capture-middleware';
+import { summarizeAxes } from '../axis-recap';
 import type { WizardAction, WizardState } from '../store';
 
 export type ConfirmPageProps = {
@@ -46,6 +47,11 @@ export const ConfirmPage: React.FC<ConfirmPageProps> = ({
   const trialCount = Math.max(1, parseInt(trialCountStr || '0', 10) || 0);
 
   const { selectedVariants, selectedCases } = state;
+
+  // What is ABOUT to run, per axis — derived from the selected variants (the
+  // run's source of truth). Guards the "every schema silently on default"
+  // shape: counts alone said nothing about axis VALUES (2026-07-10 incident).
+  const recap = useMemo(() => summarizeAxes(selectedVariants), [selectedVariants]);
 
   // Exact runtime cache keys per (variant×case). Resolved by building the real
   // prompts (no LLM call). Independent of trialCount, so it is NOT recomputed
@@ -131,6 +137,14 @@ export const ConfirmPage: React.FC<ConfirmPageProps> = ({
         </Box>
         <Text>{`  Cases:    ${selectedCases.length}`}</Text>
         <Text>{`  Variants: ${selectedVariants.length}`}</Text>
+        <Text>{`  Models:   ${recap.models.join(', ')}`}</Text>
+        <Text>{`  Prompts:  ${recap.sysPrompts.join(', ')}`}</Text>
+        <Text>{`  Schemas:  ${recap.schemas.join(', ')}`}</Text>
+        {recap.schemasAllDefault && (
+          <Text dimColor>
+            {`            ⚠ no experiment schema selected — every variant runs the live prod schema`}
+          </Text>
+        )}
         <Text>{totalLine}</Text>
         <Text>{costLine}</Text>
       </Box>

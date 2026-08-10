@@ -27,7 +27,7 @@ export const prefsPath = (): string => {
     process.env.XDG_CONFIG_HOME && process.env.XDG_CONFIG_HOME.length > 0
       ? process.env.XDG_CONFIG_HOME
       : join(homedir(), '.config');
-  return join(base, 'kalent-eval', 'tui.json');
+  return join(base, 'undetermini', 'tui.json');
 };
 
 type PrefsFile = {

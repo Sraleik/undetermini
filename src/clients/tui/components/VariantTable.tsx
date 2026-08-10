@@ -22,9 +22,10 @@ export type VariantDescriptor = {
   sysPromptName?: string;
   reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
   thinkingBudgetTokens?: number;
+  extractionSchemaName?: string;
 };
 
-export type AxisKey = 'model' | 'sys' | 'eff' | 'think';
+export type AxisKey = 'model' | 'sys' | 'eff' | 'think' | 'schema';
 
 export type AxisColumn = {
   key: AxisKey;
@@ -42,16 +43,24 @@ export type Column = {
   render: (stats: RunningStats | null) => string;
 };
 
+/** Parse one prefixed axis segment out of a variant name (`<model>__<prefix><value>`).
+ *  Generic inverse of `computeVariantName`'s segment grammar — one parser for
+ *  every axis instead of a hand-copied scanner per prefix. */
+const parseSegment = (
+  variantName: string,
+  prefix: string,
+): string | undefined =>
+  variantName
+    .split('__')
+    .slice(1)
+    .find((s) => s.startsWith(prefix))
+    ?.slice(prefix.length);
+
 /** Parse the sysPrompt segment out of a variant name (`<model>__sys-<name>`).
  *  Lives here so both RunningPage (live) and PostRunPage (from RunResult, which
  *  only carries name+modelId) derive the same value without a cycle. */
-export const parseSysPromptName = (variantName: string): string | undefined => {
-  const segments = variantName.split('__');
-  for (const segment of segments.slice(1)) {
-    if (segment.startsWith('sys-')) return segment.slice('sys-'.length);
-  }
-  return undefined;
-};
+export const parseSysPromptName = (variantName: string): string | undefined =>
+  parseSegment(variantName, 'sys-');
 
 export const METRIC_COLUMNS: Column[] = [
   { key: 'score',     label: 'Score',   width: 7, align: 'right', render: (s) => (s ? pct1(s.avgScore) : EMPTY) },
@@ -102,6 +111,13 @@ export const buildAxisColumns = (
           ? String(v.thinkingBudgetTokens)
           : EMPTY,
       isSet: (v) => v.thinkingBudgetTokens !== undefined,
+    },
+    {
+      key: 'schema',
+      label: 'Schema',
+      width: 0,
+      get: (v) => v.extractionSchemaName ?? 'default',
+      isSet: (v) => v.extractionSchemaName !== undefined,
     },
   ];
   return candidates

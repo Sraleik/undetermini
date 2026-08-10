@@ -79,7 +79,7 @@ export const initialWizardState = (
   subject: { cases: EvalCase[]; variants: ReadonlyArray<EvalVariant> },
   args: EvalCliArgs,
   /**
-   * Persisted display prefs (XDG `kalent-eval/tui.json`), or null when none.
+   * Persisted display prefs (XDG `undetermini/tui.json`), or null when none.
    * Precedence per field: explicit CLI flag > saved pref > built-in default.
    * `--cols`/`--sort` are explicit iff `args.{cols,sort}` is non-null;
    * `--sections` explicitness can't be inferred from args (always a Set), so
@@ -99,6 +99,7 @@ export const initialWizardState = (
       reasoningEfforts: args.cartesian?.reasoningEfforts ?? ['default'],
       thinkingBudgets: args.cartesian?.thinkingBudgets ?? ['default'],
       sysPrompts: ['default'],
+      schemas: ['default'],
     },
     selectedVariants: [],
     display: {

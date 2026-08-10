@@ -1,7 +1,8 @@
-import React from 'react';
-import type { EvalEngine } from '@eval/engine/api';
 import type { EvalVariant } from '@eval/engine/variant';
+import type { EvalEngine } from '@eval/engine/api';
 import type { CacheMode } from '@eval/engine/cache';
+import { formatCaseInputForDisplay } from '@eval/shared/format';
+import React from 'react';
 import { App } from '../app';
 import { parseSysPromptName } from '../components/VariantTable';
 import type { DisplayOptions, WizardAction, WizardState } from '../store';
@@ -43,6 +44,7 @@ export const RunningPage: React.FC<RunningPageProps> = ({
     reasoningEffort: v.provider === 'openai' ? v.reasoningEffort : undefined,
     thinkingBudgetTokens:
       v.provider === 'anthropic' ? v.thinkingBudgetTokens : undefined,
+    extractionSchemaName: v.extractionSchemaName,
   }));
 
   return (
@@ -62,7 +64,12 @@ export const RunningPage: React.FC<RunningPageProps> = ({
       }}
       caseSlugs={state.selectedCases.map((c) => c.slug)}
       caseInputsBySlug={
-        new Map(state.selectedCases.map((c) => [c.slug, String(c.input)]))
+        new Map(
+          state.selectedCases.map((c) => [
+            c.slug,
+            formatCaseInputForDisplay(c.input),
+          ]),
+        )
       }
       variants={variantDescriptors}
       sortSpec={state.display.sort ?? []}

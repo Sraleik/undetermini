@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeFingerprint } from '@eval/engine/storage/fingerprint';
 import { closeEvalDb, openEvalDb } from '@eval/engine/storage/schema';

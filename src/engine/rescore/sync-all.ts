@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import type Database from 'better-sqlite3';
 // The engine stays subject-agnostic: `syncRetroactive` takes the subject as a
 // parameter and never touches a concrete subject. The CLI `main()` below picks
@@ -163,6 +162,10 @@ export const syncRetroactive = <V extends SubjectVariant, TInput, TOutput>(
 };
 
 const main = async (): Promise<void> => {
+  // Same reason as the subject below: this module is re-exported by the public
+  // barrel, so a static `import 'dotenv/config'` would make `import
+  // 'undetermini'` read the host's .env as a side effect of loading the package.
+  await import('dotenv/config');
   // Dynamic import keeps the concrete subject out of module load — the engine
   // stays pure; only the CLI entry pulls a subject.
   const { exampleSentimentSubject } = await import(

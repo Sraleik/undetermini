@@ -71,3 +71,107 @@ export {
   EXAMPLE_SENTIMENT_CASES_DIR,
 } from './subjects/example-sentiment';
 export type { Sentiment, SentimentVariant } from './subjects/example-sentiment';
+
+// ── Surface consumed by a host app that keeps its own subjects and clients ──
+// Kalent's `eval/` keeps its subject registry, its retrieval layer and its
+// CLI/TUI, and imports the whole engine from here. Everything below is what
+// those files reach for; it is public API, not an implementation leak.
+
+// Text comparison helpers used by case assertions
+export { normalizeText, tokensInclude } from './engine/text-utils';
+
+// Telemetry
+export { telemetryMiddleware } from './engine/telemetry-middleware';
+export type { TelemetrySink } from './engine/telemetry-middleware';
+
+// Model capabilities (the model axis)
+export {
+  MODEL_CAPABILITIES,
+  getProvider,
+  knownModelIds,
+  supportsReasoningEffort,
+  supportsThinkingBudget,
+  toOpenAiReasoningEffort,
+} from './engine/axes/model-capabilities';
+
+// Provider discriminant
+export type { Provider } from './engine/variant';
+
+// Axes: declaration and cartesian expansion
+export type {
+  AxisInputs,
+  AxisModelEntry,
+  ReasoningEffortValue,
+  SchemaAxisValue,
+  SysPromptAxisValue,
+} from './engine/axes/axis-inputs';
+export {
+  expandCartesian,
+  expandCartesianDetailed,
+} from './engine/axes/expand-cartesian';
+export type { DroppedCombo } from './engine/axes/expand-cartesian';
+
+// System-prompt axis
+export {
+  DEFAULT_PROMPTS_DIR,
+  resolveSysPrompts,
+} from './engine/axes/resolve-sys-prompts';
+
+// Storage
+export { openEvalDb, closeEvalDb } from './engine/storage/schema';
+export { writeRunToDb } from './engine/storage/write';
+
+// Cache key derivation
+export { buildKeyFromCallOptions } from './engine/cache/key-builder';
+
+// Assertion categories
+export { CATEGORY_DESCRIPTIONS_FR } from './engine/categories';
+
+// Pricing provenance
+export { PRICING_VERIFIED_AT } from './engine/pricing';
+
+// Run provenance
+export { readGitState } from './engine/git-state';
+
+// Display formatting shared by clients
+export {
+  pct1,
+  usd,
+  ms,
+  formatCaseInputForDisplay,
+  formatEvalError,
+  logEvalTrialFailure,
+} from './shared/format';
+
+// Tokenisation used to build case assertions
+export { tokensOf } from './engine/text-utils';
+
+// Stable hashing — the same function that derives cache keys and fingerprints
+export { sha256 } from './engine/cache/hash';
+
+// Retroactive rescoring of stored trials
+export { syncRetroactive } from './engine/rescore/sync-all';
+
+// Event stream contract consumed by clients that render a live run
+export type { EventSubscribable } from './shared/types';
+
+// Subject-carried libraries: a subject declares its own prompts and schemas,
+// so no client ever reaches for a global registry.
+export { PROMPT_KIND, SCHEMA_KIND } from './subjects/registry';
+export type {
+  PromptKind,
+  SchemaKind,
+  RegisteredPrompt,
+  RegisteredSchema,
+} from './subjects/registry';
+export { resolveSchemaAxis } from './subjects/schema-axis';
+
+// The runners live at `undetermini/clients`, not here: the TUI reaches `ink`,
+// whose top-level await would make this barrel impossible to `require`.
+export type { SubjectRegistry } from './subjects/registry';
+export { defaultRegistry, resolveIn } from './subjects/registry';
+
+// Config discovery: a host declares its subjects in undetermini.config.ts and
+// runs the shipped binaries, the way vitest resolves vitest.config.ts.
+export { defineConfig, loadRegistry, findConfigFile } from './config';
+export type { UndeterminiConfig } from './config';

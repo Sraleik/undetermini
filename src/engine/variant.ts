@@ -12,6 +12,8 @@
  * It previously lived inside the kalent NL-filter subject; it is generic, so it
  * belongs in the engine. Subjects and clients import it from here.
  */
+export type Provider = 'openai' | 'anthropic' | 'google';
+
 export type EvalVariant =
   | {
       name: string;
@@ -23,6 +25,10 @@ export type EvalVariant =
       /** Optional override of the subject's default system prompt. When set, it
        *  is hashed into the variant's `variant_config_id` and used at call time. */
       systemPrompt?: string;
+      /** Optional extraction-schema override BY NAME (schema axis). Resolved by
+       *  the subject; absent = the subject's live schema. Hashed into
+       *  `variant_config_id`; byte-truth stays schemaSha/static_hash. */
+      extractionSchemaName?: string;
     }
   | {
       name: string;
@@ -33,4 +39,17 @@ export type EvalVariant =
       thinkingBudgetTokens?: number;
       /** Optional override of the subject's default system prompt. See OpenAI branch. */
       systemPrompt?: string;
+      /** Optional extraction-schema override BY NAME. See OpenAI branch. */
+      extractionSchemaName?: string;
+    }
+  | {
+      name: string;
+      provider: 'google';
+      modelId: string;
+      /** No Google-specific reasoning axis wired yet: the variant runs with
+       *  provider defaults. JSON is enforced by a cleaned responseSchema
+       *  (structuredOutputs) — no repair, no retry. */
+      systemPrompt?: string;
+      /** Optional extraction-schema override BY NAME. See OpenAI branch. */
+      extractionSchemaName?: string;
     };

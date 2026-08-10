@@ -1,15 +1,16 @@
 import type { LanguageModelV3Middleware } from '@ai-sdk/provider';
-import pLimit from 'p-limit';
-import { readGitState } from './git-state';
 import type { CacheMode } from '@eval/engine/cache';
-import { trialCacheMiddleware } from '@eval/engine/cache';
+import { markTrialFailed, trialCacheMiddleware } from '@eval/engine/cache';
 import type { CallTelemetry } from '@eval/engine/telemetry-middleware';
+import pLimit from 'p-limit';
+import { formatEvalError, logEvalTrialFailure } from '../shared/format';
+import type { TrialCompletedPayload } from '../shared/types';
+import { readGitState } from './git-state';
 import { computeCost } from './pricing';
 import type { ScoreResult } from './scorers';
 import { caseAssertionsScorer, isPerfectTrial } from './scorers';
 import { prepareVariantConfigs } from './storage/variant-config-id';
 import type { CaseAssertion, EvalCase } from './types';
-import type { TrialCompletedPayload } from '../shared/types';
 
 export type SubjectVariant = {
   name: string;
@@ -156,14 +157,13 @@ const aggregateCase = (trials: TrialResult[]): CaseResult['aggregate'] => {
       .map((t) => t.estimatedCostUsd ?? 0)
       .reduce((a, b) => a + b, 0),
     cacheHits: trials.filter((t) => t.cacheHit).length,
-    freshCalls: trials.filter((t) => !t.cacheHit && t.status === 'success').length,
+    freshCalls: trials.filter((t) => !t.cacheHit && t.status === 'success')
+      .length,
     errorCalls: trials.filter((t) => t.status === 'fail').length,
   };
 };
 
-const aggregateVariant = (
-  cases: CaseResult[],
-): VariantResult['aggregate'] => {
+const aggregateVariant = (cases: CaseResult[]): VariantResult['aggregate'] => {
   const caseScores = cases.map((c) => c.aggregate.score);
   const allTrials = cases.flatMap((c) => c.trials);
   // Fraction of perfect trials (see isPerfectTrial). Errored trials are excluded
@@ -188,7 +188,8 @@ const aggregateVariant = (
       .map((c) => c.aggregate.totalCostUsd)
       .reduce((a, b) => a + b, 0),
     cacheHits: allTrials.filter((t) => t.cacheHit).length,
-    freshCalls: allTrials.filter((t) => !t.cacheHit && t.status === 'success').length,
+    freshCalls: allTrials.filter((t) => !t.cacheHit && t.status === 'success')
+      .length,
     errorCalls: allTrials.filter((t) => t.status === 'fail').length,
   };
 };
@@ -260,8 +261,16 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
             onMiss: (entry) => {
               stats.trialId = entry.trialId;
             },
-            onFail: (trialId) => {
+            onFail: (trialId, error) => {
               stats.trialId = trialId;
+              logEvalTrialFailure({
+                variantName: job.variant.name,
+                caseSlug: job.caseRef.slug,
+                trialIndex: job.trialIndex,
+                trialId,
+                phase: 'llm',
+                error,
+              });
             },
           }),
         ];
@@ -303,6 +312,21 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
             ),
           };
         } catch (err) {
+          // A fresh trial whose model output was persisted (onMiss) but which
+          // then failed DOWNSTREAM validation: flip that row to `fail` with the
+          // reason, keeping the raw for debugging. Never touch a cache hit — its
+          // row is a shared historical success owned by an earlier run.
+          if (stats.trialId !== null && !stats.hit) {
+            markTrialFailed(stats.trialId, formatEvalError(err));
+          }
+          logEvalTrialFailure({
+            variantName: job.variant.name,
+            caseSlug: job.caseRef.slug,
+            trialIndex: job.trialIndex,
+            trialId: stats.trialId ?? undefined,
+            phase: 'runOne',
+            error: err,
+          });
           trial = {
             index: job.trialIndex,
             status: 'fail',
@@ -310,14 +334,19 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
             output: null,
             score: {
               score: 0,
-              metadata: { passed: [], failed: [], byCategory: {}, allAssertions: [] },
+              metadata: {
+                passed: [],
+                failed: [],
+                byCategory: {},
+                allAssertions: [],
+              },
             },
             latencyMs: 0,
             realLatencyMs: 0,
             cacheHit: false,
             tokens: { input: 0, output: 0, total: 0 },
             estimatedCostUsd: null,
-            error: err instanceof Error ? err.message : String(err),
+            error: formatEvalError(err),
           };
         }
         const key = keyOf(job.variant.name, job.caseRef.slug);

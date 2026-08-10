@@ -13,6 +13,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./clients": {
+      "types": "./dist/clients.d.ts",
+      "import": "./dist/clients.js"
     }
   },
   "files": [
@@ -54,7 +58,8 @@
     "dotenv": "^16.3.1",
     "ink": "^5.2.1",
     "p-limit": "^5.0.0",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "tsx": "^4.7.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -62,9 +67,12 @@
     "@types/react": "^18.2.20",
     "ink-testing-library": "^4.0.0",
     "tsup": "^8.5.1",
-    "tsx": "^4.7.0",
     "typedoc": "^0.26.11",
     "typescript": "^5.6.3",
     "vitest": "^4.1.1"
+  },
+  "bin": {
+    "undetermini": "./dist/cli.js",
+    "undetermini-tui": "./dist/tui.js"
   }
 }

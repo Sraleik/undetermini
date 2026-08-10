@@ -32,11 +32,14 @@ export type CartesianMode = {
   /** Raw `--sys-prompts` tokens — resolved to file contents by the runner via
    *  `resolveSysPrompts`. Kept as strings here so this module stays I/O-free. */
   sysPromptTokens: string[];
+  /** Raw `--schemas` tokens — validated against `REGISTERED_SCHEMAS` by the
+   *  runner. Kept as strings here so this module stays registry-free. */
+  schemaTokens: string[];
 };
 
 export type EvalCliArgs = {
-  /** Which registered subject to run. Null = use the registry default
-   *  (`example`). Resolved to a concrete subject by `resolveSubject`. */
+  /** Which registered subject to run. Null = use the registry default (nl-to-filter-rank).
+   *  Resolved to a concrete subject by `resolveSubject` in the runner. */
   subject: string | null;
   trialCount: number;
   maxConcurrency: number;
@@ -266,16 +269,18 @@ const buildCartesianMode = (
   reasoningEfforts: Array<ReasoningEffortValue | 'default'> | null,
   thinkingBudgets: Array<number | 'default'> | null,
   sysPromptTokens: string[] | null,
+  schemaTokens: string[] | null,
 ): CartesianMode | null => {
   const hasAnyAxisFlag =
     models !== null ||
     reasoningEfforts !== null ||
     thinkingBudgets !== null ||
-    sysPromptTokens !== null;
+    sysPromptTokens !== null ||
+    schemaTokens !== null;
   if (!hasAnyAxisFlag) return null;
   if (models === null) {
     throw new Error(
-      '--reasoning-efforts, --thinking-budgets, --sys-prompts require --models. Pass --models=... to activate cartesian mode (or use `npm run eval:tui` to pick models interactively).',
+      '--reasoning-efforts, --thinking-budgets, --sys-prompts, --schemas require --models. Pass --models=... to activate cartesian mode (or use `npm run eval:tui` to pick models interactively).',
     );
   }
   return {
@@ -283,6 +288,7 @@ const buildCartesianMode = (
     reasoningEfforts: reasoningEfforts ?? ['default'],
     thinkingBudgets: thinkingBudgets ?? ['default'],
     sysPromptTokens: sysPromptTokens ?? ['default'],
+    schemaTokens: schemaTokens ?? ['default'],
   };
 };
 
@@ -304,6 +310,7 @@ export const parseEvalArgs = (
       'reasoning-efforts': { type: 'string' },
       'thinking-budgets': { type: 'string' },
       'sys-prompts': { type: 'string' },
+      schemas: { type: 'string' },
     },
     strict: true,
     allowPositionals: false,
@@ -326,6 +333,7 @@ export const parseEvalArgs = (
       parseReasoningEfforts(values['reasoning-efforts']),
       parseThinkingBudgets(values['thinking-budgets']),
       parseCommaList(values['sys-prompts']),
+      parseCommaList(values['schemas']),
     ),
   };
 };
