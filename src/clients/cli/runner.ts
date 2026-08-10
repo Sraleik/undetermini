@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { expandCartesian } from '@eval/engine/axes/expand-cartesian';
 import { resolveSysPrompts } from '@eval/engine/axes/resolve-sys-prompts';
 import { EvalEngine } from '@eval/engine/api';

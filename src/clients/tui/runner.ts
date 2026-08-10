@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import React from 'react';
 import { render } from 'ink';
 import { parseEvalArgs } from '@eval/clients/cli/cli-args';

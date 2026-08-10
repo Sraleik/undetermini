@@ -78,15 +78,22 @@ export type LoadedRegistry = {
 export const loadRegistry = async (
   explicitPath?: string,
   cwd: string = process.cwd(),
-  opts: { chdirToProject?: boolean } = {},
+  opts: { chdirToProject?: boolean; loadEnv?: boolean } = {},
 ): Promise<LoadedRegistry> => {
   // The chdir has to happen BEFORE the config is imported, not after: a subject
   // module can read files at import time — Kalent's does, loading a prompt from
   // `eval/prompts/` — and by then the working directory is already what decides
   // whether that relative path exists. Opt-in, so importing a config stays a
   // side-effect-free operation for every caller but the binaries.
-  const enter = (dir: string): void => {
+  //
+  // `.env` is read here too, in the same window: after the chdir so it is the
+  // project's file and not the caller's, and before the config module runs so a
+  // subject that builds its provider client at import time still finds its keys.
+  // A static `import 'dotenv/config'` cannot do this — it is hoisted to module
+  // evaluation, long before either.
+  const enter = async (dir: string): Promise<void> => {
     if (opts.chdirToProject === true) process.chdir(dir);
+    if (opts.loadEnv === true) await import('dotenv/config');
   };
   if (explicitPath !== undefined) {
     const path = isAbsolute(explicitPath)
@@ -95,7 +102,7 @@ export const loadRegistry = async (
     if (!existsSync(path)) {
       throw new Error(`--config file not found: ${path}`);
     }
-    enter(dirname(path));
+    await enter(dirname(path));
     return {
       registry: readRegistry(await importConfig(path), path),
       projectDir: dirname(path),
@@ -103,7 +110,7 @@ export const loadRegistry = async (
   }
   const found = findConfigFile(cwd);
   if (found === null) return { registry: defaultRegistry, projectDir: null };
-  enter(dirname(found));
+  await enter(dirname(found));
   return {
     registry: readRegistry(await importConfig(found), found),
     projectDir: dirname(found),
