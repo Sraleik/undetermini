@@ -6,6 +6,12 @@ describe('toOpenAiReasoningEffort', () => {
     expect(toOpenAiReasoningEffort('gpt-5.4', 'minimal')).toBe('none');
     expect(toOpenAiReasoningEffort('gpt-5.4-mini', 'minimal')).toBe('none');
     expect(toOpenAiReasoningEffort('gpt-5.5', 'minimal')).toBe('none');
+    expect(toOpenAiReasoningEffort('gpt-5.6-sol', 'minimal')).toBe('none');
+    expect(toOpenAiReasoningEffort('gpt-5.6', 'minimal')).toBe('none');
+  });
+
+  it('does not map minimal for gpt-6-astra (no none/minimal support)', () => {
+    expect(toOpenAiReasoningEffort('gpt-6-astra', 'minimal')).toBe('minimal');
   });
 
   it('keeps minimal for gpt-5 family models', () => {

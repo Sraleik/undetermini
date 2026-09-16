@@ -3,7 +3,7 @@ import type { ReasoningEffortValue } from './axis-inputs';
 /**
  * Per-model declaration of which axes the API accepts.
  *
- * Sources (verified 2026-07-09):
+ * Sources (verified 2026-09-16):
  * - OpenAI: `reasoning_effort` is accepted only by reasoning models (o-series, gpt-5*).
  *   The gpt-4.1-* and gpt-4o-* families ignore it silently — we treat that as "not supported"
  *   to keep variants honest.
@@ -49,6 +49,16 @@ const O_MINI_REASONING_EFFORT = [
   'medium',
   'high',
 ] as const satisfies ReadonlyArray<ReasoningEffortValue>;
+
+/** gpt-6-astra — low/medium/high only (no none/minimal). API also supports xhigh/max. */
+const GPT6_ASTRA_REASONING_EFFORT = [
+  'low',
+  'medium',
+  'high',
+] as const satisfies ReadonlyArray<ReasoningEffortValue>;
+
+/** gpt-5.3-codex — low/medium/high (API also supports xhigh). */
+const GPT53_CODEX_REASONING_EFFORT = O_MINI_REASONING_EFFORT;
 
 export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   // OpenAI — non-reasoning families
@@ -122,6 +132,37 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
     reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
     reasoningEffortMinimalMapsToNone: true,
   },
+  // OpenAI — gpt-5.3 codex (agentic coding)
+  'gpt-5.3-codex': {
+    provider: 'openai',
+    reasoningEffort: GPT53_CODEX_REASONING_EFFORT,
+  },
+  // OpenAI — gpt-5.6 reasoning family (Sol = flagship; Terra ≈ mini; Luna ≈ nano)
+  'gpt-5.6': {
+    provider: 'openai',
+    reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
+    reasoningEffortMinimalMapsToNone: true,
+  },
+  'gpt-5.6-sol': {
+    provider: 'openai',
+    reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
+    reasoningEffortMinimalMapsToNone: true,
+  },
+  'gpt-5.6-terra': {
+    provider: 'openai',
+    reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
+    reasoningEffortMinimalMapsToNone: true,
+  },
+  'gpt-5.6-luna': {
+    provider: 'openai',
+    reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
+    reasoningEffortMinimalMapsToNone: true,
+  },
+  // OpenAI — gpt-6 reasoning family
+  'gpt-6-astra': {
+    provider: 'openai',
+    reasoningEffort: GPT6_ASTRA_REASONING_EFFORT,
+  },
   // OpenAI — o-series reasoning family
   'o1': {
     provider: 'openai',
@@ -164,9 +205,17 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   // Google — Vertex Express via GOOGLE_GENERATIVE_AI_API_KEY. No
   // reasoning/thinking axis wired: variants run with provider defaults, JSON
   // enforced by a cleaned responseSchema (structuredOutputs, no repair/retry).
+  'gemini-3.8-flash': { provider: 'google' },
+  'gemini-3.7-flash': { provider: 'google' },
+  'gemini-3.6-flash': { provider: 'google' },
   'gemini-3.5-flash': { provider: 'google' },
+  'gemini-3.5-flash-lite': { provider: 'google' },
+  'gemini-3.1-flash-lite': { provider: 'google' },
   'gemini-3.1-pro-preview': { provider: 'google' },
   'gemini-3-flash-preview': { provider: 'google' },
+  'gemini-2.5-pro': { provider: 'google' },
+  'gemini-2.5-flash': { provider: 'google' },
+  'gemini-2.5-flash-lite': { provider: 'google' },
 };
 
 const getCapability = (modelId: string): ModelCapability | undefined =>
