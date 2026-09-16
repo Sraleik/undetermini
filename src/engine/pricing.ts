@@ -1,6 +1,6 @@
 // USD per 1M tokens. Verification cadence + sources documented in eval/PRICING.md —
 // re-fetch monthly.
-export const PRICING_VERIFIED_AT = '2026-07-09';
+export const PRICING_VERIFIED_AT = '2026-09-16';
 
 export const PRICING_SOURCES = {
   openai: 'https://developers.openai.com/api/docs/pricing',
@@ -9,6 +9,7 @@ export const PRICING_SOURCES = {
   openaiPromptCaching:
     'https://developers.openai.com/api/docs/guides/prompt-caching',
   anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
+  google: 'https://ai.google.dev/gemini-api/docs/pricing',
 } as const;
 
 export const MODEL_PRICING_USD_PER_1M: Record<
@@ -40,6 +41,15 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // OpenAI gpt-5.5 family (reasoning).
   'gpt-5.5': { input: 5.0, output: 30.0, cachedInput: 0.5 },
   'gpt-5.5-pro': { input: 30.0, output: 180.0, cachedInput: 30.0 },
+  // OpenAI gpt-5.3 codex (agentic coding).
+  'gpt-5.3-codex': { input: 1.75, output: 14.0, cachedInput: 0.175 },
+  // OpenAI gpt-5.6 family (reasoning). Verified 2026-09-16 (developers.openai.com/api/docs/pricing).
+  'gpt-5.6': { input: 4.0, output: 20.0, cachedInput: 0.4 },
+  'gpt-5.6-sol': { input: 4.0, output: 20.0, cachedInput: 0.4 },
+  'gpt-5.6-terra': { input: 2.0, output: 12.0, cachedInput: 0.2 },
+  'gpt-5.6-luna': { input: 0.2, output: 1.2, cachedInput: 0.02 },
+  // OpenAI gpt-6 family (reasoning).
+  'gpt-6-astra': { input: 10.0, output: 50.0, cachedInput: 1.0 },
   // OpenAI o-series (reasoning).
   'o1': { input: 15.0, output: 60.0, cachedInput: 7.5 },
   'o1-pro': { input: 150.0, output: 600.0, cachedInput: 150.0 },
@@ -57,6 +67,20 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // 2026-08-31 — using standard rate). Verified 2026-07-09 (claude-api skill).
   'claude-opus-4-8': { input: 5.0, output: 25.0, cachedInput: 0.5 },
   'claude-sonnet-5': { input: 3.0, output: 15.0, cachedInput: 0.3 },
+  // Google Gemini — standard paid tier. Verified 2026-09-16 (ai.google.dev/gemini-api/docs/pricing).
+  // 3.8/3.7/3.6 Flash: promo rates through 2026-12-31 ($0.75/$3.75).
+  'gemini-3.8-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
+  'gemini-3.7-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
+  'gemini-3.6-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
+  'gemini-3.5-flash': { input: 1.5, output: 9.0, cachedInput: 0.15 },
+  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5, cachedInput: 0.03 },
+  'gemini-3.1-flash-lite': { input: 0.25, output: 1.5, cachedInput: 0.025 },
+  // Pro / preview — ≤200k context tier.
+  'gemini-3.1-pro-preview': { input: 2.0, output: 12.0, cachedInput: 0.2 },
+  'gemini-3-flash-preview': { input: 0.5, output: 3.0, cachedInput: 0.05 },
+  'gemini-2.5-pro': { input: 1.25, output: 10.0, cachedInput: 0.125 },
+  'gemini-2.5-flash': { input: 0.3, output: 2.5, cachedInput: 0.03 },
+  'gemini-2.5-flash-lite': { input: 0.1, output: 0.4, cachedInput: 0.01 },
 };
 
 /**
