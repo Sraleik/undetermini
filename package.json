@@ -33,6 +33,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsup",
+    "prepare": "npm run build",
     "build:docs": "typedoc",
     "prepublishOnly": "npm run build"
   },
