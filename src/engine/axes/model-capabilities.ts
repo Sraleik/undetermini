@@ -194,6 +194,7 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   },
   // Anthropic — adaptive thinking only (rejects budget_tokens)
   'claude-opus-4-7': { provider: 'anthropic', thinking: 'adaptive' },
+  'claude-opus-5-5': { provider: 'anthropic', thinking: 'adaptive' },
   // Anthropic — budget_tokens supported
   'claude-opus-4-6': { provider: 'anthropic', thinking: 'budget' },
   'claude-sonnet-4-6': { provider: 'anthropic', thinking: 'budget' },
