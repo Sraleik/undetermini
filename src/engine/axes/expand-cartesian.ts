@@ -116,9 +116,11 @@ export const expandCartesianDetailed = (
           continue;
         }
 
-        if (model.provider === 'google') {
-          // No provider-specific axis wired for Google yet — one variant per
-          // (model, sysPrompt, schema); reasoningEfforts / thinkingBudgets are dropped.
+        if (model.provider === 'google' || model.provider === 'openrouter') {
+          // No provider-specific axis wired for Google or OpenRouter — one variant
+          // per (model, sysPrompt, schema); reasoningEfforts / thinkingBudgets are
+          // dropped. OpenRouter MUST branch here: the fallthrough below treats the
+          // model as Anthropic and would hand it a thinking budget.
           const name = computeVariantName({
             modelId: model.modelId,
             sysPromptName,
@@ -128,7 +130,7 @@ export const expandCartesianDetailed = (
           seenNames.add(name);
           variants.push({
             name,
-            provider: 'google',
+            provider: model.provider,
             modelId: model.modelId,
             ...axisOverrides,
           });

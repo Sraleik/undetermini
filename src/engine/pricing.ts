@@ -10,6 +10,7 @@ export const PRICING_SOURCES = {
     'https://developers.openai.com/api/docs/guides/prompt-caching',
   anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
   google: 'https://ai.google.dev/gemini-api/docs/pricing',
+  deepseek: 'https://api-docs.deepseek.com/quick_start/pricing',
 } as const;
 
 export const MODEL_PRICING_USD_PER_1M: Record<
@@ -81,6 +82,13 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   'gemini-2.5-pro': { input: 1.25, output: 10.0, cachedInput: 0.125 },
   'gemini-2.5-flash': { input: 0.3, output: 2.5, cachedInput: 0.03 },
   'gemini-2.5-flash-lite': { input: 0.1, output: 0.4, cachedInput: 0.01 },
+  // DeepSeek (called via OpenRouter) — official DeepSeek list price, PEAK rate.
+  // Verified 2026-10-05 (api-docs.deepseek.com/quick_start/pricing). Off-peak is
+  // half; peak = 01:00-04:00 and 06:00-10:00 UTC, Mon-Fri. An ESTIMATE: OpenRouter
+  // spreads requests over many hosts whose prices differ up to 10x unless the
+  // subject pins one. `cachedInput` = DeepSeek's cache-hit rate.
+  'deepseek/deepseek-v4.1-flash': { input: 0.3, output: 1.2, cachedInput: 0.006 },
+  'deepseek/deepseek-v4-pro-0813': { input: 1.32, output: 3.96, cachedInput: 0.044 },
 };
 
 /**

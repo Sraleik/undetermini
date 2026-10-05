@@ -19,7 +19,7 @@
 export type ReasoningEffortValue = 'minimal' | 'low' | 'medium' | 'high';
 
 export type AxisModelEntry = {
-  provider: 'openai' | 'anthropic' | 'google';
+  provider: 'openai' | 'anthropic' | 'google' | 'openrouter';
   modelId: string;
 };
 
