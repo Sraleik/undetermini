@@ -205,6 +205,8 @@ const REASONING_EFFORT_VALUES: ReadonlyArray<ReasoningEffortValue> = [
   'high',
 ];
 
+const OPENROUTER_PREFIX = 'openrouter:';
+
 const parseModels = (raw: string | undefined): AxisModelEntry[] | null => {
   if (raw === undefined) return null;
   const items = raw
@@ -213,10 +215,21 @@ const parseModels = (raw: string | undefined): AxisModelEntry[] | null => {
     .filter(Boolean);
   if (items.length === 0) return null;
   return items.map((modelId) => {
+    // `openrouter:<id>` bypasses the catalog: everything after the prefix is the
+    // OpenRouter model id, slash included, stored without the prefix.
+    if (modelId.startsWith(OPENROUTER_PREFIX)) {
+      const openRouterId = modelId.slice(OPENROUTER_PREFIX.length);
+      if (openRouterId === '') {
+        throw new Error(
+          `--models=${raw} contains '${OPENROUTER_PREFIX}' without a model id. Expected e.g. ${OPENROUTER_PREFIX}deepseek/deepseek-chat.`,
+        );
+      }
+      return { provider: 'openrouter', modelId: openRouterId };
+    }
     const provider = getProvider(modelId);
     if (provider === undefined) {
       throw new Error(
-        `--models=${raw} contains unknown model '${modelId}'. Known: ${knownModelIds().join(', ')}. Add new models to MODEL_CAPABILITIES in eval/axes/model-capabilities.ts.`,
+        `--models=${raw} contains unknown model '${modelId}'. Known: ${knownModelIds().join(', ')}. Add new models to MODEL_CAPABILITIES in src/engine/axes/model-capabilities.ts, or pass any OpenRouter model as ${OPENROUTER_PREFIX}<id> (e.g. ${OPENROUTER_PREFIX}deepseek/deepseek-chat).`,
       );
     }
     return { provider, modelId };

@@ -17,7 +17,7 @@ import type { ReasoningEffortValue } from './axis-inputs';
  */
 
 type ModelCapability = {
-  provider: 'openai' | 'anthropic' | 'google';
+  provider: 'openai' | 'anthropic' | 'google' | 'openrouter';
   /** Reasoning effort values the model accepts. Absent = not a reasoning model. */
   reasoningEffort?: ReadonlyArray<ReasoningEffortValue>;
   /** When true, the eval axis value `minimal` is sent to the API as `none` (gpt-5.1+). */
@@ -194,6 +194,7 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   },
   // Anthropic — adaptive thinking only (rejects budget_tokens)
   'claude-opus-4-7': { provider: 'anthropic', thinking: 'adaptive' },
+  'claude-opus-5-5': { provider: 'anthropic', thinking: 'adaptive' },
   // Anthropic — budget_tokens supported
   'claude-opus-4-6': { provider: 'anthropic', thinking: 'budget' },
   'claude-sonnet-4-6': { provider: 'anthropic', thinking: 'budget' },
@@ -216,6 +217,13 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   'gemini-2.5-pro': { provider: 'google' },
   'gemini-2.5-flash': { provider: 'google' },
   'gemini-2.5-flash-lite': { provider: 'google' },
+  // DeepSeek — via OpenRouter (OPENROUTER_API_KEY); the key is the OpenRouter id,
+  // slash included. Only the two models DeepSeek still serves first-party
+  // (api-docs.deepseek.com/quick_start/pricing, verified 2026-10-05). Both think
+  // by default; no reasoning axis wired — provider defaults only. Any other
+  // OpenRouter model stays reachable from the CLI as `openrouter:<id>`.
+  'deepseek/deepseek-v4.1-flash': { provider: 'openrouter' },
+  'deepseek/deepseek-v4-pro-0813': { provider: 'openrouter' },
 };
 
 const getCapability = (modelId: string): ModelCapability | undefined =>
