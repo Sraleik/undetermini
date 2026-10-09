@@ -68,6 +68,8 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // 2026-08-31 — using standard rate). Verified 2026-07-09 (claude-api skill).
   'claude-opus-4-8': { input: 5.0, output: 25.0, cachedInput: 0.5 },
   'claude-sonnet-5': { input: 3.0, output: 15.0, cachedInput: 0.3 },
+  // Haiku 4.5, prompts ≤100k tokens. Verified 2026-10-09 (platform.claude.com/docs/en/about-claude/pricing).
+  'claude-haiku-4-5-20251001': { input: 1.0, output: 5.0, cachedInput: 0.1 },
   // Google Gemini — standard paid tier. Verified 2026-09-16 (ai.google.dev/gemini-api/docs/pricing).
   // 3.8/3.7/3.6 Flash: promo rates through 2026-12-31 ($0.75/$3.75).
   'gemini-3.8-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },

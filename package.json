@@ -55,7 +55,7 @@
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/provider": "^3.0.8",
     "ai": "^6.0.116",
-    "better-sqlite3": "^11.10.0",
+    "better-sqlite3": "^13.0.3",
     "dotenv": "^16.3.1",
     "ink": "^5.2.1",
     "p-limit": "^5.0.0",
