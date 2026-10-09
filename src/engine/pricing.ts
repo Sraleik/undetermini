@@ -91,6 +91,11 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // subject pins one. `cachedInput` = DeepSeek's cache-hit rate.
   'deepseek/deepseek-v4.1-flash': { input: 0.3, output: 1.2, cachedInput: 0.006 },
   'deepseek/deepseek-v4-pro-0813': { input: 1.32, output: 3.96, cachedInput: 0.044 },
+  // OpenAI models routed through OpenRouter — a single first-party host (unlike
+  // DeepSeek's multi-host spread above), billed at OpenAI's own list price with no
+  // markup. Same number as the bare `gpt-4.1-mini` entry; kept separate because the
+  // OpenRouter model id carries the `openai/` prefix. Verified 2026-10-09.
+  'openai/gpt-4.1-mini': { input: 0.4, output: 1.6, cachedInput: 0.1 },
 };
 
 /**
