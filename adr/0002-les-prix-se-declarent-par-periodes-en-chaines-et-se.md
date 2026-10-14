@@ -1,7 +1,7 @@
 ---
 id: "0002"
 title: "Les prix se déclarent par périodes, en chaînes, et se calculent avec dinero.js"
-status: proposed
+status: accepted
 date: 2026-10-14
 tags: ["models", "pricing"]
 supersedes: []

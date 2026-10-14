@@ -1,7 +1,7 @@
 ---
 id: "0003"
 title: "Les modèles vivent dans la config du projet, l'export ne la modifie jamais en place"
-status: proposed
+status: accepted
 date: 2026-10-14
 tags: ["models", "config"]
 supersedes: []

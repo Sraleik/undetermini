@@ -1,7 +1,7 @@
 ---
 id: "0001"
 title: "Les réglages d'un modèle sont opaques pour la lib, typés par le projet"
-status: proposed
+status: accepted
 date: 2026-10-14
 tags: ["models", "settings"]
 supersedes: []
