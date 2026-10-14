@@ -178,7 +178,7 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
     reasoningEffortMinimalMapsToNone: true,
   },
   // OpenAI — o-series reasoning family
-  'o1': {
+  o1: {
     provider: 'openai',
     reasoningEffort: O_MINI_REASONING_EFFORT,
   },
@@ -190,7 +190,7 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
     provider: 'openai',
     reasoningEffort: O_MINI_REASONING_EFFORT,
   },
-  'o3': {
+  o3: {
     provider: 'openai',
     reasoningEffort: O_MINI_REASONING_EFFORT,
   },
@@ -219,7 +219,6 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   'claude-sonnet-5': { provider: 'anthropic', thinking: 'adaptive' },
   // Anthropic — adaptive thinking (rejects budget_tokens)
   'claude-fable-5-1': { provider: 'anthropic', thinking: 'adaptive' },
-  'claude-opus-5-5': { provider: 'anthropic', thinking: 'adaptive' },
   'claude-sonnet-5-5': { provider: 'anthropic', thinking: 'adaptive' },
   'claude-haiku-5-5': { provider: 'anthropic', thinking: 'adaptive' },
   // Google — Vertex Express via GOOGLE_GENERATIVE_AI_API_KEY. No
@@ -249,7 +248,8 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
 const getCapability = (modelId: string): ModelCapability | undefined =>
   MODEL_CAPABILITIES[modelId];
 
-export const getProvider = (modelId: string) => getCapability(modelId)?.provider;
+export const getProvider = (modelId: string) =>
+  getCapability(modelId)?.provider;
 
 export const supportsReasoningEffort = (
   modelId: string,
