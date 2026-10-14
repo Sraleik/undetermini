@@ -10,6 +10,7 @@ export const PRICING_SOURCES = {
     'https://developers.openai.com/api/docs/guides/prompt-caching',
   anthropic: 'https://platform.claude.com/docs/en/about-claude/pricing',
   google: 'https://ai.google.dev/gemini-api/docs/pricing',
+  deepseek: 'https://api-docs.deepseek.com/quick_start/pricing',
 } as const;
 
 export const MODEL_PRICING_USD_PER_1M: Record<
@@ -72,7 +73,6 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // Opus 4.8 same tier as 4.7 ($5/$25). Sonnet 5 standard $2/$10. Verified
   // 2026-10-14 (platform.claude.com/docs/en/about-claude/pricing).
   'claude-opus-4-8': { input: 5.0, output: 25.0, cachedInput: 0.5 },
-  'claude-sonnet-5': { input: 2.0, output: 10.0, cachedInput: 0.2 },
   // 5.x — cache read at 0.05× base on Opus/Sonnet 5.5; 0.025× on Fable 5.1.
   'claude-fable-5-1': { input: 10.0, output: 50.0, cachedInput: 0.25 },
   'claude-opus-5-5': { input: 4.0, output: 20.0, cachedInput: 0.2 },
@@ -82,6 +82,10 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // Google Gemini — standard paid tier. Verified 2026-10-14 (ai.google.dev/gemini-api/docs/pricing).
   // gemini-4-argon: promo through 2026-11-30 ($2/$10; $4/$20 from 2026-12-01).
   'gemini-4-argon': { input: 4.0, output: 20.0, cachedInput: 0.1 },
+  'claude-sonnet-5': { input: 3.0, output: 15.0, cachedInput: 0.3 },
+  // Haiku 4.5, prompts ≤100k tokens. Verified 2026-10-09 (platform.claude.com/docs/en/about-claude/pricing).
+  'claude-haiku-4-5-20251001': { input: 1.0, output: 5.0, cachedInput: 0.1 },
+  // Google Gemini — standard paid tier. Verified 2026-09-16 (ai.google.dev/gemini-api/docs/pricing).
   // 3.8/3.7/3.6 Flash: promo rates through 2026-12-31 ($0.75/$3.75).
   'gemini-3.8-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
   'gemini-3.7-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
@@ -95,6 +99,26 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   'gemini-2.5-pro': { input: 1.25, output: 10.0, cachedInput: 0.125 },
   'gemini-2.5-flash': { input: 0.3, output: 2.5, cachedInput: 0.03 },
   'gemini-2.5-flash-lite': { input: 0.1, output: 0.4, cachedInput: 0.01 },
+  // DeepSeek (called via OpenRouter) — official DeepSeek list price, PEAK rate.
+  // Verified 2026-10-05 (api-docs.deepseek.com/quick_start/pricing). Off-peak is
+  // half; peak = 01:00-04:00 and 06:00-10:00 UTC, Mon-Fri. An ESTIMATE: OpenRouter
+  // spreads requests over many hosts whose prices differ up to 10x unless the
+  // subject pins one. `cachedInput` = DeepSeek's cache-hit rate.
+  'deepseek/deepseek-v4.1-flash': {
+    input: 0.3,
+    output: 1.2,
+    cachedInput: 0.006,
+  },
+  'deepseek/deepseek-v4-pro-0813': {
+    input: 1.32,
+    output: 3.96,
+    cachedInput: 0.044,
+  },
+  // OpenAI models routed through OpenRouter — a single first-party host (unlike
+  // DeepSeek's multi-host spread above), billed at OpenAI's own list price with no
+  // markup. Same number as the bare `gpt-4.1-mini` entry; kept separate because the
+  // OpenRouter model id carries the `openai/` prefix. Verified 2026-10-09.
+  'openai/gpt-4.1-mini': { input: 0.4, output: 1.6, cachedInput: 0.1 },
 };
 
 /**

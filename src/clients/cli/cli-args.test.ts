@@ -38,6 +38,45 @@ describe('parseEvalArgs — cartesian mode', () => {
     });
   });
 
+  describe('given --models with an openrouter: prefix', () => {
+    it('keeps everything after the prefix as the OpenRouter model id', () => {
+      const args = parseEvalArgs(['--models=openrouter:deepseek/deepseek-chat']);
+      expect(args.cartesian?.models).toEqual([
+        { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
+      ]);
+    });
+
+    it('mixes OpenRouter ids with catalog models', () => {
+      const args = parseEvalArgs([
+        '--models=gpt-4.1-mini,openrouter:deepseek/deepseek-chat,openrouter:deepseek/deepseek-r1',
+      ]);
+      expect(args.cartesian?.models).toEqual([
+        { provider: 'openai', modelId: 'gpt-4.1-mini' },
+        { provider: 'openrouter', modelId: 'deepseek/deepseek-chat' },
+        { provider: 'openrouter', modelId: 'deepseek/deepseek-r1' },
+      ]);
+    });
+
+    it('resolves catalog OpenRouter models without the prefix', () => {
+      const args = parseEvalArgs(['--models=deepseek/deepseek-v4.1-flash']);
+      expect(args.cartesian?.models).toEqual([
+        { provider: 'openrouter', modelId: 'deepseek/deepseek-v4.1-flash' },
+      ]);
+    });
+
+    it('throws on a bare openrouter: prefix', () => {
+      expect(() => parseEvalArgs(['--models=openrouter:'])).toThrow(
+        /without a model id/,
+      );
+    });
+
+    it('still throws on an unprefixed id absent from the catalog', () => {
+      expect(() => parseEvalArgs(['--models=deepseek/deepseek-chat'])).toThrow(
+        /unknown model 'deepseek\/deepseek-chat'/,
+      );
+    });
+  });
+
   describe('given --models with --reasoning-efforts', () => {
     it('parses CSV efforts including the default sentinel', () => {
       const args = parseEvalArgs([

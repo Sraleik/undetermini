@@ -76,3 +76,17 @@ The exporter writes the full pricing snapshot at the top of each run JSON:
 ## Pre-2026-05-07 archived runs
 
 The 3 JSON files in `eval-results/runs/` from 2026-05-06 were exported with the old (wrong) Opus pricing $15/$75. Their `estimatedCostUsd` values **overstate Opus cost by 3×**. They lack the `pricing` snapshot block. To delete or recompute, see open task in project memory.
+
+## DeepSeek (via OpenRouter) — verified **2026-10-05**
+
+Source: `https://api-docs.deepseek.com/quick_start/pricing` (official). Table keys are the OpenRouter ids. USD per 1M tokens, **peak** rate.
+
+| Model                            | Input (cache miss) | Cache hit | Output |
+|----------------------------------|-------------------:|----------:|-------:|
+| `deepseek/deepseek-v4.1-flash`   | $0.30              | $0.006    | $1.20  |
+| `deepseek/deepseek-v4-pro-0813`  | $1.32              | $0.044    | $3.96  |
+
+- **Peak vs off-peak**: off-peak is half price. Peak = 01:00–04:00 and 06:00–10:00 UTC, Monday–Friday (excluding Chinese public holidays). We record peak: the upper bound, and what most OpenRouter hosts charge.
+- **The dollar column is an estimate.** On OpenRouter one model is served by 10–30 hosts whose prices differ up to 10× (V4.1 Flash input: $0.003–$0.45 on 2026-10-05). By default OpenRouter load-balances, favouring cheap hosts. Only pinning a host in the subject (`provider: { order, allow_fallbacks: false }`) makes the column exact — and then the table must carry that host's price.
+- **Only these two models are still served first-party by DeepSeek.** Older ids (`deepseek-v4-flash`, `-0731`, `deepseek-v4-pro`, `deepseek-v3.2`…) remain on OpenRouter through third-party hosts and can be run as `--models=openrouter:<id>` — no price row, empty cost column.
+- **Thinking is on by default** for both models; reasoning tokens are billed as output.

@@ -12,7 +12,7 @@
  * It previously lived inside the kalent NL-filter subject; it is generic, so it
  * belongs in the engine. Subjects and clients import it from here.
  */
-export type Provider = 'openai' | 'anthropic' | 'google';
+export type Provider = 'openai' | 'anthropic' | 'google' | 'openrouter';
 
 export type EvalVariant =
   | {
@@ -49,6 +49,17 @@ export type EvalVariant =
       /** No Google-specific reasoning axis wired yet: the variant runs with
        *  provider defaults. JSON is enforced by a cleaned responseSchema
        *  (structuredOutputs) — no repair, no retry. */
+      systemPrompt?: string;
+      /** Optional extraction-schema override BY NAME. See OpenAI branch. */
+      extractionSchemaName?: string;
+    }
+  | {
+      name: string;
+      provider: 'openrouter';
+      /** The OpenRouter model id, slash included (`deepseek/deepseek-chat`),
+       *  without the CLI's `openrouter:` prefix. No reasoning axis: an arbitrary
+       *  model shares no common knob, so it runs at the provider default. */
+      modelId: string;
       systemPrompt?: string;
       /** Optional extraction-schema override BY NAME. See OpenAI branch. */
       extractionSchemaName?: string;

@@ -252,6 +252,43 @@ describe('expandCartesian', () => {
     });
   });
 
+  describe('given an OpenRouter model', () => {
+    it('produces one variant and ignores efforts and thinking budgets', () => {
+      const { variants, dropped } = expandCartesianDetailed({
+        ...baseAxes,
+        models: [{ provider: 'openrouter', modelId: 'deepseek/deepseek-chat' }],
+        reasoningEfforts: ['default', 'low'],
+        thinkingBudgets: ['default', 4096],
+      });
+      expect(variants).toEqual([
+        {
+          name: 'deepseek/deepseek-chat',
+          provider: 'openrouter',
+          modelId: 'deepseek/deepseek-chat',
+        },
+      ]);
+      expect(dropped).toEqual([]);
+    });
+
+    it('carries the sys-prompt and schema overrides', () => {
+      const variants = expandCartesian({
+        ...baseAxes,
+        models: [{ provider: 'openrouter', modelId: 'deepseek/deepseek-chat' }],
+        sysPrompts: [{ name: 'v2', text: 'X' }],
+        schemas: [{ name: 'lean' }],
+      });
+      expect(variants).toEqual([
+        {
+          name: 'deepseek/deepseek-chat__sys-v2__sch-lean',
+          provider: 'openrouter',
+          modelId: 'deepseek/deepseek-chat',
+          systemPrompt: 'X',
+          extractionSchemaName: 'lean',
+        },
+      ]);
+    });
+  });
+
   describe('given the full cartesian (model × effort × sys)', () => {
     it('produces all valid combinations with correct names', () => {
       const variants = expandCartesian({
