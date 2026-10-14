@@ -3,7 +3,7 @@ import type { ReasoningEffortValue } from './axis-inputs';
 /**
  * Per-model declaration of which axes the API accepts.
  *
- * Sources (verified 2026-09-16):
+ * Sources (verified 2026-10-14):
  * - OpenAI: `reasoning_effort` is accepted only by reasoning models (o-series, gpt-5*).
  *   The gpt-4.1-* and gpt-4o-* families ignore it silently — we treat that as "not supported"
  *   to keep variants honest.
@@ -163,6 +163,20 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
     provider: 'openai',
     reasoningEffort: GPT6_ASTRA_REASONING_EFFORT,
   },
+  'gpt-6-sol': {
+    provider: 'openai',
+    reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
+    reasoningEffortMinimalMapsToNone: true,
+  },
+  'gpt-6.1-sol': {
+    provider: 'openai',
+    reasoningEffort: GPT6_ASTRA_REASONING_EFFORT,
+  },
+  'gpt-6-luna': {
+    provider: 'openai',
+    reasoningEffort: GPT51_PLUS_REASONING_EFFORT,
+    reasoningEffortMinimalMapsToNone: true,
+  },
   // OpenAI — o-series reasoning family
   'o1': {
     provider: 'openai',
@@ -200,11 +214,17 @@ export const MODEL_CAPABILITIES: Record<string, ModelCapability> = {
   'claude-haiku-4-5': { provider: 'anthropic', thinking: 'budget' },
   // Anthropic — latest gen. Direct-key access verified 2026-07-09 (HTTP 200).
   // Thinking axis not yet characterized (budget vs adaptive) — provider default only.
-  'claude-opus-4-8': { provider: 'anthropic' },
-  'claude-sonnet-5': { provider: 'anthropic' },
+  'claude-opus-4-8': { provider: 'anthropic', thinking: 'adaptive' },
+  'claude-sonnet-5': { provider: 'anthropic', thinking: 'adaptive' },
+  // Anthropic — adaptive thinking (rejects budget_tokens)
+  'claude-fable-5-1': { provider: 'anthropic', thinking: 'adaptive' },
+  'claude-opus-5-5': { provider: 'anthropic', thinking: 'adaptive' },
+  'claude-sonnet-5-5': { provider: 'anthropic', thinking: 'adaptive' },
+  'claude-haiku-5-5': { provider: 'anthropic', thinking: 'adaptive' },
   // Google — Vertex Express via GOOGLE_GENERATIVE_AI_API_KEY. No
   // reasoning/thinking axis wired: variants run with provider defaults, JSON
   // enforced by a cleaned responseSchema (structuredOutputs, no repair/retry).
+  'gemini-4-argon': { provider: 'google' },
   'gemini-3.8-flash': { provider: 'google' },
   'gemini-3.7-flash': { provider: 'google' },
   'gemini-3.6-flash': { provider: 'google' },

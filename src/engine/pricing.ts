@@ -1,6 +1,6 @@
 // USD per 1M tokens. Verification cadence + sources documented in eval/PRICING.md —
 // re-fetch monthly.
-export const PRICING_VERIFIED_AT = '2026-09-16';
+export const PRICING_VERIFIED_AT = '2026-10-14';
 
 export const PRICING_SOURCES = {
   openai: 'https://developers.openai.com/api/docs/pricing',
@@ -48,13 +48,17 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   'gpt-5.6-sol': { input: 4.0, output: 20.0, cachedInput: 0.4 },
   'gpt-5.6-terra': { input: 2.0, output: 12.0, cachedInput: 0.2 },
   'gpt-5.6-luna': { input: 0.2, output: 1.2, cachedInput: 0.02 },
-  // OpenAI gpt-6 family (reasoning).
+  // OpenAI gpt-6 family (reasoning). Verified 2026-10-14 (developers.openai.com/api/docs/pricing).
   'gpt-6-astra': { input: 10.0, output: 50.0, cachedInput: 1.0 },
+  'gpt-6-sol': { input: 2.0, output: 10.0, cachedInput: 0.2 },
+  // gpt-6.1-sol cache read = 5% of input (not the usual 10%).
+  'gpt-6.1-sol': { input: 2.0, output: 10.0, cachedInput: 0.1 },
+  'gpt-6-luna': { input: 0.1, output: 0.5, cachedInput: 0.01 },
   // OpenAI o-series (reasoning).
-  'o1': { input: 15.0, output: 60.0, cachedInput: 7.5 },
+  o1: { input: 15.0, output: 60.0, cachedInput: 7.5 },
   'o1-pro': { input: 150.0, output: 600.0, cachedInput: 150.0 },
   'o1-mini': { input: 1.1, output: 4.4, cachedInput: 0.55 },
-  'o3': { input: 2.0, output: 8.0, cachedInput: 0.5 },
+  o3: { input: 2.0, output: 8.0, cachedInput: 0.5 },
   'o3-pro': { input: 20.0, output: 80.0, cachedInput: 20.0 },
   'o3-mini': { input: 1.1, output: 4.4, cachedInput: 0.55 },
   'o4-mini': { input: 1.1, output: 4.4, cachedInput: 0.275 },
@@ -63,11 +67,21 @@ export const MODEL_PRICING_USD_PER_1M: Record<
   // cache-READ rate only (the eval is OpenAI-dominated — keep it simple).
   'claude-opus-4-7': { input: 5.0, output: 25.0, cachedInput: 0.5 },
   'claude-opus-4-6': { input: 5.0, output: 25.0, cachedInput: 0.5 },
-  // Opus 4.8 same tier as 4.7 ($5/$25). Sonnet 5 $3/$15 (intro $2/$10 until
-  // 2026-08-31 — using standard rate). Verified 2026-07-09 (claude-api skill).
+  'claude-sonnet-4-6': { input: 3.0, output: 15.0, cachedInput: 0.3 },
+  'claude-haiku-4-5': { input: 1.0, output: 5.0, cachedInput: 0.1 },
+  // Opus 4.8 same tier as 4.7 ($5/$25). Sonnet 5 standard $2/$10. Verified
+  // 2026-10-14 (platform.claude.com/docs/en/about-claude/pricing).
   'claude-opus-4-8': { input: 5.0, output: 25.0, cachedInput: 0.5 },
-  'claude-sonnet-5': { input: 3.0, output: 15.0, cachedInput: 0.3 },
-  // Google Gemini — standard paid tier. Verified 2026-09-16 (ai.google.dev/gemini-api/docs/pricing).
+  'claude-sonnet-5': { input: 2.0, output: 10.0, cachedInput: 0.2 },
+  // 5.x — cache read at 0.05× base on Opus/Sonnet 5.5; 0.025× on Fable 5.1.
+  'claude-fable-5-1': { input: 10.0, output: 50.0, cachedInput: 0.25 },
+  'claude-opus-5-5': { input: 4.0, output: 20.0, cachedInput: 0.2 },
+  'claude-sonnet-5-5': { input: 2.0, output: 10.0, cachedInput: 0.1 },
+  // Haiku 5.5 ≤100k context tier.
+  'claude-haiku-5-5': { input: 0.1, output: 0.5, cachedInput: 0.01 },
+  // Google Gemini — standard paid tier. Verified 2026-10-14 (ai.google.dev/gemini-api/docs/pricing).
+  // gemini-4-argon: promo through 2026-11-30 ($2/$10; $4/$20 from 2026-12-01).
+  'gemini-4-argon': { input: 4.0, output: 20.0, cachedInput: 0.1 },
   // 3.8/3.7/3.6 Flash: promo rates through 2026-12-31 ($0.75/$3.75).
   'gemini-3.8-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
   'gemini-3.7-flash': { input: 0.75, output: 3.75, cachedInput: 0.075 },
