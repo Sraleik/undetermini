@@ -66,7 +66,7 @@ const baseArgs = (r: RunResult, db?: Database.Database) => ({
   // A real directory (relative to repo root, where vitest runs) so
   // `datasetHash` can scandir it. It holds no `.case.ts` files, so the hash is
   // the stable empty-set digest — this test exercises DB writes, not hashing.
-  casesDir: 'src/subjects/example-sentiment',
+  casesDir: 'examples/example-sentiment',
   run: r,
   db,
 });

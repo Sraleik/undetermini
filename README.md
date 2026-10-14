@@ -168,9 +168,9 @@ Design notes live at the repo root: [`VARIANT-AXES-DESIGN.md`](./VARIANT-AXES-DE
 
 ## Adding a subject
 
-A subject is anything implementing the `Subject` contract (`src/engine/runner-loop.ts`):
+A subject is anything implementing the `Subject` contract (`packages/application/src/runner-loop.ts`):
 `name`, `cases`, `variants`, `runOne`, `parse`. See
-[`src/subjects/example-sentiment`](./src/subjects/example-sentiment) for a
+[`examples/example-sentiment`](./examples/example-sentiment) for a
 complete, dependency-free reference.
 
 Then register it — one entry in your `undetermini.config.ts`, no runner edits:

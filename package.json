@@ -26,9 +26,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "eval": "tsx src/clients/cli/runner.ts",
-    "eval:tui": "tsx src/clients/tui/runner.ts",
-    "rescore": "tsx src/engine/rescore/sync-all.ts",
+    "eval": "tsx entrypoints/cli/src/runner.ts",
+    "eval:tui": "tsx entrypoints/tui/src/runner.ts",
+    "rescore": "tsx packages/application/src/rescore/sync-all.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

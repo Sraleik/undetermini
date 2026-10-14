@@ -117,6 +117,6 @@ export const exampleSentimentSubject: Subject<SentimentVariant, string, Sentimen
 /** Source-tree paths stamped on each run row (traceability), mirroring the
  *  talent subject's EVAL_FILE / EVAL_CASES_DIR. */
 export const EXAMPLE_SENTIMENT_EVAL_FILE =
-  'src/subjects/example-sentiment/sentiment.subject.ts';
+  'examples/example-sentiment/sentiment.subject.ts';
 export const EXAMPLE_SENTIMENT_CASES_DIR =
-  'src/subjects/example-sentiment';
+  'examples/example-sentiment';

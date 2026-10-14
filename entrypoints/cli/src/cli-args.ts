@@ -229,7 +229,7 @@ const parseModels = (raw: string | undefined): AxisModelEntry[] | null => {
     const provider = getProvider(modelId);
     if (provider === undefined) {
       throw new Error(
-        `--models=${raw} contains unknown model '${modelId}'. Known: ${knownModelIds().join(', ')}. Add new models to MODEL_CAPABILITIES in src/engine/axes/model-capabilities.ts, or pass any OpenRouter model as ${OPENROUTER_PREFIX}<id> (e.g. ${OPENROUTER_PREFIX}deepseek/deepseek-chat).`,
+        `--models=${raw} contains unknown model '${modelId}'. Known: ${knownModelIds().join(', ')}. Add new models to MODEL_CAPABILITIES in packages/core/src/axes/model-capabilities.ts, or pass any OpenRouter model as ${OPENROUTER_PREFIX}<id> (e.g. ${OPENROUTER_PREFIX}deepseek/deepseek-chat).`,
       );
     }
     return { provider, modelId };
