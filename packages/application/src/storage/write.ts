@@ -1,7 +1,6 @@
 import type Database from 'better-sqlite3';
 import { datasetHash } from '../git-state';
-import { builtinModels } from '@undetermini/core/models/builtin';
-import { decodeCatalog, type Catalog } from '@undetermini/core/models/catalog';
+import type { Catalog } from '@undetermini/core/models/catalog';
 import { modelKey, type ModelKey, type PricePeriod } from '@undetermini/core/models/model';
 import type { RunResult } from '../runner-loop';
 import { CASE_ASSERTIONS_SCORER_VERSION, SCORER_NAME } from '@undetermini/core/scorers';
@@ -13,8 +12,8 @@ export type WriteRunArgs = {
   evalFile: string;
   casesDir: string;
   run: RunResult;
-  /** Declared models, source of the price snapshot. Absent: the built-in catalog. */
-  catalog?: Catalog;
+  /** Declared models, source of the price snapshot. */
+  catalog: Catalog;
   /** Override the default singleton DB. Used by tests to point at `:memory:`. */
   db?: Database.Database;
 };
@@ -24,12 +23,6 @@ export type WriteRunArgs = {
 export type PricingSnapshot = {
   version: 2;
   models: Record<ModelKey, PricePeriod[]>;
-};
-
-const builtinCatalog = (): Catalog => {
-  const decoded = decodeCatalog(builtinModels());
-  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
-  return decoded.catalog;
 };
 
 /** The declared prices of the models this run used, as they stand now. An
@@ -90,7 +83,7 @@ export const writeRunToDb = (args: WriteRunArgs): void => {
       args.evalFile,
       args.casesDir,
       args.subjectName,
-      JSON.stringify(pricingSnapshot(args.run, args.catalog ?? builtinCatalog())),
+      JSON.stringify(pricingSnapshot(args.run, args.catalog)),
       // The lib no longer verifies prices: the date is the day the snapshot was taken.
       args.run.startedAt.slice(0, 10),
     );

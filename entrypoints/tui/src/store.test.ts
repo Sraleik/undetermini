@@ -58,9 +58,6 @@ describe('initialWizardState', () => {
       ...baseArgs(),
       cartesian: {
         entries: [entry],
-        models: [],
-        reasoningEfforts: ['default'],
-        thinkingBudgets: ['default'],
         sysPromptTokens: [],
         schemaTokens: [],
       },
@@ -69,7 +66,6 @@ describe('initialWizardState', () => {
     expect(state.axes.models).toEqual([entry]);
     expect(state.axes.sysPrompts).toEqual(['default']);
     expect(state.axes.schemas).toEqual(['default']);
-    expect(state.axes).not.toHaveProperty('reasoningEfforts');
   });
 
   it('starts with no model when no CLI payload is given', () => {

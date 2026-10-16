@@ -1,8 +1,6 @@
 import { parseArgs } from 'node:util';
 import type { CacheMode } from '@undetermini/application/cache/index';
-import type { AxisModelEntry } from '@undetermini/core/axes/axis-inputs';
-import { builtinModels } from '@undetermini/core/models/builtin';
-import { type Catalog, decodeCatalog } from '@undetermini/core/models/catalog';
+import type { Catalog } from '@undetermini/core/models/catalog';
 import type { ModelAxisInputs } from '@undetermini/core/models/expand';
 import { modelKey } from '@undetermini/core/models/model';
 
@@ -28,12 +26,6 @@ export type SortSpec = { key: ColKey; direction: SortDirection };
 export type CartesianMode = {
   /** Chosen models, each with the setting names it receives (`'default'` = none). */
   entries: ModelAxisInputs<unknown>['models'][number][];
-  /** Transitional projection of `entries` for the TUI wizard, which still reads
-   *  the former axes. `provider` is a free string now: the cast is a lie until
-   *  the TUI task retires `AxisModelEntry`. */
-  models: AxisModelEntry[];
-  reasoningEfforts: ReadonlyArray<'default'>;
-  thinkingBudgets: ReadonlyArray<'default'>;
   /** Raw `--sys-prompts` tokens — resolved to file contents by the runner via
    *  `resolveSysPrompts`. Kept as strings here so this module stays I/O-free. */
   sysPromptTokens: string[];
@@ -208,12 +200,6 @@ const SETTINGS_FLAG_HINT =
 
 const REMOVED_FLAGS = ['reasoning-efforts', 'thinking-budgets'] as const;
 
-const builtinCatalog = (): Catalog => {
-  const decoded = decodeCatalog(builtinModels());
-  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
-  return decoded.catalog;
-};
-
 const resolveModels = (raw: string | undefined, catalog: Catalog) => {
   const items = parseCommaList(raw);
   if (items === null) return null;
@@ -263,12 +249,6 @@ const buildCartesianMode = (
   }));
   return {
     entries,
-    models: models.map((model) => ({
-      provider: model.provider as AxisModelEntry['provider'],
-      modelId: model.id,
-    })),
-    reasoningEfforts: ['default'],
-    thinkingBudgets: ['default'],
     sysPromptTokens: sysPromptTokens ?? ['default'],
     schemaTokens: schemaTokens ?? ['default'],
   };
@@ -276,7 +256,7 @@ const buildCartesianMode = (
 
 export const parseEvalArgs = (
   argv: string[] = process.argv.slice(2),
-  catalog: Catalog = builtinCatalog(),
+  catalog: Catalog,
 ): EvalCliArgs => {
   const { values } = parseArgs({
     args: argv,

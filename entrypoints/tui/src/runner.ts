@@ -1,8 +1,6 @@
 import React from 'react';
 import { render } from 'ink';
 import { parseEvalArgs } from '@undetermini/cli/cli-args';
-import { builtinModels } from '@undetermini/core/models/builtin';
-import { type Catalog, decodeCatalog } from '@undetermini/core/models/catalog';
 import { writeRunToDb } from '@undetermini/application/storage/write';
 import {
   defaultRegistry,
@@ -14,20 +12,12 @@ import { Router } from './Router';
 import { loadPrefs, savePrefs } from './prefs';
 import type { WizardState } from './store';
 
-// Temps 1 : un registre sans `models` retombe sur la liste intégrée.
-const catalogOf = (registry: SubjectRegistry): Catalog => {
-  if (registry.models !== undefined) return registry.models;
-  const decoded = decodeCatalog(builtinModels());
-  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
-  return decoded.catalog;
-};
-
 /** Run the eval TUI against a host's subject registry. See `runEvalCli`. */
 export const runEvalTui = async (
   registry: SubjectRegistry = defaultRegistry,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> => {
-  const catalog = catalogOf(registry);
+  const catalog = registry.models;
   const args = parseEvalArgs(argv, catalog);
 
   // Validate `--subject` (throws on an unknown name) and use it as the launch

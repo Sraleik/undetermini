@@ -63,7 +63,14 @@ const run = (trials: TrialResult[]): RunResult => ({
   ],
 });
 
+const catalogOf = (...models: unknown[]) => {
+  const decoded = decodeCatalog(models);
+  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+  return decoded.catalog;
+};
+
 const baseArgs = (r: RunResult, db?: Database.Database) => ({
+  catalog: catalogOf({ provider: 'openai', id: 'gpt-4.1' }),
   subjectName: 'Example Sentiment',
   evalFile: 'eval-file.ts',
   // A real directory (relative to repo root, where vitest runs) so
@@ -237,13 +244,6 @@ describe('writeRunToDb', () => {
     it('modèle du run absent du catalogue : liste de prix vide, jamais zéro', () => {
       writeRunToDb({ ...baseArgs(run([trial()]), db), catalog: catalogOf() });
       expect(snapshot().table.models).toEqual({ 'openai:gpt-4.1': [] });
-    });
-
-    it('sans catalogue : le catalogue intégré donne les prix', () => {
-      writeRunToDb(baseArgs(run([trial()]), db));
-      const { table } = snapshot();
-      expect(table.version).toBe(2);
-      expect(table.models['openai:gpt-4.1']).toHaveLength(1);
     });
 
     it('pricing_verified_at : la date de début du run', () => {

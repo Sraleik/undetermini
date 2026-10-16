@@ -1,4 +1,5 @@
-import type { ReasoningEffortValue } from './axis-inputs';
+/** Reasoning effort values of the built-in capability table; leaves with it at 0.6.0. */
+export type ReasoningEffortValue = 'minimal' | 'low' | 'medium' | 'high';
 
 /**
  * Per-model declaration of which axes the API accepts.

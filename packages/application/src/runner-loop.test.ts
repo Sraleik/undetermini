@@ -186,14 +186,4 @@ describe('runEval : coût, modèle retiré', () => {
     expect(trial.costNanoUsd).toBe(COST_PER_TRIAL_NANO_USD);
     expect(trial.estimatedCostUsd).toBe(3);
   });
-
-  it('sans catalogue : le catalogue intégré s applique', async () => {
-    const result = await runEval(
-      subjectOf({ name: 'gpt', provider: 'openai', modelId: 'gpt-4.1' }, vi.fn(), 1),
-      { ...OPTS, runId: 'builtin' },
-    );
-    const trial = result.variants[0]!.cases[0]!.trials[0]!;
-    expect(trial.status).toBe('success');
-    expect(trial.costNanoUsd).not.toBeNull();
-  });
 });

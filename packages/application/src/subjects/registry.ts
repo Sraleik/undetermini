@@ -119,8 +119,8 @@ export const resolveSubject = (name: string): RegisteredSubject => {
 export type SubjectRegistry = {
   subjects: Record<string, RegisteredSubject>;
   defaultSubject: string;
-  /** Models the run may use. Optional until the switch task makes it required. */
-  models?: Catalog;
+  /** Models the run may use: the project's declarations. */
+  models: Catalog;
 };
 
 const builtinCatalog = (): Catalog => {

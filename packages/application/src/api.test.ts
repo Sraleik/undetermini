@@ -3,6 +3,13 @@ import { closeEvalDb, openEvalDb } from './storage/schema';
 import { EvalEngine } from './api';
 import type { Subject, SubjectVariant } from './runner-loop';
 import type { EvalEvent } from './event';
+import { decodeCatalog } from '@undetermini/core/models/catalog';
+
+const emptyCatalog = () => {
+  const decoded = decodeCatalog([]);
+  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+  return decoded.catalog;
+};
 
 type StubInput = { q: string };
 type StubOutput = { echo: string };
@@ -51,7 +58,7 @@ describe('EvalEngine event emission', () => {
   });
 
   it('emits runStarted → N×trialCompleted → runCompleted in order', async () => {
-    const engine = new EvalEngine({ subject: stubSubject(2, 1) });
+    const engine = new EvalEngine({ subject: stubSubject(2, 1), catalog: emptyCatalog() });
     const events: EvalEvent[] = [];
     engine.on((e) => events.push(e));
 
@@ -73,7 +80,7 @@ describe('EvalEngine event emission', () => {
   });
 
   it('emits one trialCompleted per (variant, case, trial) with correct payload fields', async () => {
-    const engine = new EvalEngine({ subject: stubSubject(1, 2) });
+    const engine = new EvalEngine({ subject: stubSubject(1, 2), catalog: emptyCatalog() });
     const trialEvents: Extract<EvalEvent, { kind: 'trialCompleted' }>[] = [];
     engine.on((e) => {
       if (e.kind === 'trialCompleted') trialEvents.push(e);
@@ -104,7 +111,7 @@ describe('EvalEngine event emission', () => {
   });
 
   it('trialCompleted payloads survive JSON roundtrip', async () => {
-    const engine = new EvalEngine({ subject: stubSubject(1, 1) });
+    const engine = new EvalEngine({ subject: stubSubject(1, 1), catalog: emptyCatalog() });
     const trialEvents: Extract<EvalEvent, { kind: 'trialCompleted' }>[] = [];
     engine.on((e) => {
       if (e.kind === 'trialCompleted') trialEvents.push(e);

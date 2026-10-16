@@ -118,19 +118,11 @@ export { toOpenAiReasoningEffort } from '@undetermini/core/axes/model-capabiliti
 // Provider discriminant
 export type { Provider } from '@undetermini/core/variant';
 
-// Axes: declaration and cartesian expansion
+// Axes: system prompt and extraction schema
 export type {
-  AxisInputs,
-  AxisModelEntry,
-  ReasoningEffortValue,
   SchemaAxisValue,
   SysPromptAxisValue,
 } from '@undetermini/core/axes/axis-inputs';
-export {
-  expandCartesian,
-  expandCartesianDetailed,
-} from '@undetermini/core/axes/expand-cartesian';
-export type { DroppedCombo } from '@undetermini/core/axes/expand-cartesian';
 
 // System-prompt axis
 export {

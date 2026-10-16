@@ -12,22 +12,6 @@ describe('computeVariantName', () => {
     });
   });
 
-  describe('given a reasoning effort', () => {
-    it('appends an eff- segment', () => {
-      expect(computeVariantName({ modelId: 'gpt-5-mini', reasoningEffort: 'high' })).toBe(
-        'gpt-5-mini__eff-high',
-      );
-    });
-  });
-
-  describe('given a thinking budget', () => {
-    it('appends a think- segment with the numeric value', () => {
-      expect(
-        computeVariantName({ modelId: 'claude-opus-4-6', thinkingBudgetTokens: 8192 }),
-      ).toBe('claude-opus-4-6__think-8192');
-    });
-  });
-
   describe('given a settingName', () => {
     it('appends the setting name right after the id', () => {
       expect(computeVariantName({ modelId: 'gpt-5', settingName: 'eff-low' })).toBe(
@@ -64,31 +48,21 @@ describe('computeVariantName', () => {
   });
 
   describe('given multiple axes at once', () => {
-    it('orders segments model → eff → sys for OpenAI', () => {
-      expect(
-        computeVariantName({
-          modelId: 'gpt-5-mini',
-          reasoningEffort: 'low',
-          sysPromptName: 'v2-strict',
-        }),
-      ).toBe('gpt-5-mini__eff-low__sys-v2-strict');
-    });
-
-    it('orders segments model → think → sys for Anthropic', () => {
+    it('orders segments model → setting → sys', () => {
       expect(
         computeVariantName({
           modelId: 'claude-opus-4-6',
-          thinkingBudgetTokens: 4096,
+          settingName: 'think-4096',
           sysPromptName: 'no-bundles',
         }),
       ).toBe('claude-opus-4-6__think-4096__sys-no-bundles');
     });
 
-    it('places sch- last (model → eff → sys → sch)', () => {
+    it('places sch- last (model → setting → sys → sch)', () => {
       expect(
         computeVariantName({
           modelId: 'gpt-5-mini',
-          reasoningEffort: 'low',
+          settingName: 'eff-low',
           sysPromptName: 'v2-strict',
           schemaName: 'no-criteria-v1',
         }),
@@ -100,7 +74,7 @@ describe('computeVariantName', () => {
     it('returns the same name for the same input', () => {
       const input = {
         modelId: 'gpt-5-mini',
-        reasoningEffort: 'medium' as const,
+        settingName: 'eff-medium',
         sysPromptName: 'experiment',
       };
       expect(computeVariantName(input)).toBe(computeVariantName(input));

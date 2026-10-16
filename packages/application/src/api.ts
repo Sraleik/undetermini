@@ -19,8 +19,8 @@ export class EvalEngine<
   constructor(
     private readonly dependencies: {
       subject: Subject<V, TInput, TOutput>;
-      /** Declared models. Absent: the built-in catalog applies. */
-      catalog?: Catalog;
+      /** Declared models: the only source of prices and retirement. */
+      catalog: Catalog;
     },
   ) {}
 

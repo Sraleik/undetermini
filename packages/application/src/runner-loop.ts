@@ -9,8 +9,7 @@ import pLimit from 'p-limit';
 import { formatEvalError, logEvalTrialFailure } from '@undetermini/core/format';
 import type { TrialCompletedPayload } from './event';
 import { readGitState } from './git-state';
-import { builtinModels } from '@undetermini/core/models/builtin';
-import { decodeCatalog, type Catalog } from '@undetermini/core/models/catalog';
+import type { Catalog } from '@undetermini/core/models/catalog';
 import { modelKey, type ModelKey } from '@undetermini/core/models/model';
 import { trialCost } from '@undetermini/core/models/price';
 import {
@@ -247,22 +246,11 @@ const aggregateVariant = (
   };
 };
 
-let builtinCatalog: Catalog | undefined;
-const defaultCatalog = (): Catalog => {
-  if (builtinCatalog === undefined) {
-    const decoded = decodeCatalog(builtinModels());
-    if (!decoded.ok) throw new Error(decoded.errors.join('; '));
-    builtinCatalog = decoded.catalog;
-  }
-  return builtinCatalog;
-};
-
 export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
   subject: Subject<V, TInput, TOutput>,
   opts: RunOpts,
-  onTrialCompleted?: (payload: TrialCompletedPayload) => void,
-  /** Absent: the built-in catalog applies, until the switch to declared models. */
-  catalog: Catalog = defaultCatalog(),
+  onTrialCompleted: ((payload: TrialCompletedPayload) => void) | undefined,
+  catalog: Catalog,
 ): Promise<RunResult> => {
   const startedAt = new Date().toISOString();
   const startMs = performance.now();

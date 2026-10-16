@@ -1,4 +1,5 @@
 import { type BuiltinSetting } from './builtin';
+import { isOneOffProvider } from './catalog';
 import { type Model, type ModelKey, type PricePeriod, modelKey } from './model';
 
 export type TriedModel = {
@@ -75,7 +76,7 @@ export const planExport = ({
       models.push(listed);
       continue;
     }
-    if (provider === 'openrouter') {
+    if (isOneOffProvider(provider)) {
       models.push({ provider, id, price: [] });
       flagged.push({ key, reason: 'unpriced' });
       continue;

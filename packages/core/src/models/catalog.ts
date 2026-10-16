@@ -17,6 +17,9 @@ export type DecodeResult =
 
 const ONE_OFF_PROVIDER = 'openrouter';
 
+/** The route that stays open on the command line without a declaration (`openrouter:<id>`). */
+export const isOneOffProvider = (candidate: string) => candidate === ONE_OFF_PROVIDER;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -82,7 +85,7 @@ const decodePrice = (
 
 const buildCatalog = (models: Model[]): Catalog => {
   const find = (provider: string, id: string) =>
-    models.find((model) => model.provider === provider && model.id === id);
+    models.find((model) => modelKey(model) === modelKey({ provider, id }));
 
   const resolveRef = (ref: string): ResolvedRef => {
     const colon = ref.indexOf(':');
@@ -101,7 +104,7 @@ const buildCatalog = (models: Model[]): Catalog => {
     const id = ref.slice(colon + 1);
     const declared = find(provider, id);
     if (declared !== undefined) return { ok: true, model: declared };
-    if (provider === ONE_OFF_PROVIDER && id !== '') {
+    if (isOneOffProvider(provider) && id !== '') {
       return { ok: true, model: { provider, id, price: [] } };
     }
     return { ok: false, error: `Modèle « ${ref} » non déclaré.` };

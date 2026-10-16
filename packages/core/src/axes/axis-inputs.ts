@@ -1,27 +1,8 @@
 /**
- * Pure input types for the cartesian variant builder.
- *
- * `AxisInputs` is the canonical representation of "what the user wants to sweep" —
- * the TUI collects it interactively, the CLI parses it from flags, and `expandCartesian`
- * turns it into a deterministic list of `EvalVariant` objects.
- *
- * Design choices:
- * - Each axis carries `'default'` as a distinguished value meaning "leave the field unset
- *   on the produced variant" (and therefore fall back to the baseline at runtime).
- * - `models` carries `provider` alongside `modelId` so the cartesian can dispatch to the
- *   correct provider-specific axis (OpenAI → reasoningEffort, Anthropic → thinkingBudgetTokens)
- *   without consulting the capability matrix.
+ * Axis values that are not tied to a model: the system prompt and the extraction
+ * schema. Each carries `'default'` as a distinguished value meaning "leave the
+ * field unset on the produced variant" (the baseline applies at runtime).
  */
-
-/** Reasoning effort values accepted by `EvalVariant['openai'].reasoningEffort`.
- *  Keep in sync with the union in
- *  `core/search-engine/services/extract-search-input.service.eval.ts:73`. */
-export type ReasoningEffortValue = 'minimal' | 'low' | 'medium' | 'high';
-
-export type AxisModelEntry = {
-  provider: 'openai' | 'anthropic' | 'google' | 'openrouter';
-  modelId: string;
-};
 
 /** A system prompt axis value is either `'default'` (no override, baseline used at runtime)
  *  or an overridden prompt with a display name + the raw text injected into the variant. */
@@ -31,13 +12,3 @@ export type SysPromptAxisValue = 'default' | { name: string; text: string };
  *  or a registered schema referenced BY NAME — the zod object stays subject-side
  *  (resolved in `runOne` via `REGISTERED_SCHEMAS`), keeping the engine clean. */
 export type SchemaAxisValue = 'default' | { name: string };
-
-export type AxisInputs = {
-  models: ReadonlyArray<AxisModelEntry>;
-  reasoningEfforts: ReadonlyArray<ReasoningEffortValue | 'default'>;
-  thinkingBudgets: ReadonlyArray<number | 'default'>;
-  sysPrompts: ReadonlyArray<SysPromptAxisValue>;
-  /** A subject with a single extraction schema declares this axis empty;
-   *  `expandCartesian` then expands it to the single 'default' value. */
-  schemas: ReadonlyArray<SchemaAxisValue>;
-};
