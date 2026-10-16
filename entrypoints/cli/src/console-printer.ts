@@ -11,10 +11,34 @@ type Col = {
   align?: 'left' | 'right';
 };
 
+const UNKNOWN = 'inconnu';
+const UNAVAILABLE = 'indisponible';
+
 const unitCost = (v: VariantResult, trialCount: number): number => {
   const trials = v.cases.length * trialCount;
   return trials > 0 ? v.aggregate.totalCostUsd / trials : 0;
 };
+
+/** Nothing ran for this variant: every trial was replayed-only and absent from the cache. */
+const nothingRan = (v: VariantResult): boolean => {
+  const total = v.cases.reduce((n, c) => n + c.trials.length, 0);
+  return total > 0 && v.aggregate.unavailableCalls === total;
+};
+
+/** A variant whose only cost is unknown has no number to show; zero would be a lie. */
+const costIsUnknown = (v: VariantResult): boolean =>
+  v.aggregate.unpricedModels.length > 0 && v.aggregate.totalCostNanoUsd === 0;
+
+const costCell = (v: VariantResult, amount: number, dp?: number): string => {
+  if (nothingRan(v)) return UNAVAILABLE;
+  if (costIsUnknown(v)) return UNKNOWN;
+  return v.aggregate.unpricedModels.length > 0
+    ? `${usd(amount, dp)} (partiel)`
+    : usd(amount, dp);
+};
+
+const unlessUnavailable = (v: VariantResult, render: () => string): string =>
+  nothingRan(v) ? UNAVAILABLE : render();
 
 /** Extract the numeric value used for sorting on a given column. */
 const sortValue = (
@@ -84,11 +108,11 @@ const VARIANT_COL: VariantLabelCol = {
 };
 
 const buildMetricCols = (trialCount: number): Col[] => [
-  { key: 'score',     header: 'Score',   render: (v) => pct1(v.aggregate.avgScore),            align: 'right' },
-  { key: 'pass',      header: 'Pass%',   render: (v) => pct1(v.aggregate.passRate),            align: 'right' },
-  { key: 'cost',      header: 'Total $', render: (v) => usd(v.aggregate.totalCostUsd),         align: 'right' },
-  { key: 'unit-cost', header: '$/trial', render: (v) => usd(unitCost(v, trialCount), 5),       align: 'right' },
-  { key: 'latency',   header: 'Latency', render: (v) => ms(v.aggregate.avgRealLatencyMs),      align: 'right' },
+  { key: 'score',     header: 'Score',   render: (v) => unlessUnavailable(v, () => pct1(v.aggregate.avgScore)),       align: 'right' },
+  { key: 'pass',      header: 'Pass%',   render: (v) => unlessUnavailable(v, () => pct1(v.aggregate.passRate)),       align: 'right' },
+  { key: 'cost',      header: 'Total $', render: (v) => costCell(v, v.aggregate.totalCostUsd),                       align: 'right' },
+  { key: 'unit-cost', header: '$/trial', render: (v) => costCell(v, unitCost(v, trialCount), 5),                     align: 'right' },
+  { key: 'latency',   header: 'Latency', render: (v) => unlessUnavailable(v, () => ms(v.aggregate.avgRealLatencyMs)), align: 'right' },
   { key: 'fresh',     header: 'Fresh',   render: (v) => String(v.aggregate.freshCalls),        align: 'right' },
   { key: 'cached',    header: 'Cached',  render: (v) => String(v.aggregate.cacheHits),         align: 'right' },
   { key: 'errors',    header: 'Errors',  render: (v) => String(v.aggregate.errorCalls),        align: 'right' },
@@ -393,6 +417,22 @@ const renderFailures = (run: RunResult): void => {
   }
 };
 
+const renderUnavailable = (run: RunResult): void => {
+  const lines: string[] = [];
+  for (const variant of run.variants) {
+    for (const c of variant.cases) {
+      const count = c.trials.filter((t) => t.status === 'unavailable').length;
+      if (count === 0) continue;
+      lines.push(`  ${variant.name} / ${c.caseSlug} : ${count} essai(s) ${UNAVAILABLE}(s)`);
+    }
+  }
+  if (lines.length > 0) {
+    console.log();
+    console.log('Non rejoués (modèle retiré, absents du cache — ni échec, ni coût) :');
+    for (const l of lines) console.log(l);
+  }
+};
+
 const renderCasesHeader = (run: RunResult): void => {
   const cases = run.variants[0]?.cases ?? [];
   if (cases.length === 0) return;
@@ -472,6 +512,7 @@ export const printConsoleSummary = (
   }
   if (display.sections.has('assertions')) renderFailedAssertions(variants);
   renderFailures({ ...run, variants });
+  renderUnavailable({ ...run, variants });
 
   const totals = run.variants.reduce(
     (acc, v) => ({
@@ -479,13 +520,21 @@ export const printConsoleSummary = (
       fresh: acc.fresh + v.aggregate.freshCalls,
       cache: acc.cache + v.aggregate.cacheHits,
       errors: acc.errors + v.aggregate.errorCalls,
+      unavailable: acc.unavailable + v.aggregate.unavailableCalls,
       cost: acc.cost + v.aggregate.totalCostUsd,
     }),
-    { trials: 0, fresh: 0, cache: 0, errors: 0, cost: 0 },
+    { trials: 0, fresh: 0, cache: 0, errors: 0, unavailable: 0, cost: 0 },
   );
+  const unpriced = new Set(run.variants.flatMap((v) => v.aggregate.unpricedModels));
+  const totalCost =
+    unpriced.size === 0
+      ? usd(totals.cost)
+      : `${totals.cost === 0 ? UNKNOWN : usd(totals.cost)}, partiel, ${unpriced.size} modèle${unpriced.size > 1 ? 's' : ''} sans prix`;
+  const unavailableNote =
+    totals.unavailable > 0 ? ` / ${totals.unavailable} ${UNAVAILABLE}s` : '';
   console.log();
   console.log(
-    `Total : ${totals.trials} trials (${totals.fresh} fresh / ${totals.cache} cached / ${totals.errors} errors), ${usd(totals.cost)}, wall ${ms(run.durationMs)}`,
+    `Total : ${totals.trials} trials (${totals.fresh} fresh / ${totals.cache} cached / ${totals.errors} errors${unavailableNote}), ${totalCost}, wall ${ms(run.durationMs)}`,
   );
 };
 

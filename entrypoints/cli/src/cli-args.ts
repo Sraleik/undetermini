@@ -1,10 +1,10 @@
 import { parseArgs } from 'node:util';
 import type { CacheMode } from '@undetermini/application/cache/index';
-import type {
-  AxisModelEntry,
-  ReasoningEffortValue,
-} from '@undetermini/core/axes/axis-inputs';
-import { getProvider, knownModelIds } from '@undetermini/core/axes/model-capabilities';
+import type { AxisModelEntry } from '@undetermini/core/axes/axis-inputs';
+import { builtinModels } from '@undetermini/core/models/builtin';
+import { type Catalog, decodeCatalog } from '@undetermini/core/models/catalog';
+import type { ModelAxisInputs } from '@undetermini/core/models/expand';
+import { modelKey } from '@undetermini/core/models/model';
 
 export type SectionName = 'categories' | 'assertions';
 
@@ -23,12 +23,17 @@ export type SortSpec = { key: ColKey; direction: SortDirection };
 
 /** Cartesian-mode payload. Present iff `--models` was passed (any other axis flag
  *  without `--models` triggers a validation error in `parseEvalArgs`). The runner
- *  expands this into `EvalVariant[]` via `expandCartesian`, replacing the subject's
+ *  expands `entries` into variants via `expandModels`, replacing the subject's
  *  static variants for this run. */
 export type CartesianMode = {
+  /** Chosen models, each with the setting names it receives (`'default'` = none). */
+  entries: ModelAxisInputs<unknown>['models'][number][];
+  /** Transitional projection of `entries` for the TUI wizard, which still reads
+   *  the former axes. `provider` is a free string now: the cast is a lie until
+   *  the TUI task retires `AxisModelEntry`. */
   models: AxisModelEntry[];
-  reasoningEfforts: ReadonlyArray<ReasoningEffortValue | 'default'>;
-  thinkingBudgets: ReadonlyArray<number | 'default'>;
+  reasoningEfforts: ReadonlyArray<'default'>;
+  thinkingBudgets: ReadonlyArray<'default'>;
   /** Raw `--sys-prompts` tokens — resolved to file contents by the runner via
    *  `resolveSysPrompts`. Kept as strings here so this module stays I/O-free. */
   sysPromptTokens: string[];
@@ -198,108 +203,72 @@ const parseCommaList = (raw: string | undefined): string[] | null => {
   return items.length === 0 ? null : items;
 };
 
-const REASONING_EFFORT_VALUES: ReadonlyArray<ReasoningEffortValue> = [
-  'minimal',
-  'low',
-  'medium',
-  'high',
-];
+const SETTINGS_FLAG_HINT =
+  'Utilise --settings=<nom,…> : les noms de réglages déclarés par chaque modèle dans la config.';
 
-const OPENROUTER_PREFIX = 'openrouter:';
+const REMOVED_FLAGS = ['reasoning-efforts', 'thinking-budgets'] as const;
 
-const parseModels = (raw: string | undefined): AxisModelEntry[] | null => {
-  if (raw === undefined) return null;
-  const items = raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (items.length === 0) return null;
-  return items.map((modelId) => {
-    // `openrouter:<id>` bypasses the catalog: everything after the prefix is the
-    // OpenRouter model id, slash included, stored without the prefix.
-    if (modelId.startsWith(OPENROUTER_PREFIX)) {
-      const openRouterId = modelId.slice(OPENROUTER_PREFIX.length);
-      if (openRouterId === '') {
-        throw new Error(
-          `--models=${raw} contains '${OPENROUTER_PREFIX}' without a model id. Expected e.g. ${OPENROUTER_PREFIX}deepseek/deepseek-chat.`,
-        );
-      }
-      return { provider: 'openrouter', modelId: openRouterId };
-    }
-    const provider = getProvider(modelId);
-    if (provider === undefined) {
-      throw new Error(
-        `--models=${raw} contains unknown model '${modelId}'. Known: ${knownModelIds().join(', ')}. Add new models to MODEL_CAPABILITIES in packages/core/src/axes/model-capabilities.ts, or pass any OpenRouter model as ${OPENROUTER_PREFIX}<id> (e.g. ${OPENROUTER_PREFIX}deepseek/deepseek-chat).`,
-      );
-    }
-    return { provider, modelId };
-  });
+const builtinCatalog = (): Catalog => {
+  const decoded = decodeCatalog(builtinModels());
+  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+  return decoded.catalog;
 };
 
-const parseReasoningEfforts = (
-  raw: string | undefined,
-): Array<ReasoningEffortValue | 'default'> | null => {
-  if (raw === undefined) return null;
-  const items = raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (items.length === 0) return null;
-  return items.map((item) => {
-    if (item === 'default') return 'default';
-    if (REASONING_EFFORT_VALUES.includes(item as ReasoningEffortValue)) {
-      return item as ReasoningEffortValue;
-    }
+const resolveModels = (raw: string | undefined, catalog: Catalog) => {
+  const items = parseCommaList(raw);
+  if (items === null) return null;
+  return items.map((ref) => {
+    const resolved = catalog.resolveRef(ref);
+    if (resolved.ok) return resolved.model;
+    const declared = catalog.models.map(modelKey).join(', ');
     throw new Error(
-      `--reasoning-efforts=${raw} contains invalid value '${item}'. Known: default, ${REASONING_EFFORT_VALUES.join(', ')}.`,
+      `--models=${raw} : ${resolved.error} Modèles déclarés dans la clé models de undetermini.config.ts : ${declared === '' ? '(aucun)' : declared}. Pour un essai ponctuel : openrouter:<id> (ex. openrouter:deepseek/deepseek-chat).`,
     );
   });
 };
 
-const parseThinkingBudgets = (
-  raw: string | undefined,
-): Array<number | 'default'> | null => {
-  if (raw === undefined) return null;
-  const items = raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (items.length === 0) return null;
-  return items.map((item) => {
-    if (item === 'default') return 'default';
-    const n = Number(item);
-    if (!Number.isInteger(n) || n <= 0) {
-      throw new Error(
-        `--thinking-budgets=${raw} contains invalid value '${item}' (expected 'default' or positive integer).`,
-      );
-    }
-    return n;
-  });
-};
-
 const buildCartesianMode = (
-  models: AxisModelEntry[] | null,
-  reasoningEfforts: Array<ReasoningEffortValue | 'default'> | null,
-  thinkingBudgets: Array<number | 'default'> | null,
+  models: ReturnType<typeof resolveModels>,
+  settings: string[] | null,
   sysPromptTokens: string[] | null,
   schemaTokens: string[] | null,
 ): CartesianMode | null => {
   const hasAnyAxisFlag =
     models !== null ||
-    reasoningEfforts !== null ||
-    thinkingBudgets !== null ||
+    settings !== null ||
     sysPromptTokens !== null ||
     schemaTokens !== null;
   if (!hasAnyAxisFlag) return null;
   if (models === null) {
     throw new Error(
-      '--reasoning-efforts, --thinking-budgets, --sys-prompts, --schemas require --models. Pass --models=... to activate cartesian mode (or use `npm run eval:tui` to pick models interactively).',
+      '--settings, --sys-prompts, --schemas require --models. Pass --models=... to activate cartesian mode (or use `npm run eval:tui` to pick models interactively).',
     );
   }
+  const requested = settings ?? ['default'];
+  const declaredByAny = new Set(
+    models.flatMap((model) => Object.keys(model.settings ?? {})),
+  );
+  for (const name of requested) {
+    if (name !== 'default' && !declaredByAny.has(name)) {
+      throw new Error(
+        `--settings : aucun modèle choisi ne déclare le réglage '${name}'. Déclarés par les modèles choisis : ${[...declaredByAny].join(', ') || '(aucun)'}.`,
+      );
+    }
+  }
+  const entries = models.map((model) => ({
+    model,
+    settingNames: requested.filter(
+      (name) => name === 'default' || name in (model.settings ?? {}),
+    ),
+  }));
   return {
-    models,
-    reasoningEfforts: reasoningEfforts ?? ['default'],
-    thinkingBudgets: thinkingBudgets ?? ['default'],
+    entries,
+    models: models.map((model) => ({
+      provider: model.provider as AxisModelEntry['provider'],
+      modelId: model.id,
+    })),
+    reasoningEfforts: ['default'],
+    thinkingBudgets: ['default'],
     sysPromptTokens: sysPromptTokens ?? ['default'],
     schemaTokens: schemaTokens ?? ['default'],
   };
@@ -307,6 +276,7 @@ const buildCartesianMode = (
 
 export const parseEvalArgs = (
   argv: string[] = process.argv.slice(2),
+  catalog: Catalog = builtinCatalog(),
 ): EvalCliArgs => {
   const { values } = parseArgs({
     args: argv,
@@ -320,6 +290,7 @@ export const parseEvalArgs = (
       cols: { type: 'string' },
       sort: { type: 'string' },
       models: { type: 'string' },
+      settings: { type: 'string' },
       'reasoning-efforts': { type: 'string' },
       'thinking-budgets': { type: 'string' },
       'sys-prompts': { type: 'string' },
@@ -328,6 +299,11 @@ export const parseEvalArgs = (
     strict: true,
     allowPositionals: false,
   });
+  for (const flag of REMOVED_FLAGS) {
+    if (values[flag] !== undefined) {
+      throw new Error(`--${flag} a été retiré. ${SETTINGS_FLAG_HINT}`);
+    }
+  }
   return {
     subject: values['subject'] ?? null,
     trialCount: parsePositiveInt(values['trial-count'], 30, 'trial-count'),
@@ -342,9 +318,8 @@ export const parseEvalArgs = (
     cols: parseCols(values['cols']),
     sort: parseSort(values['sort']),
     cartesian: buildCartesianMode(
-      parseModels(values['models']),
-      parseReasoningEfforts(values['reasoning-efforts']),
-      parseThinkingBudgets(values['thinking-budgets']),
+      resolveModels(values['models'], catalog),
+      parseCommaList(values['settings']),
       parseCommaList(values['sys-prompts']),
       parseCommaList(values['schemas']),
     ),

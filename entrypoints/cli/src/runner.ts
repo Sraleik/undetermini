@@ -1,4 +1,4 @@
-import { expandCartesian } from '@undetermini/core/axes/expand-cartesian';
+import { expandModels } from '@undetermini/core/models/expand';
 import { resolveSysPrompts } from '@undetermini/application/axes/resolve-sys-prompts';
 import { EvalEngine } from '@undetermini/application/api';
 import { parseEvalArgs } from './cli-args';
@@ -17,7 +17,7 @@ export const runEvalCli = async (
   registry: SubjectRegistry = defaultRegistry,
   argv: string[] = process.argv.slice(2),
 ): Promise<void> => {
-  const args = parseEvalArgs(argv);
+  const args = parseEvalArgs(argv, registry.models);
 
   const {
     subject: evalSubject,
@@ -46,16 +46,14 @@ export const runEvalCli = async (
       args.cartesian.sysPromptTokens,
       promptsDir,
     );
-    const variants = expandCartesian({
-      models: args.cartesian.models,
-      reasoningEfforts: args.cartesian.reasoningEfforts,
-      thinkingBudgets: args.cartesian.thinkingBudgets,
+    const variants = expandModels({
+      models: args.cartesian.entries,
       sysPrompts,
       schemas: resolveSchemaAxis(args.cartesian.schemaTokens, schemas),
     });
     if (variants.length === 0) {
       throw new Error(
-        `Cartesian expansion produced 0 valid variants — every (model, axis) combo was filtered out by the capability matrix. Check your --models / --reasoning-efforts / --thinking-budgets values against eval/axes/model-capabilities.ts.`,
+        `Cartesian expansion produced 0 variants — none of the chosen --models declares the requested --settings. Check them against the models declared in undetermini.config.ts.`,
       );
     }
     subjectVariants = variants;
@@ -81,7 +79,7 @@ export const runEvalCli = async (
     variants: subject.variants.length,
   };
 
-  const engine = new EvalEngine({ subject });
+  const engine = new EvalEngine({ subject, catalog: registry.models });
   const unsubscribePrinter = subscribeConsolePrinter({
     engine,
     subjectName: subject.name,
@@ -107,6 +105,7 @@ export const runEvalCli = async (
     evalFile,
     casesDir,
     run,
+    catalog: registry.models,
   });
 
   console.log(`Run id: ${runId}`);
