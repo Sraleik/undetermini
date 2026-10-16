@@ -47,6 +47,7 @@ const baseArgs = (
     totalTokens: 2,
     cachedInputTokens: 0,
     estimatedCostUsd: 0.0001,
+    costNanoUsd: 100_000,
     finishReason: 'stop',
   },
   status: 'success',
@@ -82,23 +83,30 @@ describe('trial-cache (SQLite-backed)', () => {
   });
 
   it('lookup returns null when no row matches', () => {
-    expect(lookupTrial(baseKey(), db)).toBeNull();
+    expect(lookupTrial(baseKey(), 'openai', db)).toBeNull();
   });
 
   it('insert then lookup round-trips the entry', () => {
     const key = baseKey();
     const trialId = insertTrial(baseArgs(key), db);
-    const got = lookupTrial(key, db);
+    const got = lookupTrial(key, 'openai', db);
     expect(got?.trialId).toBe(trialId);
     expect(
       (got?.response.content[0] as { type: 'text'; text: string }).text,
     ).toBe('hello');
   });
 
+  it('lookup filters on the provider (ISC-13)', () => {
+    const key = baseKey();
+    insertTrial(baseArgs(key), db);
+    expect(lookupTrial(key, 'openrouter', db)).toBeNull();
+    expect(lookupTrial(key, 'openai', db)?.stored.costNanoUsd).toBe(100_000);
+  });
+
   it('failed trials are not returned by lookup', () => {
     const key = baseKey();
     insertTrial(baseArgs(key, { status: 'fail', error: 'boom', response: {} as never }), db);
-    expect(lookupTrial(key, db)).toBeNull();
+    expect(lookupTrial(key, 'openai', db)).toBeNull();
   });
 
   it('append-only: multiple successful rows for the same key, lookup returns the latest', () => {
@@ -127,7 +135,7 @@ describe('trial-cache (SQLite-backed)', () => {
       }),
       db,
     );
-    const got = lookupTrial(key, db);
+    const got = lookupTrial(key, 'openai', db);
     expect(
       (got?.response.content[0] as { type: 'text'; text: string }).text,
     ).toBe('newer');
@@ -137,7 +145,7 @@ describe('trial-cache (SQLite-backed)', () => {
   it('markTrialFailed flips a success to fail with reason, keeps the raw, and hides it from lookup', () => {
     const key = baseKey();
     const trialId = insertTrial(baseArgs(key), db);
-    expect(lookupTrial(key, db)?.trialId).toBe(trialId);
+    expect(lookupTrial(key, 'openai', db)?.trialId).toBe(trialId);
 
     markTrialFailed(trialId, 'No object generated: response did not match schema', db);
 
@@ -147,7 +155,7 @@ describe('trial-cache (SQLite-backed)', () => {
     expect(row.status).toBe('fail');
     expect(row.error).toContain('No object generated');
     expect(row.output_raw).not.toBeNull(); // raw preserved for debugging
-    expect(lookupTrial(key, db)).toBeNull(); // no longer replayable
+    expect(lookupTrial(key, 'openai', db)).toBeNull(); // no longer replayable
   });
 
   it('markTrialFailed never touches an already-failed row', () => {

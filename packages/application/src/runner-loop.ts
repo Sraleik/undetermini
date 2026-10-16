@@ -1,12 +1,23 @@
 import type { LanguageModelV3Middleware } from '@ai-sdk/provider';
 import type { CacheMode } from './cache/index';
-import { markTrialFailed, trialCacheMiddleware } from './cache/index';
+import {
+  markTrialFailed,
+  trialCacheMiddleware,
+} from './cache/index';
 import type { CallTelemetry } from './telemetry-middleware';
 import pLimit from 'p-limit';
 import { formatEvalError, logEvalTrialFailure } from '@undetermini/core/format';
 import type { TrialCompletedPayload } from './event';
 import { readGitState } from './git-state';
-import { computeCost } from '@undetermini/core/pricing';
+import { builtinModels } from '@undetermini/core/models/builtin';
+import { decodeCatalog, type Catalog } from '@undetermini/core/models/catalog';
+import { modelKey, type ModelKey } from '@undetermini/core/models/model';
+import { trialCost } from '@undetermini/core/models/price';
+import {
+  successRate,
+  sumCosts,
+  type TrialStatus,
+} from '@undetermini/core/models/totals';
 import type { ScoreResult } from '@undetermini/core/scorers';
 import { caseAssertionsScorer, isPerfectTrial } from '@undetermini/core/scorers';
 import { prepareVariantConfigs } from './storage/variant-config-id';
@@ -57,7 +68,7 @@ export type RunOpts = {
 
 export type TrialResult = {
   index: number;
-  status: 'success' | 'fail';
+  status: TrialStatus;
   /** UUID of the corresponding `trials` row. `null` only on edge-case writes that
    *  bypass the middleware — never under normal runEval flow. */
   trialId: string | null;
@@ -67,6 +78,9 @@ export type TrialResult = {
   realLatencyMs: number;
   cacheHit: boolean;
   tokens: { input: number; output: number; total: number };
+  /** Whole nano-dollars at the declared price of the call date; `null` = no price. */
+  costNanoUsd: number | null;
+  /** Derived from `costNanoUsd`, for display; `null` when the price is missing. */
   estimatedCostUsd: number | null;
   error?: string;
 };
@@ -84,16 +98,22 @@ export type CaseResult = {
     avgRealLatencyMs: number;
     avgTokensIn: number;
     avgTokensOut: number;
+    /** Partial when `unpricedModels` is not empty. */
     totalCostUsd: number;
+    totalCostNanoUsd: number;
+    unpricedModels: ModelKey[];
     cacheHits: number;
     freshCalls: number;
     errorCalls: number;
+    unavailableCalls: number;
   };
 };
 
 export type VariantResult = {
   name: string;
   modelId: string;
+  /** Absent on results built before the provider was part of a model's identity. */
+  provider?: string;
   cases: CaseResult[];
   aggregate: {
     avgScore: number;
@@ -102,10 +122,14 @@ export type VariantResult = {
     avgRealLatencyMs: number;
     avgTokensIn: number;
     avgTokensOut: number;
+    /** Partial when `unpricedModels` is not empty. */
     totalCostUsd: number;
+    totalCostNanoUsd: number;
+    unpricedModels: ModelKey[];
     cacheHits: number;
     freshCalls: number;
     errorCalls: number;
+    unavailableCalls: number;
   };
 };
 
@@ -128,7 +152,30 @@ const variance = (xs: number[]): number => {
   return xs.reduce((acc, x) => acc + (x - m) ** 2, 0) / xs.length;
 };
 
-const aggregateCase = (trials: TrialResult[]): CaseResult['aggregate'] => {
+const EMPTY_SCORE: ScoreResult = {
+  score: 0,
+  metadata: { passed: [], failed: [], byCategory: {}, allAssertions: [] },
+};
+
+const costOf = (
+  model: ModelKey,
+  trials: TrialResult[],
+): Pick<CaseResult['aggregate'], 'totalCostUsd' | 'totalCostNanoUsd' | 'unpricedModels'> => {
+  const { nanoUsd, unpricedModels } = sumCosts(
+    trials.map((t) => ({ model, status: t.status, costNanoUsd: t.costNanoUsd })),
+  );
+  return { totalCostUsd: nanoUsd / 1e9, totalCostNanoUsd: nanoUsd, unpricedModels };
+};
+
+// An unavailable trial never ran: it has no score, no latency, no tokens.
+const ranOnly = (trials: TrialResult[]): TrialResult[] =>
+  trials.filter((t) => t.status !== 'unavailable');
+
+const aggregateCase = (
+  allTrials: TrialResult[],
+  model: ModelKey,
+): CaseResult['aggregate'] => {
+  const trials = ranOnly(allTrials);
   const trialScores = trials.map((t) => t.score.score);
 
   const byCategoryAccum: Record<string, { sum: number; count: number }> = {};
@@ -153,51 +200,69 @@ const aggregateCase = (trials: TrialResult[]): CaseResult['aggregate'] => {
     avgRealLatencyMs: mean(trials.map((t) => t.realLatencyMs)),
     avgTokensIn: mean(trials.map((t) => t.tokens.input)),
     avgTokensOut: mean(trials.map((t) => t.tokens.output)),
-    totalCostUsd: trials
-      .map((t) => t.estimatedCostUsd ?? 0)
-      .reduce((a, b) => a + b, 0),
+    ...costOf(model, allTrials),
     cacheHits: trials.filter((t) => t.cacheHit).length,
     freshCalls: trials.filter((t) => !t.cacheHit && t.status === 'success')
       .length,
     errorCalls: trials.filter((t) => t.status === 'fail').length,
+    unavailableCalls: allTrials.length - trials.length,
   };
 };
 
-const aggregateVariant = (cases: CaseResult[]): VariantResult['aggregate'] => {
-  const caseScores = cases.map((c) => c.aggregate.score);
+const aggregateVariant = (
+  cases: CaseResult[],
+  model: ModelKey,
+): VariantResult['aggregate'] => {
+  // A case where nothing ran has no score to average.
+  const caseScores = cases
+    .filter((c) => ranOnly(c.trials).length > 0)
+    .map((c) => c.aggregate.score);
   const allTrials = cases.flatMap((c) => c.trials);
-  // Fraction of perfect trials (see isPerfectTrial). Errored trials are excluded
-  // from the numerator via the `status` guard (their empty `allAssertions` would
-  // otherwise count as perfect) but kept in the denominator, penalizing crashes.
+  const trials = ranOnly(allTrials);
+  // Fraction of perfect trials among those that ran (see isPerfectTrial). Errored
+  // trials stay out of the numerator via the `status` guard (their empty
+  // `allAssertions` would otherwise count as perfect) but in the denominator,
+  // penalizing crashes. Unavailable trials leave both.
   const passRate =
-    allTrials.length === 0
-      ? 0
-      : allTrials.filter(
-          (t) =>
-            t.status === 'success' &&
-            isPerfectTrial(t.score.metadata.allAssertions),
-        ).length / allTrials.length;
+    successRate(
+      allTrials.map((t) =>
+        t.status === 'success' && !isPerfectTrial(t.score.metadata.allAssertions)
+          ? 'fail'
+          : t.status,
+      ),
+    ) ?? 0;
   return {
     avgScore: mean(caseScores),
     passRate,
-    avgLatencyMs: mean(allTrials.map((t) => t.latencyMs)),
-    avgRealLatencyMs: mean(allTrials.map((t) => t.realLatencyMs)),
-    avgTokensIn: mean(allTrials.map((t) => t.tokens.input)),
-    avgTokensOut: mean(allTrials.map((t) => t.tokens.output)),
-    totalCostUsd: cases
-      .map((c) => c.aggregate.totalCostUsd)
-      .reduce((a, b) => a + b, 0),
-    cacheHits: allTrials.filter((t) => t.cacheHit).length,
-    freshCalls: allTrials.filter((t) => !t.cacheHit && t.status === 'success')
+    avgLatencyMs: mean(trials.map((t) => t.latencyMs)),
+    avgRealLatencyMs: mean(trials.map((t) => t.realLatencyMs)),
+    avgTokensIn: mean(trials.map((t) => t.tokens.input)),
+    avgTokensOut: mean(trials.map((t) => t.tokens.output)),
+    ...costOf(model, allTrials),
+    cacheHits: trials.filter((t) => t.cacheHit).length,
+    freshCalls: trials.filter((t) => !t.cacheHit && t.status === 'success')
       .length,
-    errorCalls: allTrials.filter((t) => t.status === 'fail').length,
+    errorCalls: trials.filter((t) => t.status === 'fail').length,
+    unavailableCalls: allTrials.length - trials.length,
   };
+};
+
+let builtinCatalog: Catalog | undefined;
+const defaultCatalog = (): Catalog => {
+  if (builtinCatalog === undefined) {
+    const decoded = decodeCatalog(builtinModels());
+    if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+    builtinCatalog = decoded.catalog;
+  }
+  return builtinCatalog;
 };
 
 export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
   subject: Subject<V, TInput, TOutput>,
   opts: RunOpts,
   onTrialCompleted?: (payload: TrialCompletedPayload) => void,
+  /** Absent: the built-in catalog applies, until the switch to declared models. */
+  catalog: Catalog = defaultCatalog(),
 ): Promise<RunResult> => {
   const startedAt = new Date().toISOString();
   const startMs = performance.now();
@@ -233,11 +298,22 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
   await Promise.all(
     jobs.map((job) =>
       limit(async () => {
+        const declared = catalog.find(job.variant.provider, job.variant.modelId);
+        const pricePeriods = declared?.price ?? [];
         const stats: {
           hit: boolean;
           originalLatencyMs: number;
           trialId: string | null;
-        } = { hit: false, originalLatencyMs: 0, trialId: null };
+          /** `undefined` until the cache middleware reports a cost. */
+          costNanoUsd: number | null | undefined;
+          unavailable: boolean;
+        } = {
+          hit: false,
+          originalLatencyMs: 0,
+          trialId: null,
+          costNanoUsd: undefined,
+          unavailable: false,
+        };
 
         const extraMiddlewares: LanguageModelV3Middleware[] = [
           trialCacheMiddleware({
@@ -251,15 +327,20 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
               provider: job.variant.provider,
               trialIndex: job.trialIndex,
             },
-            estimateCostUsd: (modelId, inTok, outTok, cachedInTok) =>
-              computeCost(modelId, inTok, outTok, cachedInTok),
+            pricePeriods,
+            retired: declared?.retired === true,
             onHit: (entry) => {
               stats.hit = true;
               stats.originalLatencyMs = entry.metadata.latencyMs;
               stats.trialId = entry.trialId;
+              stats.costNanoUsd = entry.costNanoUsd;
             },
             onMiss: (entry) => {
               stats.trialId = entry.trialId;
+              stats.costNanoUsd = entry.costNanoUsd;
+            },
+            onUnavailable: () => {
+              stats.unavailable = true;
             },
             onFail: (trialId, error) => {
               stats.trialId = trialId;
@@ -288,6 +369,18 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
               assertions: job.caseRef.assertions as CaseAssertion<TOutput>[],
             },
           });
+          // A subject that bypasses the cache middleware reports no cost of its
+          // own: price its telemetry at today's declared price.
+          const costNanoUsd =
+            stats.costNanoUsd !== undefined
+              ? stats.costNanoUsd
+              : trialCost({
+                  periods: pricePeriods,
+                  calledAt: new Date().toISOString().slice(0, 10),
+                  inputTokens: telemetry.inputTokens,
+                  outputTokens: telemetry.outputTokens,
+                  cachedInputTokens: telemetry.cachedInputTokens,
+                });
           trial = {
             index: job.trialIndex,
             status: 'success',
@@ -304,50 +397,56 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
               output: telemetry.outputTokens,
               total: telemetry.totalTokens,
             },
-            estimatedCostUsd: computeCost(
-              job.variant.modelId,
-              telemetry.inputTokens,
-              telemetry.outputTokens,
-              telemetry.cachedInputTokens,
-            ),
+            costNanoUsd,
+            estimatedCostUsd: costNanoUsd === null ? null : costNanoUsd / 1e9,
           };
         } catch (err) {
-          // A fresh trial whose model output was persisted (onMiss) but which
-          // then failed DOWNSTREAM validation: flip that row to `fail` with the
-          // reason, keeping the raw for debugging. Never touch a cache hit — its
-          // row is a shared historical success owned by an earlier run.
-          if (stats.trialId !== null && !stats.hit) {
-            markTrialFailed(stats.trialId, formatEvalError(err));
+          if (stats.unavailable) {
+            // Retired model, nothing stored for this trial: not a failure, no row, no cost.
+            trial = {
+              index: job.trialIndex,
+              status: 'unavailable',
+              trialId: null,
+              output: null,
+              score: EMPTY_SCORE,
+              latencyMs: 0,
+              realLatencyMs: 0,
+              cacheHit: false,
+              tokens: { input: 0, output: 0, total: 0 },
+              costNanoUsd: null,
+              estimatedCostUsd: null,
+            };
+          } else {
+            // A fresh trial whose model output was persisted (onMiss) but which
+            // then failed DOWNSTREAM validation: flip that row to `fail` with the
+            // reason, keeping the raw for debugging. Never touch a cache hit — its
+            // row is a shared historical success owned by an earlier run.
+            if (stats.trialId !== null && !stats.hit) {
+              markTrialFailed(stats.trialId, formatEvalError(err));
+            }
+            logEvalTrialFailure({
+              variantName: job.variant.name,
+              caseSlug: job.caseRef.slug,
+              trialIndex: job.trialIndex,
+              trialId: stats.trialId ?? undefined,
+              phase: 'runOne',
+              error: err,
+            });
+            trial = {
+              index: job.trialIndex,
+              status: 'fail',
+              trialId: stats.trialId,
+              output: null,
+              score: EMPTY_SCORE,
+              latencyMs: 0,
+              realLatencyMs: 0,
+              cacheHit: false,
+              tokens: { input: 0, output: 0, total: 0 },
+              costNanoUsd: null,
+              estimatedCostUsd: null,
+              error: formatEvalError(err),
+            };
           }
-          logEvalTrialFailure({
-            variantName: job.variant.name,
-            caseSlug: job.caseRef.slug,
-            trialIndex: job.trialIndex,
-            trialId: stats.trialId ?? undefined,
-            phase: 'runOne',
-            error: err,
-          });
-          trial = {
-            index: job.trialIndex,
-            status: 'fail',
-            trialId: stats.trialId,
-            output: null,
-            score: {
-              score: 0,
-              metadata: {
-                passed: [],
-                failed: [],
-                byCategory: {},
-                allAssertions: [],
-              },
-            },
-            latencyMs: 0,
-            realLatencyMs: 0,
-            cacheHit: false,
-            tokens: { input: 0, output: 0, total: 0 },
-            estimatedCostUsd: null,
-            error: formatEvalError(err),
-          };
         }
         const key = keyOf(job.variant.name, job.caseRef.slug);
         const arr = results.get(key) ?? [];
@@ -364,6 +463,7 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
   );
 
   const variants: VariantResult[] = subject.variants.map((variant) => {
+    const model = modelKey({ provider: variant.provider, id: variant.modelId });
     const cases: CaseResult[] = subject.cases.map((caseRef) => {
       const key = keyOf(variant.name, caseRef.slug);
       const trials = (results.get(key) ?? []).sort((a, b) => a.index - b.index);
@@ -372,14 +472,15 @@ export const runEval = async <V extends SubjectVariant, TInput, TOutput>(
         caseSlug: caseRef.slug,
         input: caseRef.input,
         trials,
-        aggregate: aggregateCase(trials),
+        aggregate: aggregateCase(trials, model),
       };
     });
     return {
       name: variant.name,
       modelId: variant.modelId,
+      provider: variant.provider,
       cases,
-      aggregate: aggregateVariant(cases),
+      aggregate: aggregateVariant(cases, model),
     };
   });
 

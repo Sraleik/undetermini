@@ -3,6 +3,8 @@ import type { LanguageModelV3GenerateResult } from '@ai-sdk/provider';
 import type Database from 'better-sqlite3';
 import { openEvalDb } from '../storage/schema';
 import type { CacheEntry, CacheKey } from '@undetermini/core/cache/types';
+import type { PricePeriod } from '@undetermini/core/models/model';
+import { trialCost } from '@undetermini/core/models/price';
 
 export type TrialContext = {
   caseId: string;
@@ -30,19 +32,24 @@ export type WriteTrialArgs = {
     outputTokens: number;
     totalTokens: number;
     cachedInputTokens: number;
+    /** Derived from `costNanoUsd`, kept for display. */
     estimatedCostUsd: number | null;
+    /** Whole nano-dollars at the declared price of the call date; `null` = no price. */
+    costNanoUsd: number | null;
     finishReason: string | null;
   };
   status: 'success' | 'fail';
   error: string | null;
 };
 
-// Latest successful trial for a (model, prompt, static, trial_index) tuple.
+// Latest successful trial for a (provider, model, prompt, static, trial_index) tuple.
 // Failed trials are excluded so they're never replayed as cache hits.
 const LOOKUP_SQL = `
-  SELECT id, model_id, prompt_sha, static_hash, trial_index, output_raw, latency_ms, created_at
+  SELECT id, output_raw, latency_ms, created_at,
+    tokens_input, tokens_output, tokens_cached_input, estimated_cost_usd, cost_nano_usd
   FROM trials
-  WHERE model_id = ?
+  WHERE provider = ?
+    AND model_id = ?
     AND prompt_sha = ?
     AND static_hash = ?
     AND trial_index = ?
@@ -57,23 +64,70 @@ const INSERT_SQL = `
     id, model_id, provider, prompt_sha, static_hash, trial_index,
     case_id, case_slug_at_creation, variant_name, variant_config_id, created_in_run_id,
     output_raw, output_hash, finish_reason, tokens_input, tokens_output,
-    tokens_total, tokens_cached_input, estimated_cost_usd, latency_ms, status, error, created_at
+    tokens_total, tokens_cached_input, estimated_cost_usd, cost_nano_usd, latency_ms, status, error, created_at
   ) VALUES (
     ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?
   )
 `;
 
+/** What a stored row says about its own cost, before any replay pricing. */
+export type StoredTrialCost = {
+  costNanoUsd: number | null;
+  estimatedCostUsd: number | null;
+  inputTokens: number;
+  outputTokens: number;
+  cachedInputTokens: number;
+  createdAt: string;
+};
+
+export type StoredTrial = CacheEntry & { stored: StoredTrialCost };
+
+/** The cost a replayed trial carries. A row with `cost_nano_usd` is read as is.
+ *  A historical row converts `estimated_cost_usd` once, at read time. A row with
+ *  neither takes the price in force on its `created_at` date. History is never
+ *  rewritten. */
+export const replayCostNanoUsd = ({
+  stored,
+  periods,
+}: {
+  stored: StoredTrialCost;
+  periods: PricePeriod[];
+}): number | null => {
+  if (stored.costNanoUsd !== null) return stored.costNanoUsd;
+  if (stored.estimatedCostUsd !== null) {
+    return Math.round(stored.estimatedCostUsd * 1e9);
+  }
+  return trialCost({
+    periods,
+    calledAt: stored.createdAt.slice(0, 10),
+    inputTokens: stored.inputTokens,
+    outputTokens: stored.outputTokens,
+    cachedInputTokens: stored.cachedInputTokens,
+  });
+};
+
 export const lookupTrial = (
   key: CacheKey,
+  provider: string,
   db: Database.Database = openEvalDb(),
-): CacheEntry | null => {
+): StoredTrial | null => {
   const row = db
     .prepare(LOOKUP_SQL)
-    .get(key.modelId, key.promptSha, key.staticHash, key.trialIndex) as
-    | { id: string; output_raw: string; latency_ms: number; created_at: string }
+    .get(provider, key.modelId, key.promptSha, key.staticHash, key.trialIndex) as
+    | {
+        id: string;
+        output_raw: string;
+        latency_ms: number;
+        created_at: string;
+        tokens_input: number | null;
+        tokens_output: number | null;
+        tokens_cached_input: number | null;
+        estimated_cost_usd: number | null;
+        cost_nano_usd: number | null;
+      }
     | undefined;
   if (!row) return null;
 
@@ -90,6 +144,14 @@ export const lookupTrial = (
     key,
     metadata: { createdAt: row.created_at, latencyMs: row.latency_ms },
     response,
+    stored: {
+      costNanoUsd: row.cost_nano_usd,
+      estimatedCostUsd: row.estimated_cost_usd,
+      inputTokens: row.tokens_input ?? 0,
+      outputTokens: row.tokens_output ?? 0,
+      cachedInputTokens: row.tokens_cached_input ?? 0,
+      createdAt: row.created_at,
+    },
   };
 };
 
@@ -144,6 +206,7 @@ export const insertTrial = (
     args.telemetry.totalTokens,
     args.telemetry.cachedInputTokens,
     args.telemetry.estimatedCostUsd,
+    args.telemetry.costNanoUsd,
     args.metadata.latencyMs,
     args.status,
     args.error,

@@ -1,9 +1,8 @@
 import type Database from 'better-sqlite3';
 import { datasetHash } from '../git-state';
-import {
-  MODEL_PRICING_USD_PER_1M,
-  PRICING_VERIFIED_AT,
-} from '@undetermini/core/pricing';
+import { builtinModels } from '@undetermini/core/models/builtin';
+import { decodeCatalog, type Catalog } from '@undetermini/core/models/catalog';
+import { modelKey, type ModelKey, type PricePeriod } from '@undetermini/core/models/model';
 import type { RunResult } from '../runner-loop';
 import { CASE_ASSERTIONS_SCORER_VERSION, SCORER_NAME } from '@undetermini/core/scorers';
 import { computeFingerprint } from '@undetermini/core/fingerprint';
@@ -14,8 +13,35 @@ export type WriteRunArgs = {
   evalFile: string;
   casesDir: string;
   run: RunResult;
+  /** Declared models, source of the price snapshot. Absent: the built-in catalog. */
+  catalog?: Catalog;
   /** Override the default singleton DB. Used by tests to point at `:memory:`. */
   db?: Database.Database;
+};
+
+/** What `runs.pricing_table_json` holds. The former format, one flat table per
+ *  model id with no provider and no periods, stays readable by the export. */
+export type PricingSnapshot = {
+  version: 2;
+  models: Record<ModelKey, PricePeriod[]>;
+};
+
+const builtinCatalog = (): Catalog => {
+  const decoded = decodeCatalog(builtinModels());
+  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+  return decoded.catalog;
+};
+
+/** The declared prices of the models this run used, as they stand now. An
+ *  undeclared model keeps an empty list: its price is unknown, never zero. */
+const pricingSnapshot = (run: RunResult, catalog: Catalog): PricingSnapshot => {
+  const models: Record<ModelKey, PricePeriod[]> = {};
+  for (const variant of run.variants) {
+    const provider = variant.provider ?? 'unknown';
+    models[modelKey({ provider, id: variant.modelId })] =
+      catalog.find(provider, variant.modelId)?.price ?? [];
+  }
+  return { version: 2, models };
 };
 
 // system_prompt_text and system_prompt_sha256 moved to the `system_prompts`
@@ -64,8 +90,9 @@ export const writeRunToDb = (args: WriteRunArgs): void => {
       args.evalFile,
       args.casesDir,
       args.subjectName,
-      JSON.stringify(MODEL_PRICING_USD_PER_1M),
-      PRICING_VERIFIED_AT,
+      JSON.stringify(pricingSnapshot(args.run, args.catalog ?? builtinCatalog())),
+      // The lib no longer verifies prices: the date is the day the snapshot was taken.
+      args.run.startedAt.slice(0, 10),
     );
 
     for (const variant of args.run.variants) {

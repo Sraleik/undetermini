@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import type { Catalog } from '@undetermini/core/models/catalog';
 import type { EvalEvent } from './event';
 import {
   runEval,
@@ -18,6 +19,8 @@ export class EvalEngine<
   constructor(
     private readonly dependencies: {
       subject: Subject<V, TInput, TOutput>;
+      /** Declared models. Absent: the built-in catalog applies. */
+      catalog?: Catalog;
     },
   ) {}
 
@@ -29,7 +32,7 @@ export class EvalEngine<
   }
 
   async run(opts: RunOpts): Promise<RunResult> {
-    const { subject } = this.dependencies;
+    const { subject, catalog } = this.dependencies;
 
     this._emit({
       kind: 'runStarted',
@@ -42,9 +45,14 @@ export class EvalEngine<
 
     let result: RunResult;
     try {
-      result = await runEval(subject, opts, (payload) => {
-        this._emit({ kind: 'trialCompleted', runId: opts.runId, ...payload });
-      });
+      result = await runEval(
+        subject,
+        opts,
+        (payload) => {
+          this._emit({ kind: 'trialCompleted', runId: opts.runId, ...payload });
+        },
+        catalog,
+      );
     } catch (err) {
       this._emit({
         kind: 'error',

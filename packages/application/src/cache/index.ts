@@ -9,9 +9,14 @@ export {
   insertTrial,
   lookupTrial,
   markTrialFailed,
+  replayCostNanoUsd,
+  type StoredTrial,
+  type StoredTrialCost,
   type TrialContext,
 } from './trial-cache';
 export {
   trialCacheMiddleware,
+  UnavailableTrialError,
+  type PricedCacheEntry,
   type TrialCacheMiddlewareOptions,
 } from './trial-cache-middleware';

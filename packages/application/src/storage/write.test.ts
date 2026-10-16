@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RunResult, TrialResult } from '../runner-loop';
 import { closeEvalDb, openEvalDb } from './schema';
+import { decodeCatalog } from '@undetermini/core/models/catalog';
 import { writeRunToDb } from './write';
 
 const trial = (overrides: Partial<TrialResult> = {}): TrialResult => ({
@@ -31,6 +32,7 @@ const trial = (overrides: Partial<TrialResult> = {}): TrialResult => ({
   realLatencyMs: 100,
   cacheHit: false,
   tokens: { input: 10, output: 5, total: 15 },
+  costNanoUsd: 100_000,
   estimatedCostUsd: 0.0001,
   ...overrides,
 });
@@ -46,6 +48,7 @@ const run = (trials: TrialResult[]): RunResult => ({
     {
       name: 'gpt-4.1',
       modelId: 'gpt-4.1',
+      provider: 'openai',
       cases: [
         {
           caseId: 'case-1',
@@ -183,5 +186,69 @@ describe('writeRunToDb', () => {
     expect(ar.map((r) => r.assertion_version)).toEqual([1, 2]);
     const ts = db.prepare('SELECT * FROM trial_scores').all();
     expect(ts).toHaveLength(2);
+  });
+
+  describe('instantané des prix déclarés', () => {
+    const PERIOD = { from: '2026-01-01', input: '2.00', output: '8.00', cachedInput: '0.50' };
+
+    const catalogOf = (...models: unknown[]) => {
+      const decoded = decodeCatalog(models);
+      if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+      return decoded.catalog;
+    };
+
+    const snapshot = () => {
+      const row = db
+        .prepare('SELECT pricing_table_json, pricing_verified_at FROM runs')
+        .get() as { pricing_table_json: string; pricing_verified_at: string };
+      return { table: JSON.parse(row.pricing_table_json), verifiedAt: row.pricing_verified_at };
+    };
+
+    it('garde les prix déclarés des seuls modèles du run, au format versionné', () => {
+      const catalog = catalogOf(
+        { provider: 'openai', id: 'gpt-4.1', price: [PERIOD] },
+        { provider: 'acme', id: 'not-in-this-run', price: [PERIOD] },
+      );
+      writeRunToDb({ ...baseArgs(run([trial()]), db), catalog });
+      expect(snapshot().table).toEqual({
+        version: 2,
+        models: { 'openai:gpt-4.1': [PERIOD] },
+      });
+    });
+
+    it('un prix déclaré doublé ensuite ne touche pas l instantané du run enregistré', () => {
+      writeRunToDb({
+        ...baseArgs(run([trial()]), db),
+        catalog: catalogOf({ provider: 'openai', id: 'gpt-4.1', price: [PERIOD] }),
+      });
+      const doubled = { ...PERIOD, input: '4.00', output: '16.00', cachedInput: '1.00' };
+      writeRunToDb({
+        ...baseArgs(run([trial()]), db),
+        run: { ...run([trial()]), runId: 'test-run-2' },
+        catalog: catalogOf({ provider: 'openai', id: 'gpt-4.1', price: [doubled] }),
+      });
+      const rows = db
+        .prepare('SELECT id, pricing_table_json FROM runs ORDER BY id')
+        .all() as Array<{ id: string; pricing_table_json: string }>;
+      expect(JSON.parse(rows[0]!.pricing_table_json).models['openai:gpt-4.1']).toEqual([PERIOD]);
+      expect(JSON.parse(rows[1]!.pricing_table_json).models['openai:gpt-4.1']).toEqual([doubled]);
+    });
+
+    it('modèle du run absent du catalogue : liste de prix vide, jamais zéro', () => {
+      writeRunToDb({ ...baseArgs(run([trial()]), db), catalog: catalogOf() });
+      expect(snapshot().table.models).toEqual({ 'openai:gpt-4.1': [] });
+    });
+
+    it('sans catalogue : le catalogue intégré donne les prix', () => {
+      writeRunToDb(baseArgs(run([trial()]), db));
+      const { table } = snapshot();
+      expect(table.version).toBe(2);
+      expect(table.models['openai:gpt-4.1']).toHaveLength(1);
+    });
+
+    it('pricing_verified_at : la date de début du run', () => {
+      writeRunToDb(baseArgs(run([trial()]), db));
+      expect(snapshot().verifiedAt).toBe('2026-05-07');
+    });
   });
 });

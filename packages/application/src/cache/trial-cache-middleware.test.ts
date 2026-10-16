@@ -6,7 +6,8 @@ import type {
 import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeEvalDb, openEvalDb } from '../storage/schema';
-import { trialCacheMiddleware } from './trial-cache-middleware';
+import type { PricePeriod } from '@undetermini/core/models/model';
+import { UnavailableTrialError, trialCacheMiddleware } from './trial-cache-middleware';
 
 const fakeModel = (modelId = 'gpt-4.1'): LanguageModelV3 =>
   ({
@@ -42,8 +43,6 @@ const ctx = {
   trialIndex: 0,
 };
 
-const noopCost = () => null;
-
 describe('trialCacheMiddleware (SQLite-backed)', () => {
   let db: Database.Database;
 
@@ -75,7 +74,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
     });
     expect(mw.specificationVersion).toBe('v3');
@@ -86,7 +84,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
       onMiss,
     });
@@ -109,7 +106,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw1 = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
     });
     await mw1.wrapGenerate!({
@@ -123,7 +119,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw2 = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
       onHit,
     });
@@ -145,7 +140,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const seed = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
     });
     await seed.wrapGenerate!({
@@ -158,7 +152,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const writeOnly = trialCacheMiddleware({
       mode: 'write-only',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
     });
     const doGenerate = vi.fn().mockResolvedValue(fakeResult('refreshed'));
@@ -182,7 +175,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const verify = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
     });
     const verifyResult = await verify.wrapGenerate!({
@@ -200,13 +192,11 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw0 = trialCacheMiddleware({
       mode: 'auto',
       context: { ...ctx, trialIndex: 0 },
-      estimateCostUsd: noopCost,
       db,
     });
     const mw1 = trialCacheMiddleware({
       mode: 'auto',
       context: { ...ctx, trialIndex: 1 },
-      estimateCostUsd: noopCost,
       db,
     });
     const doGenerate = vi
@@ -236,7 +226,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw = trialCacheMiddleware({
       mode: 'auto',
       context: { ...ctx, trialIndex: 0 },
-      estimateCostUsd: noopCost,
       db,
     });
     await expect(
@@ -257,7 +246,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const verify = trialCacheMiddleware({
       mode: 'auto',
       context: { ...ctx, trialIndex: 0 },
-      estimateCostUsd: noopCost,
       db,
     });
     const verifyResult = await verify.wrapGenerate!({
@@ -281,7 +269,6 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     const mw = trialCacheMiddleware({
       mode: 'auto',
       context: ctx,
-      estimateCostUsd: noopCost,
       db,
       onFail,
     });
@@ -300,5 +287,204 @@ describe('trialCacheMiddleware (SQLite-backed)', () => {
     expect(row.status).toBe('fail');
     expect(row.error).toBe('rate limited');
     expect(onFail).toHaveBeenCalledTimes(1);
+  });
+});
+
+const INTRO: PricePeriod = {
+  from: '2026-07-01',
+  input: '1.00',
+  output: '2.00',
+  cachedInput: '0.50',
+};
+const STANDARD: PricePeriod = {
+  from: '2026-09-01',
+  input: '3.00',
+  output: '6.00',
+  cachedInput: '1.50',
+};
+
+// 1 000 000 tokens in and out: 1 + 2 = 3 USD at the intro rate.
+const INTRO_COST_NANO_USD = 3_000_000_000;
+
+const millionTokens = (text: string): LanguageModelV3GenerateResult =>
+  ({
+    ...fakeResult(text),
+    usage: {
+      inputTokens: { total: 1_000_000, cacheRead: 0 },
+      outputTokens: { total: 1_000_000 },
+    },
+  }) as unknown as LanguageModelV3GenerateResult;
+
+describe('trialCacheMiddleware : coût au prix déclaré', () => {
+  let db: Database.Database;
+
+  const run = (
+    options: Partial<Parameters<typeof trialCacheMiddleware>[0]>,
+    doGenerate = vi.fn().mockResolvedValue(millionTokens('priced')),
+    modelId = 'gpt-4.1',
+  ) =>
+    trialCacheMiddleware({ mode: 'auto', context: ctx, db, ...options }).wrapGenerate!({
+      doGenerate,
+      doStream: vi.fn(),
+      params: fakeParams,
+      model: fakeModel(modelId),
+    });
+
+  const costColumns = () =>
+    db
+      .prepare(
+        'SELECT cost_nano_usd, estimated_cost_usd FROM trials ORDER BY rowid DESC LIMIT 1',
+      )
+      .get() as { cost_nano_usd: number | null; estimated_cost_usd: number | null };
+
+  beforeEach(() => {
+    closeEvalDb();
+    db = openEvalDb(':memory:');
+    db.prepare(
+      `INSERT INTO system_prompts (id, text, first_seen_at) VALUES (?, ?, ?)`,
+    ).run('test-prompt-id', 'sys', '2026-05-07T00:00:00.000Z');
+    db.prepare(
+      `INSERT INTO variant_configs (id, provider, model_id, system_prompt_id, provider_options_json, first_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('test-variant-config-id', 'openai', 'gpt-4.1', 'test-prompt-id', null, '2026-05-07T00:00:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-15T10:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    closeEvalDb();
+  });
+
+  it('essai neuf : coût en nano-dollars au prix en vigueur à la date d appel', async () => {
+    const onMiss = vi.fn();
+    await run({ pricePeriods: [INTRO, STANDARD], onMiss });
+    expect(costColumns()).toEqual({
+      cost_nano_usd: INTRO_COST_NANO_USD,
+      estimated_cost_usd: 3,
+    });
+    expect(onMiss.mock.calls[0]![0].costNanoUsd).toBe(INTRO_COST_NANO_USD);
+  });
+
+  it('modèle sans prix : coût null, jamais zéro', async () => {
+    const onMiss = vi.fn();
+    await run({ onMiss });
+    expect(costColumns()).toEqual({ cost_nano_usd: null, estimated_cost_usd: null });
+    expect(onMiss.mock.calls[0]![0].costNanoUsd).toBeNull();
+  });
+
+  it('ISC-10 : un essai appelé le 2026-08-15 et rejoué en octobre coûte le tarif intro', async () => {
+    await run({ pricePeriods: [INTRO, STANDARD] });
+    vi.setSystemTime(new Date('2026-10-20T10:00:00.000Z'));
+    const onHit = vi.fn();
+    await run({ pricePeriods: [INTRO, STANDARD], onHit }, vi.fn());
+    expect(onHit.mock.calls[0]![0].costNanoUsd).toBe(INTRO_COST_NANO_USD);
+  });
+
+  it('ISC-8 : prix déclaré doublé après le run, le coût relu est inchangé', async () => {
+    await run({ pricePeriods: [INTRO] });
+    const doubled: PricePeriod = { ...INTRO, input: '2.00', output: '4.00', cachedInput: '1.00' };
+    const onHit = vi.fn();
+    await run({ pricePeriods: [doubled], onHit }, vi.fn());
+    expect(onHit.mock.calls[0]![0].costNanoUsd).toBe(INTRO_COST_NANO_USD);
+  });
+
+  it('ligne sans coût : prend le prix en vigueur à sa date created_at', async () => {
+    await run({});
+    db.prepare(
+      `UPDATE trials SET cost_nano_usd = NULL, estimated_cost_usd = NULL, created_at = '2026-08-15T09:00:00.000Z'`,
+    ).run();
+    vi.setSystemTime(new Date('2026-10-20T10:00:00.000Z'));
+    const onHit = vi.fn();
+    await run({ pricePeriods: [INTRO, STANDARD], onHit }, vi.fn());
+    expect(onHit.mock.calls[0]![0].costNanoUsd).toBe(INTRO_COST_NANO_USD);
+  });
+
+  it('ligne sans coût et modèle sans prix : coût null', async () => {
+    await run({});
+    const onHit = vi.fn();
+    await run({ onHit }, vi.fn());
+    expect(onHit.mock.calls[0]![0].costNanoUsd).toBeNull();
+  });
+
+  it('ligne historique : estimated_cost_usd est converti en nano-dollars à la lecture, sans réécriture', async () => {
+    await run({});
+    db.prepare(`UPDATE trials SET cost_nano_usd = NULL, estimated_cost_usd = 0.5`).run();
+    const onHit = vi.fn();
+    await run({ pricePeriods: [STANDARD], onHit }, vi.fn());
+    expect(onHit.mock.calls[0]![0].costNanoUsd).toBe(500_000_000);
+    expect(costColumns()).toEqual({ cost_nano_usd: null, estimated_cost_usd: 0.5 });
+  });
+});
+
+describe('trialCacheMiddleware : fournisseur et modèle retiré', () => {
+  let db: Database.Database;
+
+  const run = (
+    options: Partial<Parameters<typeof trialCacheMiddleware>[0]>,
+    doGenerate = vi.fn().mockResolvedValue(fakeResult('fresh')),
+  ) =>
+    trialCacheMiddleware({ mode: 'auto', context: ctx, db, ...options }).wrapGenerate!({
+      doGenerate,
+      doStream: vi.fn(),
+      params: fakeParams,
+      model: fakeModel(),
+    });
+
+  beforeEach(() => {
+    closeEvalDb();
+    db = openEvalDb(':memory:');
+    db.prepare(
+      `INSERT INTO system_prompts (id, text, first_seen_at) VALUES (?, ?, ?)`,
+    ).run('test-prompt-id', 'sys', '2026-05-07T00:00:00.000Z');
+    db.prepare(
+      `INSERT INTO variant_configs (id, provider, model_id, system_prompt_id, provider_options_json, first_seen_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run('test-variant-config-id', 'openai', 'gpt-4.1', 'test-prompt-id', null, '2026-05-07T00:00:00.000Z');
+  });
+
+  afterEach(() => {
+    closeEvalDb();
+  });
+
+  it('ISC-13 : un essai stocké sous openai n est pas rejoué pour la même id sous openrouter', async () => {
+    await run({});
+    const viaOpenrouter = vi.fn().mockResolvedValue(fakeResult('other route'));
+    await run({ context: { ...ctx, provider: 'openrouter' } }, viaOpenrouter);
+    expect(viaOpenrouter).toHaveBeenCalledTimes(1);
+
+    const sameProvider = vi.fn();
+    await run({}, sameProvider);
+    expect(sameProvider).not.toHaveBeenCalled();
+  });
+
+  it('modèle retiré, essai en base : rejoué sans appel', async () => {
+    await run({});
+    const doGenerate = vi.fn();
+    const result = await run({ retired: true }, doGenerate);
+    expect(doGenerate).not.toHaveBeenCalled();
+    expect((result.content[0] as { text: string }).text).toBe('fresh');
+  });
+
+  it('modèle retiré, essai absent : unavailable, aucun appel, aucune ligne écrite', async () => {
+    const doGenerate = vi.fn();
+    const onUnavailable = vi.fn();
+    const onFail = vi.fn();
+    await expect(run({ retired: true, onUnavailable, onFail }, doGenerate)).rejects.toBeInstanceOf(
+      UnavailableTrialError,
+    );
+    expect(doGenerate).not.toHaveBeenCalled();
+    expect(onUnavailable).toHaveBeenCalledTimes(1);
+    expect(onFail).not.toHaveBeenCalled();
+    const count = db.prepare('SELECT COUNT(*) as n FROM trials').get() as { n: number };
+    expect(count.n).toBe(0);
+  });
+
+  it('modèle retiré en mode write-only : jamais d appel non plus', async () => {
+    const doGenerate = vi.fn();
+    await expect(
+      run({ retired: true, mode: 'write-only' }, doGenerate),
+    ).rejects.toBeInstanceOf(UnavailableTrialError);
+    expect(doGenerate).not.toHaveBeenCalled();
   });
 });

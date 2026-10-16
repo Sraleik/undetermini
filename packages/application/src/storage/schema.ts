@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS trials (
   tokens_total INTEGER,
   tokens_cached_input INTEGER,
   estimated_cost_usd REAL,
+  cost_nano_usd INTEGER,
   latency_ms INTEGER NOT NULL,
   status TEXT NOT NULL,
   error TEXT,
@@ -133,6 +134,17 @@ const ensureCachedInputTokensColumn = (db: Database.Database): void => {
   }
 };
 
+/** Idempotent migration for the declared-price cost, in whole nano-dollars.
+ *  NULL on historical rows: they keep `estimated_cost_usd`, read as is. */
+const ensureCostNanoUsdColumn = (db: Database.Database): void => {
+  const cols = db
+    .prepare("PRAGMA table_info('trials')")
+    .all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'cost_nano_usd')) {
+    db.exec('ALTER TABLE trials ADD COLUMN cost_nano_usd INTEGER;');
+  }
+};
+
 /** Idempotent migration for the schema-axis label on variant_configs. Same
  *  PRAGMA-check pattern as above; NULL on historical rows = default schema. */
 const ensureExtractionSchemaNameColumn = (db: Database.Database): void => {
@@ -158,6 +170,7 @@ export const openEvalDb = (path: string = DEFAULT_DB_PATH): Database.Database =>
   db.exec(SCHEMA_SQL);
   ensureVariantConfigIdColumn(db);
   ensureCachedInputTokensColumn(db);
+  ensureCostNanoUsdColumn(db);
   ensureExtractionSchemaNameColumn(db);
   cached = db;
   return db;
