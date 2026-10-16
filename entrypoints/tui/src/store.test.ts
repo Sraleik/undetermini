@@ -46,8 +46,9 @@ describe('initialWizardState', () => {
     const args: EvalCliArgs = {
       ...baseArgs(),
       cartesian: {
+        entries: [],
         models: [{ provider: 'openai', modelId: 'gpt-4o-mini' }],
-        reasoningEfforts: ['default', 'low'],
+        reasoningEfforts: ['default'],
         thinkingBudgets: ['default'],
         sysPromptTokens: [],
         schemaTokens: [],
@@ -57,7 +58,7 @@ describe('initialWizardState', () => {
     expect(state.axes.models).toEqual([
       { provider: 'openai', modelId: 'gpt-4o-mini' },
     ]);
-    expect(state.axes.reasoningEfforts).toEqual(['default', 'low']);
+    expect(state.axes.reasoningEfforts).toEqual(['default']);
   });
 
   it('defaults trialCount to args.trialCount', () => {
