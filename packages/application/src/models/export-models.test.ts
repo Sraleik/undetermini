@@ -82,6 +82,9 @@ const seedHistory = (
 
 const declaredKeys = async (dir: string): Promise<string[]> => {
   const { registry } = await loadRegistry(configPath(dir), dir, { onWarning: () => {} });
+  if (registry.models === undefined) {
+    throw new Error('le chargeur doit rendre un catalogue de modèles');
+  }
   return registry.models.models.map((m) => `${m.provider}:${m.id}`);
 };
 
