@@ -1,5 +1,5 @@
-import type { EvalVariant } from '@undetermini/core/variant';
-import type { AxisInputs } from '@undetermini/core/axes/axis-inputs';
+import type { ModelAxisInputs } from '@undetermini/core/models/expand';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import type { RunResult } from '@undetermini/application/runner-loop';
 import type { EvalCase } from '@undetermini/core/types';
 import type {
@@ -26,8 +26,8 @@ export type DisplayOptions = {
 
 export type WizardState = {
   selectedCases: EvalCase[];
-  axes: AxisInputs;
-  selectedVariants: EvalVariant[];
+  axes: ModelAxisInputs<unknown>;
+  selectedVariants: ModelVariant[];
   display: DisplayOptions;
   trialCount: number;
   runResult: RunResult | null;
@@ -35,8 +35,8 @@ export type WizardState = {
 
 export type WizardAction =
   | { type: 'setCases'; cases: EvalCase[] }
-  | { type: 'setAxes'; axes: AxisInputs }
-  | { type: 'setSelectedVariants'; variants: EvalVariant[] }
+  | { type: 'setAxes'; axes: ModelAxisInputs<unknown> }
+  | { type: 'setSelectedVariants'; variants: ModelVariant[] }
   | { type: 'setTrialCount'; trialCount: number }
   | { type: 'setRunResult'; runResult: RunResult }
   | { type: 'resetForRerun' }
@@ -76,7 +76,7 @@ export const wizardReducer = (
  * the seed every render.
  */
 export const initialWizardState = (
-  subject: { cases: EvalCase[]; variants: ReadonlyArray<EvalVariant> },
+  subject: { cases: EvalCase[]; variants: ReadonlyArray<unknown> },
   args: EvalCliArgs,
   /**
    * Persisted display prefs (XDG `undetermini/tui.json`), or null when none.
@@ -95,9 +95,7 @@ export const initialWizardState = (
   return {
     selectedCases: preselectedCases,
     axes: {
-      models: args.cartesian?.models ?? [],
-      reasoningEfforts: args.cartesian?.reasoningEfforts ?? ['default'],
-      thinkingBudgets: args.cartesian?.thinkingBudgets ?? ['default'],
+      models: args.cartesian?.entries ?? [],
       sysPrompts: ['default'],
       schemas: ['default'],
     },

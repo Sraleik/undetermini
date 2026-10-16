@@ -12,6 +12,11 @@ export type RunningStats = {
   freshCalls: number;
   cacheHits: number;
   errorCalls: number;
+  /** Trials that never ran (retired model, nothing stored): no failure, no cost,
+   *  out of every rate. */
+  unavailableCalls: number;
+  /** A trial that ran has no price: the cost is unknown, never zero. */
+  costUnknown: boolean;
   byCategory: Record<string, number>;
 };
 
@@ -26,20 +31,25 @@ export const computeRunningStats = (
   trials: TrialResult[],
   trialCount: number,
 ): RunningStats => {
-  const total = trials.length;
+  const ran = trials.filter((t) => t.status !== 'unavailable');
+  const total = ran.length;
   // Perfect trials only (see isPerfectTrial); `status` guard keeps errored
   // trials (empty allAssertions) from counting as perfect.
-  const passCount = trials.filter(
+  const passCount = ran.filter(
     (t) =>
       t.status === 'success' && isPerfectTrial(t.score.metadata.allAssertions),
   ).length;
-  const totalCost = trials.reduce((sum, t) => sum + (t.estimatedCostUsd ?? 0), 0);
+  const totalCost = ran.reduce((sum, t) => sum + (t.estimatedCostUsd ?? 0), 0);
+  // A failed trial has no cost either, but that says nothing about the price.
+  const costUnknown = ran.some(
+    (t) => t.status === 'success' && t.costNanoUsd === null,
+  );
   // $/trial divides by configured trialCount, not completed count — matches
   // the CLI's denominator semantics (cost-per-planned-trial, not cost-per-run-trial).
   const unitCost = trialCount > 0 ? totalCost / trialCount : 0;
 
   const catAccum: Record<string, { sum: number; count: number }> = {};
-  for (const t of trials) {
+  for (const t of ran) {
     for (const [cat, ratio] of Object.entries(t.score.metadata.byCategory)) {
       if (typeof ratio !== 'number') continue;
       catAccum[cat] ??= { sum: 0, count: 0 };
@@ -53,15 +63,17 @@ export const computeRunningStats = (
   }
 
   return {
-    trialsCompleted: total,
-    avgScore: mean(trials.map((t) => t.score.score)),
+    trialsCompleted: trials.length,
+    avgScore: mean(ran.map((t) => t.score.score)),
     passRate: total === 0 ? 0 : passCount / total,
     totalCostUsd: totalCost,
     unitCostUsd: unitCost,
-    avgLatencyMs: mean(trials.map((t) => t.realLatencyMs)),
-    freshCalls: trials.filter((t) => !t.cacheHit && t.status === 'success').length,
-    cacheHits: trials.filter((t) => t.cacheHit).length,
-    errorCalls: trials.filter((t) => t.status === 'fail').length,
+    avgLatencyMs: mean(ran.map((t) => t.realLatencyMs)),
+    freshCalls: ran.filter((t) => !t.cacheHit && t.status === 'success').length,
+    cacheHits: ran.filter((t) => t.cacheHit).length,
+    errorCalls: ran.filter((t) => t.status === 'fail').length,
+    unavailableCalls: trials.length - ran.length,
+    costUnknown,
     byCategory,
   };
 };
@@ -72,10 +84,11 @@ const statsSortValue = (s: RunningStats, key: ColKey): number => {
       return s.avgScore;
     case 'pass':
       return s.passRate;
+    // Unknown is Infinity; the comparator sends it last whatever the direction.
     case 'cost':
-      return s.totalCostUsd;
+      return s.costUnknown ? Number.POSITIVE_INFINITY : s.totalCostUsd;
     case 'unit-cost':
-      return s.unitCostUsd;
+      return s.costUnknown ? Number.POSITIVE_INFINITY : s.unitCostUsd;
     case 'latency':
       return s.avgLatencyMs;
     case 'fresh':
@@ -113,6 +126,9 @@ export const sortVariantNamesByStats = (
       const va = statsSortValue(sa, spec.key);
       const vb = statsSortValue(sb, spec.key);
       if (va !== vb) {
+        if (!Number.isFinite(va) || !Number.isFinite(vb)) {
+          return Number.isFinite(va) ? -1 : 1;
+        }
         return (spec.direction === 'asc' ? 1 : -1) * (va - vb);
       }
     }

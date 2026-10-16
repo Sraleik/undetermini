@@ -15,17 +15,18 @@ import type { RunningStats } from '../aggregate';
  */
 
 export const EMPTY = '–';
+/** A model without a declared price: never rendered as a zero cost. */
+const UNKNOWN = 'inconnu';
 
 export type VariantDescriptor = {
   name: string;
   modelId: string;
   sysPromptName?: string;
-  reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
-  thinkingBudgetTokens?: number;
+  settingName?: string;
   extractionSchemaName?: string;
 };
 
-export type AxisKey = 'model' | 'sys' | 'eff' | 'think' | 'schema';
+export type AxisKey = 'model' | 'sys' | 'setting' | 'schema';
 
 export type AxisColumn = {
   key: AxisKey;
@@ -65,8 +66,8 @@ export const parseSysPromptName = (variantName: string): string | undefined =>
 export const METRIC_COLUMNS: Column[] = [
   { key: 'score',     label: 'Score',   width: 7, align: 'right', render: (s) => (s ? pct1(s.avgScore) : EMPTY) },
   { key: 'pass',      label: 'Pass%',   width: 7, align: 'right', render: (s) => (s ? pct1(s.passRate) : EMPTY) },
-  { key: 'cost',      label: 'Total $', width: 9, align: 'right', render: (s) => (s ? usd(s.totalCostUsd) : EMPTY) },
-  { key: 'unit-cost', label: '$/trial', width: 9, align: 'right', render: (s) => (s ? usd(s.unitCostUsd, 5) : EMPTY) },
+  { key: 'cost',      label: 'Total $', width: 9, align: 'right', render: (s) => (s ? (s.costUnknown ? UNKNOWN : usd(s.totalCostUsd)) : EMPTY) },
+  { key: 'unit-cost', label: '$/trial', width: 9, align: 'right', render: (s) => (s ? (s.costUnknown ? UNKNOWN : usd(s.unitCostUsd, 5)) : EMPTY) },
   { key: 'latency',   label: 'Latency', width: 8, align: 'right', render: (s) => (s ? ms(s.avgLatencyMs) : EMPTY) },
   { key: 'fresh',     label: 'Fresh',   width: 6, align: 'right', render: (s) => (s ? String(s.freshCalls) : EMPTY) },
   { key: 'cached',    label: 'Cached',  width: 7, align: 'right', render: (s) => (s ? String(s.cacheHits) : EMPTY) },
@@ -96,21 +97,11 @@ export const buildAxisColumns = (
       isSet: (v) => v.sysPromptName !== undefined,
     },
     {
-      key: 'eff',
-      label: 'Eff',
+      key: 'setting',
+      label: 'Setting',
       width: 0,
-      get: (v) => v.reasoningEffort ?? EMPTY,
-      isSet: (v) => v.reasoningEffort !== undefined,
-    },
-    {
-      key: 'think',
-      label: 'Think',
-      width: 0,
-      get: (v) =>
-        v.thinkingBudgetTokens !== undefined
-          ? String(v.thinkingBudgetTokens)
-          : EMPTY,
-      isSet: (v) => v.thinkingBudgetTokens !== undefined,
+      get: (v) => v.settingName ?? EMPTY,
+      isSet: (v) => v.settingName !== undefined,
     },
     {
       key: 'schema',

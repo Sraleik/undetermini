@@ -1,4 +1,4 @@
-import type { EvalVariant } from '@undetermini/core/variant';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import { parseSysPromptName } from './components/VariantTable';
 
 /**
@@ -20,21 +20,13 @@ export type AxisRecap = {
 const uniqueSorted = (values: string[]): string[] =>
   [...new Set(values)].sort();
 
-const modelLabel = (variant: EvalVariant): string => {
-  if (variant.provider === 'openai' && variant.reasoningEffort !== undefined) {
-    return `${variant.modelId}(${variant.reasoningEffort})`;
-  }
-  if (
-    variant.provider === 'anthropic' &&
-    variant.thinkingBudgetTokens !== undefined
-  ) {
-    return `${variant.modelId}(think ${variant.thinkingBudgetTokens})`;
-  }
-  return variant.modelId;
-};
+const modelLabel = (variant: ModelVariant): string =>
+  variant.settingName === undefined
+    ? variant.modelId
+    : `${variant.modelId}(${variant.settingName})`;
 
 export const summarizeAxes = (
-  variants: ReadonlyArray<EvalVariant>,
+  variants: ReadonlyArray<ModelVariant>,
 ): AxisRecap => {
   const schemas = uniqueSorted(
     variants.map((v) => v.extractionSchemaName ?? 'default'),

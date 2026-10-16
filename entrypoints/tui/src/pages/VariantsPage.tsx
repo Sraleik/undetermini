@@ -1,23 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { cycleListIndex } from '../cycle-index';
-import { expandCartesianDetailed } from '@undetermini/core/axes/expand-cartesian';
-import type { DroppedCombo } from '@undetermini/core/axes/expand-cartesian';
+import { expandModels } from '@undetermini/core/models/expand';
 import type { WizardAction, WizardState } from '../store';
-
-/** Capability-matrix skips, rendered where the combos would have appeared —
- *  a model can vanish entirely here (gpt-4.1 with only `minimal` checked,
- *  2026-07-10), so the page must say WHY instead of staying silent. */
-const DroppedCombos: React.FC<{ dropped: DroppedCombo[] }> = ({ dropped }) =>
-  dropped.length === 0 ? null : (
-    <Box flexDirection="column">
-      {dropped.map((d) => (
-        <Text key={`${d.modelId}|${d.axis}|${d.value}`} color="yellow" dimColor>
-          {`  ⚠ dropped: ${d.modelId} × ${d.axis}-${d.value}  (${d.reason})`}
-        </Text>
-      ))}
-    </Box>
-  );
 
 export type VariantsPageProps = {
   state: WizardState;
@@ -32,10 +17,7 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
   onNext,
   onBack,
 }) => {
-  const { variants: allVariants, dropped } = useMemo(
-    () => expandCartesianDetailed(state.axes),
-    [state.axes],
-  );
+  const allVariants = useMemo(() => expandModels(state.axes), [state.axes]);
 
   const [focusIdx, setFocusIdx] = useState(0);
   const [selectedNames, setSelectedNames] = useState<Set<string>>(() => {
@@ -89,9 +71,8 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
     return (
       <Box flexDirection="column" padding={1}>
         <Text color="yellow">
-          Cartesian expansion produced 0 variants. Esc to revisit axes.
+          Expansion produced 0 variants. Esc to revisit axes.
         </Text>
-        <DroppedCombos dropped={dropped} />
       </Box>
     );
   }
@@ -103,7 +84,6 @@ export const VariantsPage: React.FC<VariantsPageProps> = ({
         selected)
       </Text>
       <Text dimColor>Cartesian expansion of axes — uncheck unwanted combos.</Text>
-      <DroppedCombos dropped={dropped} />
       <Box marginTop={1} flexDirection="column">
         {allVariants.map((v, idx) => {
           const checked = selectedNames.has(v.name);

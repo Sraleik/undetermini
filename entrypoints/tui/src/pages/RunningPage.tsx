@@ -1,4 +1,4 @@
-import type { EvalVariant } from '@undetermini/core/variant';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import type { EvalEngine } from '@undetermini/application/api';
 import type { CacheMode } from '@undetermini/application/cache/index';
 import { formatCaseInputForDisplay } from '@undetermini/core/format';
@@ -8,7 +8,7 @@ import { parseSysPromptName } from '../components/VariantTable';
 import type { DisplayOptions, WizardAction, WizardState } from '../store';
 
 export type RunningPageProps = {
-  engine: EvalEngine<EvalVariant>;
+  engine: EvalEngine<ModelVariant>;
   state: WizardState;
   dispatch: React.Dispatch<WizardAction>;
   subjectName: string;
@@ -41,9 +41,7 @@ export const RunningPage: React.FC<RunningPageProps> = ({
     name: v.name,
     modelId: v.modelId,
     sysPromptName: parseSysPromptName(v.name),
-    reasoningEffort: v.provider === 'openai' ? v.reasoningEffort : undefined,
-    thinkingBudgetTokens:
-      v.provider === 'anthropic' ? v.thinkingBudgetTokens : undefined,
+    settingName: v.settingName,
     extractionSchemaName: v.extractionSchemaName,
   }));
 

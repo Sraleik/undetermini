@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import type { EvalVariant } from '@undetermini/core/variant';
-import { PRICING_VERIFIED_AT } from '@undetermini/core/pricing';
+import type { Catalog } from '@undetermini/core/models/catalog';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import type { Subject } from '@undetermini/application/runner-loop';
 import {
   buildPlannedRuns,
   estimateRunCost,
+  formatCostEstimate,
   resolvePlannedCacheKeys,
   type RunCostEstimate,
 } from '../cost-estimate';
@@ -18,28 +19,18 @@ export type ConfirmPageProps = {
   dispatch: React.Dispatch<WizardAction>;
   /** Used to build the real prompt per (variant×case) so the cache estimate
    *  matches the runtime key exactly (no network — see resolvePlannedCacheKeys). */
-  subject: Subject<EvalVariant>;
+  subject: Subject<ModelVariant>;
+  /** Declared models: the estimate prices a run at their declared price. */
+  catalog: Catalog;
   onProceed: () => void;
   onBack: () => void;
-};
-
-const formatCostLine = (estimate: RunCostEstimate): string => {
-  const dollars = `~$${estimate.estimatedCostUsd.toFixed(2)}`;
-  const pricing = `pricing as of ${PRICING_VERIFIED_AT}`;
-  if (estimate.modelsLackingData.length === 0) {
-    return `${dollars}  (${pricing})`;
-  }
-  const missing = estimate.modelsLackingData.join(', ');
-  if (estimate.estimatedCostUsd > 0) {
-    return `${dollars} partial  (${pricing}; no data for: ${missing})`;
-  }
-  return `unavailable  (no historical data for: ${missing})`;
 };
 
 export const ConfirmPage: React.FC<ConfirmPageProps> = ({
   state,
   dispatch,
   subject,
+  catalog,
   onProceed,
   onBack,
 }) => {
@@ -89,8 +80,8 @@ export const ConfirmPage: React.FC<ConfirmPageProps> = ({
       debouncedTrialCount,
       resolvedKeys,
     );
-    return estimateRunCost(planned);
-  }, [resolvedKeys, selectedVariants, selectedCases, debouncedTrialCount]);
+    return estimateRunCost(planned, catalog);
+  }, [resolvedKeys, selectedVariants, selectedCases, debouncedTrialCount, catalog]);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -124,7 +115,7 @@ export const ConfirmPage: React.FC<ConfirmPageProps> = ({
   const costLine =
     estimate === null
       ? '  Cost:     computing…'
-      : `  Cost:     ${formatCostLine(estimate)}`;
+      : `  Cost:     ${formatCostEstimate(estimate)}`;
 
   return (
     <Box flexDirection="column" padding={1}>

@@ -42,12 +42,23 @@ describe('initialWizardState', () => {
     expect(state.selectedCases.map((c) => c.slug)).toEqual(['case-b']);
   });
 
-  it('seeds axes from CLI cartesian payload when present', () => {
+  it('seeds the model axis from the CLI entries, settings names included', () => {
+    // Cas vécu : `--models=mistral:small --settings=eff-low` doit arriver dans
+    // l'assistant avec le réglage déjà coché, pas être redérivé du fournisseur.
+    const entry = {
+      model: {
+        provider: 'mistral',
+        id: 'small',
+        price: [],
+        settings: { 'eff-low': { effort: 'low' } },
+      },
+      settingNames: ['default', 'eff-low'],
+    };
     const args: EvalCliArgs = {
       ...baseArgs(),
       cartesian: {
-        entries: [],
-        models: [{ provider: 'openai', modelId: 'gpt-4o-mini' }],
+        entries: [entry],
+        models: [],
         reasoningEfforts: ['default'],
         thinkingBudgets: ['default'],
         sysPromptTokens: [],
@@ -55,10 +66,15 @@ describe('initialWizardState', () => {
       },
     };
     const state = initialWizardState(baseSubject(), args);
-    expect(state.axes.models).toEqual([
-      { provider: 'openai', modelId: 'gpt-4o-mini' },
-    ]);
-    expect(state.axes.reasoningEfforts).toEqual(['default']);
+    expect(state.axes.models).toEqual([entry]);
+    expect(state.axes.sysPrompts).toEqual(['default']);
+    expect(state.axes.schemas).toEqual(['default']);
+    expect(state.axes).not.toHaveProperty('reasoningEfforts');
+  });
+
+  it('starts with no model when no CLI payload is given', () => {
+    const state = initialWizardState(baseSubject(), baseArgs());
+    expect(state.axes.models).toEqual([]);
   });
 
   it('defaults trialCount to args.trialCount', () => {

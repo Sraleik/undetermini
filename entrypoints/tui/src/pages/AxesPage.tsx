@@ -1,6 +1,6 @@
-import type { EvalVariant } from '@undetermini/core/variant';
-import type { AxisInputs, AxisModelEntry, ReasoningEffortValue, SchemaAxisValue, SysPromptAxisValue } from '@undetermini/core/axes/axis-inputs';
-import { MODEL_CAPABILITIES, supportsThinkingBudget } from '@undetermini/core/axes/model-capabilities';
+import type { SchemaAxisValue, SysPromptAxisValue } from '@undetermini/core/axes/axis-inputs';
+import type { ModelAxisInputs } from '@undetermini/core/models/expand';
+import { modelKey, type Model } from '@undetermini/core/models/model';
 import { resolveSysPrompts } from '@undetermini/application/axes/resolve-sys-prompts';
 import { Box, Text, useInput } from 'ink';
 import React, { useMemo, useState } from 'react';
@@ -9,21 +9,15 @@ import type {
   RegisteredSchema,
 } from '@undetermini/application/subjects/registry';
 import { PROMPT_KIND } from '@undetermini/application/subjects/registry';
+import { buildModelEntries, declaredSettingNames } from '../axis-settings';
 import { cycleListIndex } from '../cycle-index';
 import type { WizardAction, WizardState } from '../store';
 
-const REASONING_EFFORT_CHOICES: ReadonlyArray<ReasoningEffortValue> = [
-  'minimal',
-  'low',
-  'medium',
-  'high',
-];
-const COMMON_THINKING_BUDGETS = [4096, 8192, 16384, 32768] as const;
-
-type SectionKey = 'models' | 'efforts' | 'budgets' | 'sysPrompts' | 'schemas';
+type SectionKey = 'models' | 'settings' | 'sysPrompts' | 'schemas';
 
 export type AxesPageProps = {
-  subjectVariants: ReadonlyArray<EvalVariant>;
+  /** The models the project declares (`registry.models`): the only ones offered. */
+  models: ReadonlyArray<Model>;
   /** The selected subject's prompt-variant library (registry `promptsDir`).
    *  When undefined the subject has no prompt lineage, so the selector offers
    *  only `default (baseline)` — no other subject's baselines leak in. */
@@ -40,9 +34,6 @@ export type AxesPageProps = {
   onNext: () => void;
   onBack: () => void;
 };
-
-const modelKey = (m: { provider: string; modelId: string }): string =>
-  `${m.provider}:${m.modelId}`;
 
 /** Parse the generation number from a prompt name (`v17-baseline`,
  *  `gate-v8-baseline`, `v14-fix-bug-doublon-v1`). */
@@ -90,35 +81,8 @@ const subjectPromptTokens = (
   return [...baselines, ...iterations].map((prompt) => prompt.name);
 };
 
-const deriveModelChoices = (
-  subjectVariants: ReadonlyArray<EvalVariant>,
-): { entry: AxisModelEntry; isInSubject: boolean }[] => {
-  const seen = new Set<string>();
-  const choices: { entry: AxisModelEntry; isInSubject: boolean }[] = [];
-  const subjectKeys = new Set(subjectVariants.map((v) => modelKey(v)));
-  for (const variant of subjectVariants) {
-    const key = modelKey(variant);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    choices.push({
-      entry: { provider: variant.provider, modelId: variant.modelId },
-      isInSubject: true,
-    });
-  }
-  for (const [modelId, capability] of Object.entries(MODEL_CAPABILITIES)) {
-    const key = `${capability.provider}:${modelId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    choices.push({
-      entry: { provider: capability.provider, modelId },
-      isInSubject: subjectKeys.has(key),
-    });
-  }
-  return choices;
-};
-
 export const AxesPage: React.FC<AxesPageProps> = ({
-  subjectVariants,
+  models,
   promptsDir,
   prompts,
   schemas,
@@ -127,10 +91,6 @@ export const AxesPage: React.FC<AxesPageProps> = ({
   onNext,
   onBack,
 }) => {
-  const modelChoices = useMemo(
-    () => deriveModelChoices(subjectVariants),
-    [subjectVariants],
-  );
   const sysPromptChoices = useMemo(
     () => subjectPromptTokens(prompts),
     [prompts],
@@ -148,14 +108,12 @@ export const AxesPage: React.FC<AxesPageProps> = ({
   );
 
   const [selectedModels, setSelectedModels] = useState<Set<string>>(
-    () => new Set(state.axes.models.map((m) => modelKey(m))),
+    () => new Set(state.axes.models.map(({ model }) => modelKey(model))),
   );
-  const [selectedEfforts, setSelectedEfforts] = useState<
-    Set<ReasoningEffortValue | 'default'>
-  >(() => new Set(state.axes.reasoningEfforts));
-  const [selectedBudgets, setSelectedBudgets] = useState<
-    Set<number | 'default'>
-  >(() => new Set(state.axes.thinkingBudgets));
+  const [selectedSettings, setSelectedSettings] = useState<Set<string>>(() => {
+    const names = state.axes.models.flatMap((entry) => entry.settingNames);
+    return new Set(names.length > 0 ? names : ['default']);
+  });
   const [selectedSysPrompts, setSelectedSysPrompts] = useState<Set<string>>(
     () =>
       new Set(
@@ -171,25 +129,22 @@ export const AxesPage: React.FC<AxesPageProps> = ({
       ),
   );
 
+  const chosenModels = useMemo(
+    () => models.filter((model) => selectedModels.has(modelKey(model))),
+    [models, selectedModels],
+  );
+  const settingChoices = useMemo(
+    () => declaredSettingNames(chosenModels),
+    [chosenModels],
+  );
+
   const activeSections = useMemo<SectionKey[]>(() => {
     const list: SectionKey[] = ['models'];
-    const hasReasoning = [...selectedModels].some((key) => {
-      const [, modelId] = key.split(':');
-      const cap = MODEL_CAPABILITIES[modelId];
-      return (
-        cap?.provider === 'openai' && (cap.reasoningEffort?.length ?? 0) > 0
-      );
-    });
-    if (hasReasoning) list.push('efforts');
-    const hasThinking = [...selectedModels].some((key) => {
-      const [provider, modelId] = key.split(':');
-      return provider === 'anthropic' && supportsThinkingBudget(modelId);
-    });
-    if (hasThinking) list.push('budgets');
+    if (settingChoices.length > 0) list.push('settings');
     list.push('sysPrompts');
     if (schemaChoices.length > 0) list.push('schemas');
     return list;
-  }, [selectedModels, schemaChoices]);
+  }, [settingChoices, schemaChoices]);
 
   const [focusSection, setFocusSection] = useState(0);
   const [focusItem, setFocusItem] = useState(0);
@@ -198,11 +153,9 @@ export const AxesPage: React.FC<AxesPageProps> = ({
   const itemCount = (section: SectionKey): number => {
     switch (section) {
       case 'models':
-        return modelChoices.length;
-      case 'efforts':
-        return REASONING_EFFORT_CHOICES.length + 1;
-      case 'budgets':
-        return COMMON_THINKING_BUDGETS.length + 1;
+        return models.length;
+      case 'settings':
+        return settingChoices.length + 1;
       case 'sysPrompts':
         return sysPromptChoices.length + 1;
       case 'schemas':
@@ -213,50 +166,27 @@ export const AxesPage: React.FC<AxesPageProps> = ({
   const currentSection =
     activeSections[Math.min(focusSection, activeSections.length - 1)];
 
+  const toggleIn = (
+    set: React.Dispatch<React.SetStateAction<Set<string>>>,
+    value: string,
+  ): void => {
+    set((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  };
+
   const toggleAt = (section: SectionKey, idx: number): void => {
     if (section === 'models') {
-      const key = modelKey(modelChoices[idx].entry);
-      setSelectedModels((prev) => {
-        const next = new Set(prev);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-        return next;
-      });
-    } else if (section === 'efforts') {
-      const value: ReasoningEffortValue | 'default' =
-        idx === 0 ? 'default' : REASONING_EFFORT_CHOICES[idx - 1];
-      setSelectedEfforts((prev) => {
-        const next = new Set(prev);
-        if (next.has(value)) next.delete(value);
-        else next.add(value);
-        return next;
-      });
-    } else if (section === 'budgets') {
-      const value: number | 'default' =
-        idx === 0 ? 'default' : COMMON_THINKING_BUDGETS[idx - 1];
-      setSelectedBudgets((prev) => {
-        const next = new Set(prev);
-        if (next.has(value)) next.delete(value);
-        else next.add(value);
-        return next;
-      });
+      toggleIn(setSelectedModels, modelKey(models[idx]));
+    } else if (section === 'settings') {
+      toggleIn(setSelectedSettings, idx === 0 ? 'default' : settingChoices[idx - 1]);
     } else if (section === 'sysPrompts') {
-      const value: string =
-        idx === 0 ? 'default' : sysPromptChoices[idx - 1];
-      setSelectedSysPrompts((prev) => {
-        const next = new Set(prev);
-        if (next.has(value)) next.delete(value);
-        else next.add(value);
-        return next;
-      });
+      toggleIn(setSelectedSysPrompts, idx === 0 ? 'default' : sysPromptChoices[idx - 1]);
     } else {
-      const value: string = idx === 0 ? 'default' : schemaChoices[idx - 1].name;
-      setSelectedSchemas((prev) => {
-        const next = new Set(prev);
-        if (next.has(value)) next.delete(value);
-        else next.add(value);
-        return next;
-      });
+      toggleIn(setSelectedSchemas, idx === 0 ? 'default' : schemaChoices[idx - 1].name);
     }
   };
 
@@ -292,11 +222,6 @@ export const AxesPage: React.FC<AxesPageProps> = ({
     }
     if (key.return) {
       if (selectedModels.size === 0) return;
-      // Ensure each axis carries at least one value (default if empty).
-      const efforts: ReadonlyArray<ReasoningEffortValue | 'default'> =
-        selectedEfforts.size > 0 ? [...selectedEfforts] : ['default'];
-      const budgets: ReadonlyArray<number | 'default'> =
-        selectedBudgets.size > 0 ? [...selectedBudgets] : ['default'];
       // Resolve each selected prompt to its real text by reading
       // <promptsDir>/<name>.md — the SAME resolver the CLI uses, so a sysPrompt
       // produces an identical variant_config / cache key in both clients.
@@ -307,12 +232,8 @@ export const AxesPage: React.FC<AxesPageProps> = ({
       const schemas: SchemaAxisValue[] = [...selectedSchemas].map((name) =>
         name === 'default' ? 'default' : { name },
       );
-      const axes: AxisInputs = {
-        models: modelChoices
-          .filter((c) => selectedModels.has(modelKey(c.entry)))
-          .map((c) => c.entry),
-        reasoningEfforts: efforts,
-        thinkingBudgets: budgets,
+      const axes: ModelAxisInputs<unknown> = {
+        models: buildModelEntries(chosenModels, selectedSettings),
         sysPrompts: sysPrompts.length > 0 ? sysPrompts : ['default'],
         schemas: schemas.length > 0 ? schemas : ['default'],
       };
@@ -321,7 +242,7 @@ export const AxesPage: React.FC<AxesPageProps> = ({
     }
   });
 
-  const renderSection = (section: SectionKey, idx: number) => {
+  const renderSection = (section: SectionKey) => {
     const isActive = section === currentSection;
     const titlePrefix = isActive ? '▶ ' : '  ';
     return (
@@ -331,30 +252,14 @@ export const AxesPage: React.FC<AxesPageProps> = ({
           {sectionTitle(section)}
         </Text>
         {section === 'models' &&
-          renderModelsItems(
-            modelChoices,
-            selectedModels,
-            isActive ? focusItem : -1,
-          )}
-        {section === 'efforts' &&
+          renderModelsItems(models, selectedModels, isActive ? focusItem : -1)}
+        {section === 'settings' &&
           renderSimpleItems(
-            ['default (unset)', ...REASONING_EFFORT_CHOICES],
+            ['default (no setting)', ...settingChoices],
             (i) =>
               i === 0
-                ? selectedEfforts.has('default')
-                : selectedEfforts.has(REASONING_EFFORT_CHOICES[i - 1]),
-            isActive ? focusItem : -1,
-          )}
-        {section === 'budgets' &&
-          renderSimpleItems(
-            [
-              'default (no extended thinking)',
-              ...COMMON_THINKING_BUDGETS.map((b) => `${b} tokens`),
-            ],
-            (i) =>
-              i === 0
-                ? selectedBudgets.has('default')
-                : selectedBudgets.has(COMMON_THINKING_BUDGETS[i - 1]),
+                ? selectedSettings.has('default')
+                : selectedSettings.has(settingChoices[i - 1]),
             isActive ? focusItem : -1,
           )}
         {section === 'sysPrompts' &&
@@ -383,7 +288,7 @@ export const AxesPage: React.FC<AxesPageProps> = ({
     <Box flexDirection="column" padding={1}>
       <Text bold>Step 3/5 — Axes (Tab between sections)</Text>
       <Box marginTop={1} flexDirection="column">
-        {activeSections.map((section, idx) => renderSection(section, idx))}
+        {activeSections.map((section) => renderSection(section))}
       </Box>
       <Box marginTop={1}>
         <Text dimColor>
@@ -398,10 +303,8 @@ const sectionTitle = (section: SectionKey): string => {
   switch (section) {
     case 'models':
       return 'Models';
-    case 'efforts':
-      return 'Reasoning effort (openai reasoning)';
-    case 'budgets':
-      return 'Thinking budget (anthropic adaptive)';
+    case 'settings':
+      return 'Réglages du modèle';
     case 'sysPrompts':
       return 'System prompts';
     case 'schemas':
@@ -427,20 +330,26 @@ const renderSimpleItems = (
   </>
 );
 
+const modelNotes = (model: Model): string => {
+  const notes = [model.provider];
+  if (model.retired === true) notes.push('retired');
+  if (model.price.length === 0) notes.push('prix inconnu');
+  return notes.join(', ');
+};
+
 const renderModelsItems = (
-  choices: { entry: AxisModelEntry; isInSubject: boolean }[],
+  models: ReadonlyArray<Model>,
   selected: Set<string>,
   focusedIdx: number,
 ): React.ReactNode => (
   <>
-    {choices.map((c, idx) => {
-      const key = modelKey(c.entry);
+    {models.map((model, idx) => {
+      const key = modelKey(model);
       const checked = selected.has(key);
       const focused = idx === focusedIdx;
-      const suffix = c.isInSubject ? '' : ', not in subject.variants';
       return (
         <Text key={key} inverse={focused} dimColor={!checked}>
-          {`  ${checked ? '[x]' : '[ ]'} ${c.entry.modelId}  (${c.entry.provider}${suffix})`}
+          {`  ${checked ? '[x]' : '[ ]'} ${model.id}  (${modelNotes(model)})`}
         </Text>
       );
     })}

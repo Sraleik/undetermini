@@ -1,4 +1,5 @@
-import type { EvalVariant } from '@undetermini/core/variant';
+import type { Catalog } from '@undetermini/core/models/catalog';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import type { EvalCliArgs } from '@undetermini/cli/cli-args';
 import { EvalEngine } from '@undetermini/application/api';
 import type { Subject } from '@undetermini/application/runner-loop';
@@ -26,11 +27,6 @@ export type Page =
   | 'confirm'
   | 'running';
 
-// NOTE: the TUI's interactive variant/axes UI is currently typed to the talent
-// `EvalVariant` (it offers OpenAI reasoning-effort vs Anthropic thinking-budget,
-// a discriminated-union concern). Running a different `--subject` works at
-// runtime (the entry casts at the boundary); fully genericizing the axes UI is a
-// follow-up. The generic, subject-agnostic path is the CLI runner.
 export type RouterProps = {
   /** Every registered subject — the SubjectPage picker lists these, and the
    *  selected one drives the rest of the wizard. */
@@ -39,6 +35,9 @@ export type RouterProps = {
    *  both the picker's focus and the initial wizard state. */
   initialSubjectName: string;
   args: EvalCliArgs;
+  /** The models the project declares: offered by the axes step, priced by the
+   *  cost estimate and by the engine. */
+  catalog: Catalog;
   /**
    * Called once `engine.run()` resolves with a final RunResult. The parent
    * (runner.ts) is responsible for persisting via `writeRunToDb` and any
@@ -63,16 +62,16 @@ export type RouterProps = {
   onCommitDisplay?: (display: DisplayOptions) => void;
 };
 
-// The TUI's variant/axes UI is talent-`EvalVariant`-typed; any registered
-// subject runs at runtime. Cast each registered subject through `unknown` at
-// this single boundary (mirrors the entry-point cast in runner.ts).
-const asEvalSubject = (r: RegisteredSubject): Subject<EvalVariant> =>
-  r.subject as unknown as Subject<EvalVariant>;
+// The wizard builds `ModelVariant`s whatever the subject: cast each registered
+// subject through `unknown` at this single boundary.
+const asEvalSubject = (r: RegisteredSubject): Subject<ModelVariant> =>
+  r.subject as unknown as Subject<ModelVariant>;
 
 export const Router: React.FC<RouterProps> = ({
   subjects,
   initialSubjectName,
   args,
+  catalog,
   onRunFinished,
   onQuit,
   savedDisplay,
@@ -88,7 +87,7 @@ export const Router: React.FC<RouterProps> = ({
     initialWizardState(subject, args, savedDisplay, sectionsFromCli),
   );
   const [page, setPage] = useState<Page>('subject');
-  const [engine, setEngine] = useState<EvalEngine<EvalVariant> | null>(null);
+  const [engine, setEngine] = useState<EvalEngine<ModelVariant> | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
 
   // Adopt a newly picked subject: re-seed the wizard from its cases/variants,
@@ -128,10 +127,10 @@ export const Router: React.FC<RouterProps> = ({
       cases: state.selectedCases,
       variants: state.selectedVariants,
     };
-    setEngine(new EvalEngine({ subject: subjectForRun }));
+    setEngine(new EvalEngine({ subject: subjectForRun, catalog }));
     const startedAt = new Date().toISOString();
     setRunId(`${startedAt.replace(/[:.]/g, '-')}__tui`);
-  }, [page, engine, state, subject]);
+  }, [page, engine, state, subject, catalog]);
 
   switch (page) {
     case 'subject':
@@ -157,7 +156,7 @@ export const Router: React.FC<RouterProps> = ({
     case 'axes':
       return (
         <AxesPage
-          subjectVariants={subject.variants}
+          models={catalog.models}
           promptsDir={registered.promptsDir}
           prompts={registered.prompts ?? []}
           schemas={registered.schemas ?? []}
@@ -182,6 +181,7 @@ export const Router: React.FC<RouterProps> = ({
           state={state}
           dispatch={dispatch}
           subject={subject}
+          catalog={catalog}
           onProceed={() => setPage('running')}
           onBack={() => setPage('variants')}
         />

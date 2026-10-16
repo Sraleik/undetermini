@@ -1,7 +1,9 @@
 import type Database from 'better-sqlite3';
 import pLimit from 'p-limit';
-import type { EvalVariant } from '@undetermini/core/variant';
-import { computeCost } from '@undetermini/core/pricing';
+import type { Catalog } from '@undetermini/core/models/catalog';
+import { modelKey } from '@undetermini/core/models/model';
+import { trialCost } from '@undetermini/core/models/price';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import type { Subject } from '@undetermini/application/runner-loop';
 import { openEvalDb } from '@undetermini/application/storage/schema';
 import type { EvalCase } from '@undetermini/core/types';
@@ -30,6 +32,7 @@ import {
 export type ExactKey = CapturedKey;
 
 export type PlannedRun = {
+  provider: string;
   modelId: string;
   /** Real runtime cache coordinates. `resolved=false` ⇒ key unknown ⇒ fresh. */
   promptSha: string;
@@ -42,8 +45,13 @@ export type RunCostEstimate = {
   totalTrials: number;
   cachedTrials: number;
   freshTrials: number;
+  /** Priced models only: a model without a price is named in `unpricedModels`. */
   estimatedCostUsd: number;
   modelsLackingData: string[];
+  /** `provider:id` of the models that would be called fresh and have no price. */
+  unpricedModels: string[];
+  /** Models whose price entered `estimatedCostUsd`. */
+  pricedModelCount: number;
   /** Count of (variant×case) pairs whose exact key could not be resolved. */
   unresolvedPairs: number;
 };
@@ -64,8 +72,8 @@ const tripleKey = (k: {
  * provider call is made. Per-pair failures are tolerated (left unresolved).
  */
 export const resolvePlannedCacheKeys = async (
-  subject: Subject<EvalVariant>,
-  variants: ReadonlyArray<EvalVariant>,
+  subject: Subject<ModelVariant>,
+  variants: ReadonlyArray<ModelVariant>,
   cases: ReadonlyArray<EvalCase>,
 ): Promise<Map<string, CapturedKey>> => {
   const limit = pLimit(8);
@@ -97,7 +105,7 @@ export const resolvePlannedCacheKeys = async (
  * are emitted with `resolved=false` (treated as fully fresh downstream).
  */
 export const buildPlannedRuns = (
-  variants: ReadonlyArray<EvalVariant>,
+  variants: ReadonlyArray<ModelVariant>,
   cases: ReadonlyArray<EvalCase>,
   trialCount: number,
   resolvedKeys: ReadonlyMap<string, CapturedKey>,
@@ -106,6 +114,7 @@ export const buildPlannedRuns = (
     cases.map((c) => {
       const key = resolvedKeys.get(pairKey(variant.name, c.slug));
       return {
+        provider: variant.provider,
         modelId: variant.modelId,
         promptSha: key?.promptSha ?? '',
         staticHash: key?.staticHash ?? '',
@@ -244,6 +253,7 @@ export const estimateCacheHits = (
 
 export const estimateRunCost = (
   plannedRuns: ReadonlyArray<PlannedRun>,
+  catalog: Catalog,
   db: Database.Database = openEvalDb(),
 ): RunCostEstimate => {
   const cachedCounts = loadCachedTrialCounts(plannedRuns, db);
@@ -252,6 +262,9 @@ export const estimateRunCost = (
   let unresolvedPairs = 0;
   let estimatedCostUsd = 0;
   const modelsLackingDataSet = new Set<string>();
+  const unpricedModelsSet = new Set<string>();
+  const pricedModelsSet = new Set<string>();
+  const calledAt = new Date().toISOString().slice(0, 10);
 
   // Cost is computed PER planned (variant × case) run so we can model OpenAI
   // automatic prefix caching precisely WITHIN a run. The `fresh` trials of one
@@ -286,26 +299,32 @@ export const estimateRunCost = (
 
     const freshFullInput = fresh > 0 ? 1 : 0;
     const freshCachedInput = Math.max(0, fresh - 1);
+    const periods = catalog.find(planned.provider, planned.modelId)?.price ?? [];
     // Full-price portion: 1 fresh input + ALL fresh outputs, no cache.
-    const full = computeCost(
-      planned.modelId,
-      avg.input * freshFullInput,
-      avg.output * fresh,
-      0,
-    );
+    const full = trialCost({
+      periods,
+      calledAt,
+      inputTokens: Math.round(avg.input * freshFullInput),
+      outputTokens: Math.round(avg.output * fresh),
+      cachedInputTokens: 0,
+    });
     // Cached portion: the remaining fresh-1 inputs, billed at the cached rate
-    // (passed as both inTokens and cachedInputTokens so 100% is discounted).
-    const cachedPortion = computeCost(
-      planned.modelId,
-      avg.input * freshCachedInput,
-      0,
-      avg.input * freshCachedInput,
-    );
+    // (passed as both inputTokens and cachedInputTokens so 100% is discounted).
+    const cachedInputTokens = Math.round(avg.input * freshCachedInput);
+    const cachedPortion = trialCost({
+      periods,
+      calledAt,
+      inputTokens: cachedInputTokens,
+      outputTokens: 0,
+      cachedInputTokens,
+    });
+    const key = modelKey({ provider: planned.provider, id: planned.modelId });
     if (full === null || cachedPortion === null) {
-      modelsLackingDataSet.add(planned.modelId);
+      unpricedModelsSet.add(key);
       continue;
     }
-    estimatedCostUsd += full + cachedPortion;
+    pricedModelsSet.add(key);
+    estimatedCostUsd += (full + cachedPortion) / 1e9;
   }
 
   const freshTrials = totalTrials - cachedTrials;
@@ -316,6 +335,27 @@ export const estimateRunCost = (
     freshTrials,
     estimatedCostUsd,
     modelsLackingData: [...modelsLackingDataSet],
+    unpricedModels: [...unpricedModelsSet],
+    pricedModelCount: pricedModelsSet.size,
     unresolvedPairs,
   };
+};
+
+/** One line for the Confirm page. A model without a price is never counted as zero. */
+export const formatCostEstimate = (estimate: RunCostEstimate): string => {
+  const dollars = `~$${estimate.estimatedCostUsd.toFixed(2)}`;
+  const { unpricedModels } = estimate;
+  if (unpricedModels.length > 0) {
+    if (estimate.pricedModelCount === 0) {
+      return `inconnu  (sans prix : ${unpricedModels.join(', ')})`;
+    }
+    const count = unpricedModels.length;
+    return `${dollars}  (partiel, ${count} modèle${count > 1 ? 's' : ''} sans prix : ${unpricedModels.join(', ')})`;
+  }
+  if (estimate.modelsLackingData.length === 0) return dollars;
+  const missing = estimate.modelsLackingData.join(', ');
+  if (estimate.estimatedCostUsd > 0) {
+    return `${dollars} partial  (no data for: ${missing})`;
+  }
+  return `unavailable  (no historical data for: ${missing})`;
 };

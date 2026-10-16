@@ -1,13 +1,35 @@
 import type Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeEvalDb, openEvalDb } from '@undetermini/application/storage/schema';
+import { decodeCatalog } from '@undetermini/core/models/catalog';
 import {
   buildPlannedRuns,
   estimateAvgTokens,
   estimateCacheHits,
   estimateRunCost,
+  formatCostEstimate,
   type PlannedRun,
+  type RunCostEstimate,
 } from './cost-estimate';
+
+const CATALOG = (() => {
+  const decoded = decodeCatalog([
+    {
+      provider: 'openai',
+      id: 'gpt-4.1',
+      price: [{ from: '2026-01-01', input: '2', output: '8', cachedInput: '0.5' }],
+    },
+    {
+      provider: 'openai',
+      id: 'gpt-4o-mini',
+      price: [{ from: '2026-01-01', input: '0.15', output: '0.6', cachedInput: '0.075' }],
+    },
+    // Déclaré sans prix : doit rester « inconnu », jamais 0.
+    { provider: 'mistral', id: 'small' },
+  ]);
+  if (!decoded.ok) throw new Error(decoded.errors.join('; '));
+  return decoded.catalog;
+})();
 
 const insertSuccessTrial = (
   db: Database.Database,
@@ -67,8 +89,8 @@ const insertSuccessTrial = (
 };
 
 const resolvedRun = (
-  args: Omit<PlannedRun, 'resolved'>,
-): PlannedRun => ({ ...args, resolved: true });
+  args: Omit<PlannedRun, 'resolved' | 'provider'> & { provider?: string },
+): PlannedRun => ({ provider: 'openai', ...args, resolved: true });
 
 describe('estimateAvgTokens', () => {
   let db: Database.Database;
@@ -206,6 +228,7 @@ describe('estimateCacheHits', () => {
   it('ignores unresolved runs', () => {
     const planned: PlannedRun[] = [
       {
+        provider: 'openai',
         modelId: 'gpt-4.1',
         promptSha: '',
         staticHash: '',
@@ -256,6 +279,7 @@ describe('estimateRunCost', () => {
           trialCount: 3,
         }),
       ],
+      CATALOG,
       db,
     );
     expect(result.totalTrials).toBe(6);
@@ -268,6 +292,7 @@ describe('estimateRunCost', () => {
     const result = estimateRunCost(
       [
         {
+          provider: 'openai',
           modelId: 'gpt-4o-mini',
           promptSha: '',
           staticHash: '',
@@ -275,6 +300,7 @@ describe('estimateRunCost', () => {
           resolved: false,
         },
       ],
+      CATALOG,
       db,
     );
     expect(result.totalTrials).toBe(10);
@@ -302,6 +328,7 @@ describe('estimateRunCost', () => {
           trialCount: 1,
         }),
       ],
+      CATALOG,
       db,
     );
     expect(result.cachedTrials).toBe(0);
@@ -331,6 +358,7 @@ describe('estimateRunCost', () => {
           trialCount: 3,
         }),
       ],
+      CATALOG,
       db,
     );
     expect(result.freshTrials).toBe(3);
@@ -358,6 +386,7 @@ describe('estimateRunCost', () => {
           trialCount: 30,
         }),
       ],
+      CATALOG,
       db,
     );
     expect(result.freshTrials).toBe(30);
@@ -371,12 +400,127 @@ describe('estimateRunCost', () => {
   });
 });
 
+describe('estimateRunCost — models without a price', () => {
+  let db: Database.Database;
+  beforeEach(() => {
+    closeEvalDb();
+    db = openEvalDb(':memory:');
+  });
+  afterEach(() => closeEvalDb());
+
+  const history = (modelId: string, provider: string): void => {
+    insertSuccessTrial(db, {
+      modelId,
+      promptSha: `hist-${modelId}`,
+      staticHash: `hist-${modelId}`,
+      trialIndex: 0,
+      tokensIn: 1_000_000,
+      tokensOut: 1_000_000,
+    });
+    db.prepare('UPDATE trials SET provider = ? WHERE model_id = ?').run(provider, modelId);
+  };
+
+  it('names a model without a price instead of costing it at zero', () => {
+    history('gpt-4o-mini', 'openai');
+    history('small', 'mistral');
+    const result = estimateRunCost(
+      [
+        resolvedRun({ modelId: 'gpt-4o-mini', promptSha: 'N', staticHash: 'N', trialCount: 1 }),
+        resolvedRun({
+          provider: 'mistral',
+          modelId: 'small',
+          promptSha: 'N',
+          staticHash: 'N',
+          trialCount: 1,
+        }),
+      ],
+      CATALOG,
+      db,
+    );
+    expect(result.unpricedModels).toEqual(['mistral:small']);
+    expect(result.pricedModelCount).toBe(1);
+    // Le total ne contient que le modèle tarifé.
+    expect(result.estimatedCostUsd).toBeCloseTo(0.15 + 0.6, 5);
+  });
+
+  it('does not flag a model without a price whose trials are all cached', () => {
+    // Rien à payer : zéro est ici la vérité, pas un prix manquant.
+    insertSuccessTrial(db, {
+      modelId: 'small',
+      promptSha: 'P',
+      staticHash: 'S',
+      trialIndex: 0,
+      tokensIn: 10,
+      tokensOut: 10,
+    });
+    const result = estimateRunCost(
+      [resolvedRun({ provider: 'mistral', modelId: 'small', promptSha: 'P', staticHash: 'S', trialCount: 1 })],
+      CATALOG,
+      db,
+    );
+    expect(result.freshTrials).toBe(0);
+    expect(result.unpricedModels).toEqual([]);
+  });
+});
+
+describe('formatCostEstimate', () => {
+  const estimate = (over: Partial<RunCostEstimate>): RunCostEstimate => ({
+    totalTrials: 10,
+    cachedTrials: 0,
+    freshTrials: 10,
+    estimatedCostUsd: 0,
+    modelsLackingData: [],
+    unpricedModels: [],
+    pricedModelCount: 0,
+    unresolvedPairs: 0,
+    ...over,
+  });
+
+  it('says « inconnu » when no model has a price, never ~$0.00', () => {
+    const line = formatCostEstimate(
+      estimate({ unpricedModels: ['mistral:small'] }),
+    );
+    expect(line).toContain('inconnu');
+    expect(line).not.toContain('$0.00');
+  });
+
+  it('says « partiel, 1 modèle sans prix » next to the priced part', () => {
+    const line = formatCostEstimate(
+      estimate({
+        estimatedCostUsd: 1.5,
+        pricedModelCount: 1,
+        unpricedModels: ['mistral:small'],
+      }),
+    );
+    expect(line).toContain('~$1.50');
+    expect(line).toContain('partiel, 1 modèle sans prix');
+    expect(line).toContain('mistral:small');
+  });
+
+  it('pluralizes the unpriced count', () => {
+    const line = formatCostEstimate(
+      estimate({
+        estimatedCostUsd: 1,
+        pricedModelCount: 1,
+        unpricedModels: ['a:x', 'b:y'],
+      }),
+    );
+    expect(line).toContain('partiel, 2 modèles sans prix');
+  });
+
+  it('prints a plain figure when every model is priced', () => {
+    expect(
+      formatCostEstimate(estimate({ estimatedCostUsd: 0.756, pricedModelCount: 2 })),
+    ).toBe('~$0.76');
+  });
+});
+
 describe('buildPlannedRuns', () => {
   it('marks pairs present in the resolved map as resolved, others not', () => {
     const variants = [
-      { name: 'v1', modelId: 'gpt-4.1' },
-      { name: 'v2', modelId: 'gpt-4.1' },
-    ] as never[];
+      { name: 'v1', provider: 'openai', modelId: 'gpt-4.1' },
+      { name: 'v2', provider: 'openai', modelId: 'gpt-4.1' },
+    ];
     const cases = [{ slug: 'c1' }, { slug: 'c2' }] as never[];
     const keys = new Map([
       ['v1\x00c1', { modelId: 'gpt-4.1', promptSha: 'p', staticHash: 's' }],
@@ -385,6 +529,7 @@ describe('buildPlannedRuns', () => {
     expect(planned).toHaveLength(4);
     expect(planned.filter((p) => p.resolved)).toHaveLength(1);
     expect(planned.find((p) => p.resolved)).toMatchObject({
+      provider: 'openai',
       modelId: 'gpt-4.1',
       promptSha: 'p',
       staticHash: 's',
