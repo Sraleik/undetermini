@@ -13,7 +13,7 @@
  *   - runOne: wrap the model with telemetryMiddleware(sink) FIRST, then the
  *     caller's extraMiddlewares (cache), call the LLM, return { output, telemetry }.
  *   - parse: reconstruct TOutput from a stored generate result (for rescore).
- *   - buildProviderOptions: map variant axes → provider blob (none needed here).
+ *   - buildProviderOptions: translate variant.setting → provider blob.
  */
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, wrapLanguageModel } from 'ai';
@@ -21,20 +21,37 @@ import type {
   LanguageModelV3GenerateResult,
   LanguageModelV3Middleware,
 } from '@ai-sdk/provider';
-import type { Subject, SubjectVariant } from '@undetermini/application/runner-loop';
+import type { Subject } from '@undetermini/application/runner-loop';
+import type { ModelVariant } from '@undetermini/core/models/variant';
 import type { CallTelemetry, TelemetrySink } from '@undetermini/application/telemetry-middleware';
 import { telemetryMiddleware } from '@undetermini/application/telemetry-middleware';
 import { exampleSentimentCases } from './cases';
 
 export type Sentiment = 'positive' | 'negative' | 'neutral';
 
-/** This example has no provider-option axes, so its variant is just the base
- *  `SubjectVariant` (a model). Named as the seam where a richer subject would
- *  define its own variant union (cf. the talent `EvalVariant`, which adds
- *  reasoning-effort / thinking-budget). */
-export type SentimentVariant = SubjectVariant;
+/** The settings this subject understands; the project types them, the lib never reads them. */
+export type SentimentSetting = { reasoningEffort: string };
+
+export type SentimentVariant = ModelVariant<SentimentSetting>;
 
 const openai = createOpenAI({ apiKey: process.env.OPEN_AI_API_KEY });
+
+/** One client per provider this subject serves. Any other provider is an error, never a fallback. */
+export const clientFor = (provider: string) => {
+  if (provider === 'openai') return openai;
+  throw new Error(
+    `Example — Sentiment ne sert pas le fournisseur "${provider}" : seul "openai" est branché.`,
+  );
+};
+
+/** Translate `variant.setting` into the options blob of the variant's provider. */
+export const buildProviderOptions = (
+  variant: SentimentVariant,
+): Record<string, unknown> | undefined => {
+  clientFor(variant.provider);
+  if (variant.setting === undefined) return undefined;
+  return { openai: { reasoningEffort: variant.setting.reasoningEffort } };
+};
 
 const SYSTEM_PROMPT = [
   'You are a sentiment classifier.',
@@ -72,7 +89,7 @@ const runOne = async ({
   // telemetry OUTERMOST so cache-hit lookups stay observable, then the caller's
   // cache middleware — same ordering as the talent subject.
   const model = wrapLanguageModel({
-    model: openai(variant.modelId),
+    model: clientFor(variant.provider)(variant.modelId),
     middleware: [telemetryMiddleware(sink), ...extraMiddlewares],
   });
 
@@ -109,9 +126,7 @@ export const exampleSentimentSubject: Subject<SentimentVariant, string, Sentimen
   ],
   runOne,
   parse,
-  // No provider-option axes for this example → always undefined (no
-  // defaultSettingsMiddleware injected, like the talent OpenAI-no-effort path).
-  buildProviderOptions: () => undefined,
+  buildProviderOptions,
 };
 
 /** Source-tree paths stamped on each run row (traceability), mirroring the

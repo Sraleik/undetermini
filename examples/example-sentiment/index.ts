@@ -4,4 +4,5 @@ export {
   EXAMPLE_SENTIMENT_CASES_DIR,
   type Sentiment,
   type SentimentVariant,
+  type SentimentSetting,
 } from './sentiment.subject';

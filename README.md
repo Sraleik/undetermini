@@ -95,6 +95,46 @@ Both binaries read the `.env` sitting at your project root, after moving there.
 **Importing the library does not**: if you write your own entry point that calls
 the runners, loading the environment is yours to do.
 
+### Declaring your models
+
+Your project lists its own models under the `models` key of `defineConfig`. Adding
+one needs no release of the library.
+
+```ts
+export default defineConfig({
+  subjects: { /* … */ },
+  models: [
+    {
+      provider: 'mistral',            // free string, never guessed by the engine
+      id: 'mistral-small-latest',
+      price: [                        // USD per million tokens, decimal strings
+        { from: '2026-07-01', input: '0.075', output: '0.3', cachedInput: '0.0375' },
+      ],
+      settings: { 'eff-low': { reasoningEffort: 'low' } },  // named, opaque to the lib
+    },
+    { provider: 'openai', id: 'gpt-4.1', price: [], retired: true },
+  ],
+});
+```
+
+* A model is identified by the pair `provider` + `id`. Two declarations with the
+  same pair are refused at load time, as is a model without a provider.
+* `settings` are named and typed by your project. The library never reads them: your
+  subject translates `variant.setting` for the route in its `buildProviderOptions`.
+* Prices are a list of periods, written as decimal strings (`'0.075'`, not
+  `'0,075'`). A trial costs the price in force on the day of its call. A model with
+  `price: []` still runs; its cost shows as unknown, never zero, and totals that
+  include it are partial.
+* `retired: true` replays the trials already in the database and never makes a new
+  call. A case it has never played shows as unavailable.
+* `undetermini models export` writes declarations from your database history
+  (or the two starter models for a new project). It never edits your config in
+  place: it keeps a copy as `undetermini.config.old.ts`.
+* `openrouter:<id>` on the command line is still accepted for a one-off try, with
+  no price and no declaration.
+
+Without `models`, 0.5.0 falls back to the built-in list and warns, naming the export command.
+
 ### Calling it from your own code
 
 ```ts

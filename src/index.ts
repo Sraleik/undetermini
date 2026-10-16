@@ -54,6 +54,7 @@ export type { CallTelemetry } from '@undetermini/application/telemetry-middlewar
 export type { EvalEvent, TrialCompletedPayload } from '@undetermini/application/event';
 
 // Pricing
+/** @deprecated Use `trialCost` with the prices declared in `models`; removed in 0.6.0. */
 export { computeCost } from '@undetermini/core/pricing';
 
 // Subject registry (composition root)
@@ -84,15 +85,35 @@ export { normalizeText, tokensInclude } from '@undetermini/core/text-utils';
 export { telemetryMiddleware } from '@undetermini/application/telemetry-middleware';
 export type { TelemetrySink } from '@undetermini/application/telemetry-middleware';
 
+// Declared models: the project lists its own models under `models` in its config.
+export type {
+  Model,
+  PricePeriod,
+  ModelKey,
+} from '@undetermini/core/models/model';
+export type { ModelVariant } from '@undetermini/core/models/variant';
+export type { ModelAxisInputs } from '@undetermini/core/models/expand';
+export { expandModels } from '@undetermini/core/models/expand';
+export type { Catalog } from '@undetermini/core/models/catalog';
+export { decodeCatalog } from '@undetermini/core/models/catalog';
+export { priceAt, trialCost } from '@undetermini/core/models/price';
+export { sumCosts } from '@undetermini/core/models/totals';
+export type { TrialStatus } from '@undetermini/core/models/totals';
+export { builtinModels } from '@undetermini/core/models/builtin';
+
 // Model capabilities (the model axis)
-export {
-  MODEL_CAPABILITIES,
-  getProvider,
-  knownModelIds,
-  supportsReasoningEffort,
-  supportsThinkingBudget,
-  toOpenAiReasoningEffort,
-} from '@undetermini/core/axes/model-capabilities';
+export { MODEL_CAPABILITIES } from '@undetermini/core/axes/model-capabilities';
+
+/** @deprecated Declare the model's provider in `models`; removed in 0.6.0. */
+export { getProvider } from '@undetermini/core/axes/model-capabilities';
+/** @deprecated Read the model ids from your declared `models`; removed in 0.6.0. */
+export { knownModelIds } from '@undetermini/core/axes/model-capabilities';
+/** @deprecated Settings are declared per model in `models`; removed in 0.6.0. */
+export { supportsReasoningEffort } from '@undetermini/core/axes/model-capabilities';
+/** @deprecated Settings are declared per model in `models`; removed in 0.6.0. */
+export { supportsThinkingBudget } from '@undetermini/core/axes/model-capabilities';
+/** @deprecated Translate `variant.setting` in your subject; removed in 0.6.0. */
+export { toOpenAiReasoningEffort } from '@undetermini/core/axes/model-capabilities';
 
 // Provider discriminant
 export type { Provider } from '@undetermini/core/variant';
@@ -128,6 +149,7 @@ export { buildKeyFromCallOptions } from '@undetermini/core/cache/key-builder';
 export { CATEGORY_DESCRIPTIONS_FR } from '@undetermini/core/categories';
 
 // Pricing provenance
+/** @deprecated Prices are declared per model in `models`; removed in 0.6.0. */
 export { PRICING_VERIFIED_AT } from '@undetermini/core/pricing';
 
 // Run provenance

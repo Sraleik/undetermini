@@ -39,6 +39,9 @@ export default defineConfig([
     platform: 'node',
     splitting: false,
     treeshake: true,
+    // dinero.js is ESM only: left external, the CJS barrel would `require` it and
+    // break on Node < 22.12, which `engines` still allows.
+    noExternal: [/^dinero\.js/, /^@dinero\.js\//],
   },
   {
     entry: { cli: 'entrypoints/cli/src/bin.ts', tui: 'entrypoints/tui/src/bin.ts' },
