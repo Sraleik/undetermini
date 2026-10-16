@@ -10,6 +10,8 @@
  * Each entry also carries the subject's `evalFile` / `casesDir` source paths,
  * which `writeRunToDb` stamps on every run row for traceability.
  */
+import { builtinModels } from '@undetermini/core/models/builtin';
+import { type Catalog, decodeCatalog } from '@undetermini/core/models/catalog';
 import type { Subject, SubjectVariant } from '../runner-loop';
 import {
   exampleSentimentSubject,
@@ -117,6 +119,14 @@ export const resolveSubject = (name: string): RegisteredSubject => {
 export type SubjectRegistry = {
   subjects: Record<string, RegisteredSubject>;
   defaultSubject: string;
+  /** Models the run may use. Optional until the switch task makes it required. */
+  models?: Catalog;
+};
+
+const builtinCatalog = (): Catalog => {
+  const decoded = decodeCatalog(builtinModels());
+  if (!decoded.ok) throw new Error(decoded.errors.join('\n'));
+  return decoded.catalog;
 };
 
 /** The registry the published binaries fall back on: the reference subject that
@@ -124,6 +134,7 @@ export type SubjectRegistry = {
 export const defaultRegistry: SubjectRegistry = {
   subjects: SUBJECTS,
   defaultSubject: DEFAULT_SUBJECT,
+  models: builtinCatalog(),
 };
 
 export const resolveIn = (

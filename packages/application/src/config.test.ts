@@ -50,3 +50,70 @@ it('enters the project and loads its .env before importing the config', async ()
   expect(realpathSync(seen.cwd)).toBe(project);
   expect(seen.probe).toBe('from-project');
 });
+
+// Models are declared in the project's config (ADR 0003). Each case writes its
+// own config in a fresh folder: the loader imports by path and node caches
+// modules, so a shared file would hand back the first test's models.
+const makeProject = (body: string): string => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'undetermini-models-')));
+  writeFileSync(join(dir, 'package.json'), '{"type":"module"}\n');
+  const path = join(dir, 'undetermini.config.ts');
+  writeFileSync(path, `export default ${body};\n`);
+  return path;
+};
+
+const PRICE = `[{ from: '2026-01-01', input: '1', output: '2', cachedInput: '0.5' }]`;
+
+it('keeps a declared mistral model in the catalog and uses no other source', async () => {
+  const path = makeProject(
+    `{ subjects: { s: {} }, models: [{ provider: 'mistral', id: 'large', price: ${PRICE} }] }`,
+  );
+  const { registry } = await loadRegistry(path, cwdBefore);
+
+  expect(registry.models?.find('mistral', 'large')).toBeDefined();
+  expect(registry.models?.models).toHaveLength(1);
+});
+
+it('refuses a model declared without a provider and names it', async () => {
+  const path = makeProject(
+    `{ subjects: { s: {} }, models: [{ id: 'orphan', price: ${PRICE} }] }`,
+  );
+
+  await expect(loadRegistry(path, cwdBefore)).rejects.toThrow(
+    new RegExp(`${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*orphan`),
+  );
+});
+
+it('falls back on the builtin list and warns with the export command', async () => {
+  const path = makeProject(`{ subjects: { s: {} } }`);
+  const warnings: string[] = [];
+  const { registry } = await loadRegistry(path, cwdBefore, {
+    onWarning: (message) => warnings.push(message),
+  });
+
+  expect(registry.models?.models.length).toBeGreaterThan(0);
+  expect(warnings).toHaveLength(1);
+  expect(warnings[0]).toContain('undetermini models export');
+  expect(warnings[0]).toContain(path);
+});
+
+it('warns once about a model declared without a price', async () => {
+  const path = makeProject(
+    `{ subjects: { s: {} }, models: [{ provider: 'mistral', id: 'large', price: [] }, { provider: 'mistral', id: 'small', price: ${PRICE} }] }`,
+  );
+  const warnings: string[] = [];
+  await loadRegistry(path, cwdBefore, {
+    onWarning: (message) => warnings.push(message),
+  });
+
+  expect(warnings).toHaveLength(1);
+  expect(warnings[0]).toContain('mistral:large');
+});
+
+it('refuses a static variant aimed at an undeclared model and names the variant', async () => {
+  const path = makeProject(
+    `{ subjects: { s: { subject: { name: 's', variants: [{ name: 'ghost__low', provider: 'mistral', modelId: 'ghost' }] } } }, models: [{ provider: 'mistral', id: 'large', price: ${PRICE} }] }`,
+  );
+
+  await expect(loadRegistry(path, cwdBefore)).rejects.toThrow(/ghost__low/);
+});

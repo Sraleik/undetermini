@@ -1,15 +1,27 @@
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { builtinModels } from '@undetermini/core/models/builtin';
+import { type Catalog, decodeCatalog } from '@undetermini/core/models/catalog';
+import type { Model } from '@undetermini/core/models/model';
 import type { SubjectRegistry } from './subjects/registry';
 import { defaultRegistry } from './subjects/registry';
 
-export type UndeterminiConfig = SubjectRegistry;
+export type UndeterminiConfig<TSetting = unknown> = Omit<
+  SubjectRegistry,
+  'models'
+> & {
+  /** The project's models. When present, the only source: no merge with the builtin list. */
+  models?: Model<TSetting>[];
+};
 
 /** Identity helper that exists for the type inference and the editor hints —
  *  the same role `defineConfig` plays in vite and vitest. */
-export const defineConfig = (config: UndeterminiConfig): UndeterminiConfig =>
-  config;
+export const defineConfig = <TSetting = unknown>(
+  config: UndeterminiConfig<TSetting>,
+): UndeterminiConfig<TSetting> => config;
+
+type OnWarning = (message: string) => void;
 
 const CONFIG_NAMES = [
   'undetermini.config.ts',
@@ -45,18 +57,71 @@ const importConfig = async (path: string): Promise<unknown> => {
   return import(pathToFileURL(path).href);
 };
 
-const readRegistry = (mod: unknown, path: string): SubjectRegistry => {
+const decodeOrThrow = (
+  raw: unknown,
+  path: string,
+  onWarning: OnWarning,
+): Catalog => {
+  const decoded = decodeCatalog(raw);
+  if (!decoded.ok) {
+    throw new Error(
+      `${path} : modèles refusés.\n${decoded.errors.map((error) => `- ${error}`).join('\n')}`,
+    );
+  }
+  decoded.warnings.forEach(onWarning);
+  return decoded.catalog;
+};
+
+/** Every static variant of a subject must aim at a declared (provider, id) pair. */
+const checkStaticVariants = (
+  subjects: SubjectRegistry['subjects'],
+  catalog: Catalog,
+  path: string,
+): void => {
+  const refused: string[] = [];
+  for (const [name, entry] of Object.entries(subjects)) {
+    for (const variant of entry.subject?.variants ?? []) {
+      if (catalog.find(variant.provider, variant.modelId) === undefined) {
+        refused.push(
+          `sujet « ${name} », variante « ${variant.name} » : ${variant.provider}:${variant.modelId} n'est pas déclaré`,
+        );
+      }
+    }
+  }
+  if (refused.length > 0) {
+    throw new Error(
+      `${path} : variantes vers un modèle non déclaré.\n${refused.map((line) => `- ${line}`).join('\n')}`,
+    );
+  }
+};
+
+const readRegistry = (
+  mod: unknown,
+  path: string,
+  onWarning: OnWarning,
+): SubjectRegistry => {
   const config = (mod as { default?: unknown }).default ?? mod;
-  const registry = config as Partial<SubjectRegistry>;
+  const registry = config as Partial<UndeterminiConfig>;
   if (registry.subjects === undefined) {
     throw new Error(
       `${path} does not export a config with a 'subjects' map. Export default defineConfig({ subjects, defaultSubject }).`,
     );
   }
+  let models: Catalog;
+  if (registry.models === undefined) {
+    onWarning(
+      `aucun modèle déclaré dans ${path} : liste intégrée utilisée ; lancez \`undetermini models export\``,
+    );
+    models = decodeOrThrow(builtinModels(), path, onWarning);
+  } else {
+    models = decodeOrThrow(registry.models, path, onWarning);
+    checkStaticVariants(registry.subjects, models, path);
+  }
   return {
     subjects: registry.subjects,
     defaultSubject:
       registry.defaultSubject ?? Object.keys(registry.subjects)[0] ?? '',
+    models,
   };
 };
 
@@ -78,8 +143,14 @@ export type LoadedRegistry = {
 export const loadRegistry = async (
   explicitPath?: string,
   cwd: string = process.cwd(),
-  opts: { chdirToProject?: boolean; loadEnv?: boolean } = {},
+  opts: {
+    chdirToProject?: boolean;
+    loadEnv?: boolean;
+    /** Receives the load-time warnings (builtin list used, unknown price). */
+    onWarning?: OnWarning;
+  } = {},
 ): Promise<LoadedRegistry> => {
+  const onWarning = opts.onWarning ?? ((message: string) => console.warn(message));
   // The chdir has to happen BEFORE the config is imported, not after: a subject
   // module can read files at import time — Kalent's does, loading a prompt from
   // `eval/prompts/` — and by then the working directory is already what decides
@@ -107,7 +178,7 @@ export const loadRegistry = async (
     }
     await enter(dirname(path));
     return {
-      registry: readRegistry(await importConfig(path), path),
+      registry: readRegistry(await importConfig(path), path, onWarning),
       projectDir: dirname(path),
     };
   }
@@ -121,7 +192,7 @@ export const loadRegistry = async (
   }
   await enter(dirname(found));
   return {
-    registry: readRegistry(await importConfig(found), found),
+    registry: readRegistry(await importConfig(found), found, onWarning),
     projectDir: dirname(found),
   };
 };
