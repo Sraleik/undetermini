@@ -17,12 +17,14 @@ import type { ReasoningEffortValue } from './axis-inputs';
  */
 export const computeVariantName = (input: {
   modelId: string;
+  settingName?: string;
   reasoningEffort?: ReasoningEffortValue;
   thinkingBudgetTokens?: number;
   sysPromptName?: string;
   schemaName?: string;
 }) => {
   const segments = [input.modelId];
+  if (input.settingName !== undefined) segments.push(input.settingName);
   if (input.reasoningEffort !== undefined) segments.push(`eff-${input.reasoningEffort}`);
   if (input.thinkingBudgetTokens !== undefined)
     segments.push(`think-${input.thinkingBudgetTokens}`);

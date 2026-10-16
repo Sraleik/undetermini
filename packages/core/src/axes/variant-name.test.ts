@@ -28,6 +28,25 @@ describe('computeVariantName', () => {
     });
   });
 
+  describe('given a settingName', () => {
+    it('appends the setting name right after the id', () => {
+      expect(computeVariantName({ modelId: 'gpt-5', settingName: 'eff-low' })).toBe(
+        'gpt-5__eff-low',
+      );
+    });
+
+    it('keeps the setting before sys and sch', () => {
+      expect(
+        computeVariantName({
+          modelId: 'gpt-5',
+          settingName: 'eff-low',
+          sysPromptName: 'v2',
+          schemaName: 'no-criteria',
+        }),
+      ).toBe('gpt-5__eff-low__sys-v2__sch-no-criteria');
+    });
+  });
+
   describe('given a sysPromptName', () => {
     it('appends a sys- segment', () => {
       expect(
